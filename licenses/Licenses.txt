@@ -1,0 +1,15 @@
+Boost (boost.org) is (C) Beman Dawes, David Abrahams, 1998-2005 and (C) Rene Rivera 2004-2007 and licensed under the Boost Software License, see licenses/LICENSE_1_0.txt.
+Boost Usage is optional and Boost code is not included in this project. Binaries using Boost will print „Folder Support enabled“.
+
+Mozjpeg (https://github.com/mozilla/mozjpeg/) is copyrighted by the Mozilla Corporation and licensed under the Mozjpeg license (see licenses/LICENCE.txt).
+Zlib (http://www.zlib.net/) is (C) 1995-2013 Jean-loup Gailly and Mark Adler and licensed under the Zlib license, see src/zlib/zlib.h and includes changes by cloudflare (https://github.com/cloudflare/zlib).
+Libpng (www.libpng.org/pub/png/libpng.html) is licensed under the PNG license in src/libpng/png.h and (C) Glenn Randers-Pehrson.
+Optipng (http://optipng.sourceforge.net/) is (C) 2001-2013 Cosmin Truta and licensed under the zlib license.
+Opngreduc (part of optipng) is (C) 2001-2013 Cosmin Truta and licensed under the libpng license.
+Cexcept (http://www.nicemice.net/cexcept/) is (C) 2000-2008 Adam M. Costello and Cosmin Truta and licensed under the Cexcept license.
+Zopfli and Zopflipng (https://code.google.com/p/zopfli/) are (C) Google Inc. and licensed under the Apache License, see src/zopfli/COPYING.
+Lodepng (https://github.com/lvandeve/lodepng/) is Copyright (c) 2005-2014 Lode Vandevenne and licensed under the Lodepng License, see src/zopfli/src/zopflipng/lodepng/lodepng.h.
+
+Zlib, Mozjpeg, Libpng, Optipng, Opngreduc, Zopfli, Zopflipng and Lodepng have been modified and are NOT the original versions.
+
+Versions used:

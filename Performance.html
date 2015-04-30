@@ -1,0 +1,45 @@
+<html>
+<head>
+  <title>ECT Performance</title>
+</head>
+<body>
+<h2>Performance</h2>
+All tests were done on a mid 2011 iMac running OS X 10.10 using an Intel i5-2500S. The test images are the images on the frontpages of the Alexa Top 25 sites.
+<table border="1">
+ <tr>
+   <td>Mode</td>
+   <td>Compression</td>
+   <td>Time</td>
+ </tr>
+ <tr>
+   <td>PNG -M1 -strip</td>
+   <td>713.76kB out of 5.79MB (12.05%)</td>
+   <td>16.5s</td>
+ </tr>
+ <tr>
+   <td>PNG -M2 -strip</td>
+   <td>892.81kB out of 5.79MB (15.07%)</td>
+   <td>7m 7.31s</td>
+ </tr>
+ <tr>
+   <td>PNG -M3 -strip</td>
+   <td>958.08kB out of 5.79MB (16.17%)</td>
+   <td>10m 27.07s</td>
+ </tr>
+ <tr>
+   <td>PNG -M4 -strip</td>
+   <td>1.01MB out of 5.79MB (16.64%)</td>
+   <td>18m 56.04s</td>
+ </tr>
+ <tr>
+   <td>JPEG -M1 -strip -progressive</td>
+   <td>446.94kB out of 4.64MB (9.40%)</td>
+   <td>3.34s</td>
+ </tr>
+</table></br>
+Decoding time usually stagnates. The only option changing this is -progressive which increases JPEG decoding time.</br>
+</br>
+</br>
+&copy; 2014-2015 Felix Hanau.
+</body>
+</html>

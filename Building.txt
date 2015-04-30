@@ -1,0 +1,27 @@
+Makefile Build:
+Use the Makefile to build  dependencies and the binary:
+cd src/
+make deps
+make
+
+Xcode Build (Mac only):
+Build the dependencies first:
+cd src/
+make deps
+Then, open the Xcode Project and compile the program.
+
+
+If you want Support for optimizing all files in a folder, you need to link the Boost.Filesystem and Boost.System libraries (boost.org) and define BOOST_SUPPORTED in main.cpp.
+This is already done in the Xcode project. In both cases you need to have Boost installed.
+If you don't want JPEG or PNG support you can undefine JPEG_SUPPORTED or PNG_SUPPORTED in main.h.
+
+Dependencies:
+Make
+NASM
+Boost (optional)
+
+Tested Operating Systems and Compilers:
+Debian Wheezy (GCC)
+Mac OS X 10.10 (GCC and LLVM/Clang)
+Windows 8 (MinGW)
+For using other compilers than GCC, you may need to change the Makefile.
