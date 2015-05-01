@@ -711,18 +711,17 @@ static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
                        const unsigned char* in, size_t instart, size_t inend,
                        unsigned char* bp, unsigned char** out,
                        size_t* outsize) {
-    //if (inend<0){
-    //    DeflateDynamicBlock(options, final, in, instart, inend, bp, out, outsize);
-    //}
-    //else {
+    /*Blocksplitting likely wont improve compression on small images*/
+    if (inend<1400){
+        DeflateDynamicBlock(options, final, in, instart, inend, bp, out, outsize);
+    }
+    else {
     /*if (options->blocksplittinglast) {
-      DeflateSplittingLast(options, final, in, instart, inend,
-                           bp, out, outsize);
+      DeflateSplittingLast(options, final, in, instart, inend, bp, out, outsize);
     } else {*/
-     DeflateSplittingFirst(options, final, in, instart, inend,
-                            bp, out, outsize);
+     DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize);
     /*}*/
-    //}
+    }
 }
 
 void ZopfliDeflate(const ZopfliOptions* options, int final,

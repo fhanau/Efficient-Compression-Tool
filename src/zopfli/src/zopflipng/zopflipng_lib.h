@@ -46,6 +46,6 @@ struct ZopfliPNGOptions {
   int chain_length;
 };
 
-unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter);
+unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter, int Mode, const char * Input);
 
 #endif  // ZOPFLIPNG_LIB_H_

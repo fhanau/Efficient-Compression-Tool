@@ -456,7 +456,6 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
   size_t pathsize = 0;
   ZopfliLZ77Store currentstore;
   SymbolStats stats, beststats, laststats;
-  int i;
   double cost;
   double bestcost = ZOPFLI_LARGE_FLOAT;
   double lastcost = 0;
@@ -479,7 +478,7 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
 
   /* Repeat statistics with each time the cost model from the previous stat
   run. */
-  for (i = 1; i < s->options->numiterations+1; i++) {
+  for (int i = 1; i < s->options->numiterations+1; i++) {
     ZopfliCleanLZ77Store(&currentstore);
     ZopfliInitLZ77Store(&currentstore);
     LZ77OptimalRun(s, in, instart, inend, &path, &pathsize,

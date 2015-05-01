@@ -4630,28 +4630,6 @@ void save_file(const std::vector<unsigned char>& buffer, const std::string& file
 }
 #endif //LODEPNG_COMPILE_DISK
 
-#ifdef LODEPNG_COMPILE_ZLIB
-#ifdef LODEPNG_COMPILE_DECODER
-unsigned decompress(std::vector<unsigned char>& out, const unsigned char* in, size_t insize,
-                    const LodePNGDecompressSettings& settings)
-{
-  unsigned char* buffer = 0;
-  size_t buffersize = 0;
-  unsigned error = zlib_decompress(&buffer, &buffersize, in, insize, &settings);
-  if(buffer)
-  {
-    out.insert(out.end(), &buffer[0], &buffer[buffersize]);
-    lodepng_free(buffer);
-  }
-  return error;
-}
-
-#endif //LODEPNG_COMPILE_DECODER
-
-
-#endif //LODEPNG_COMPILE_ZLIB
-
-
 #ifdef LODEPNG_COMPILE_PNG
 
 State::State()

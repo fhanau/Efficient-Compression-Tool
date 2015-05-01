@@ -49,28 +49,4 @@ unsigned getChunks(std::vector<std::string> names[3],
                    std::vector<std::vector<unsigned char> > chunks[3],
                    const std::vector<unsigned char>& png);
 
-/*
-Inserts chunks into the given png file. The chunks must be fully encoded,
-including length, type, content and CRC.
-The array index determines where it goes:
-0: between IHDR and PLTE, 1: between PLTE and IDAT, 2: between IDAT and IEND.
-They're appended at the end of those locations within the PNG.
-Returns 0 if ok, non-0 if error happened.
-*/
-unsigned insertChunks(std::vector<unsigned char>& png,
-                      const std::vector<std::vector<unsigned char> > chunks[3]);
-
-/*
-Get the filtertypes of each scanline in this PNG file.
-Returns 0 if ok, 1 if PNG decoding error happened.
-
-For a non-interlaced PNG, it returns one filtertype per scanline, in order.
-
-For interlaced PNGs, it returns a result as if it's not interlaced. It returns
-one filtertype per scanline, in order. The values match pass 6 and 7 of the
-Adam7 interlacing, alternating between the two, so that the values correspond
-the most to their scanlines.
-*/
-unsigned getFilterTypes(std::vector<unsigned char>& filterTypes, const std::vector<unsigned char>& png);
-
 } // namespace lodepng

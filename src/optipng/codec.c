@@ -22,9 +22,6 @@
 #include "opngcore.h"
 
 
-/*TODO: */
-typedef FILE *(*opng_get_FILE_ptr)(png_voidp io_ptr);
-
 static int opng_sig_is_png(png_structp png_ptr, png_bytep sig, size_t sig_size)
 {
     static const png_byte png_file_sig[8] = {137, 80, 78, 71, 13, 10, 26, 10};
@@ -44,7 +41,7 @@ static int opng_sig_is_png(png_structp png_ptr, png_bytep sig, size_t sig_size)
     return 1;  /*valid PNG*/
 }
 
-static int PNGAPI opng_read_image(png_structp png_ptr, png_infop info_ptr, opng_get_FILE_ptr get_FILE_fn)
+static int PNGAPI opng_read_image(png_structp png_ptr, png_infop info_ptr)
 {
     /* Precondition. */
 #ifdef PNG_FLAG_MALLOC_NULL_MEM_OK
@@ -52,20 +49,10 @@ static int PNGAPI opng_read_image(png_structp png_ptr, png_infop info_ptr, opng_
         png_error(png_ptr, "ECT requires a safe allocator");
 #endif
 
-    FILE *stream;
-    fpos_t fpos;
-
-    /* Read the signature bytes. */
-    if (get_FILE_fn != NULL)
-        stream = get_FILE_fn(png_get_io_ptr(png_ptr));
-    else
-        stream = (FILE *)png_get_io_ptr(png_ptr);
-    if (fgetpos(stream, &fpos) != 0)
-        png_error(png_ptr, "Can't ftell in input file stream");
+    FILE * stream = ((struct opng_codec_context *)(png_get_io_ptr(png_ptr)))->stream;
     png_byte sig[128];
-    size_t num = fread(sig, 1, sizeof(sig), stream);
-    if (fsetpos(stream, &fpos) != 0)
-        png_error(png_ptr, "Can't fseek in input file stream");
+    size_t num = fread(sig, 1, 128, stream);
+    rewind(stream);
     if (opng_sig_is_png(png_ptr, sig, num) > 0)
     {
         png_read_png(png_ptr, info_ptr, 0, NULL);
@@ -160,7 +147,6 @@ void opng_init_codec_context(struct opng_codec_context *context, struct opng_ima
     context->image = image;
     context->stats = stats;
     context->transformer = transformer;
-    context->expected_idat_size = OPNG_IDAT_SIZE_MAX + 1;
 }
 
 /*
@@ -213,14 +199,6 @@ static void opng_set_keep_unknown_chunk(png_structp png_ptr, int keep, png_bytep
     chunk_name[4] = 0;
     if (!png_handle_as_unknown(png_ptr, chunk_name))
         png_set_keep_unknown_chunks(png_ptr, keep, chunk_name, 1);
-}
-
-/*
- * Retrieves the file stream from libpng's io_ptr field.
- */
-static FILE * opng_user_get_FILE(png_voidp io_ptr)
-{
-    return ((struct opng_codec_context *)io_ptr)->stream;
 }
 
 /*
@@ -299,7 +277,6 @@ static void opng_read_data(png_structp png_ptr, png_bytep data, size_t length)
         stats->datastream_offset = ftell(stream) - 8;
         if (stats->datastream_offset < 0)
             png_error(png_ptr,"Can't get the file-position indicator in file");
-        stats->file_size = (unsigned long)stats->datastream_offset;
     }
     stats->file_size += length;
 
@@ -323,13 +300,11 @@ static void opng_read_data(png_structp png_ptr, png_bytep data, size_t length)
                  * libpng. This allows to initialize the contents and perform
                  * recovery in case of a premature EOF.
                  */
-                OPNG_ASSERT(stats->idat_size == 0, "Found IDAT with no rows");
                 if (png_get_image_height(context->libpng_ptr, context->info_ptr) == 0)
                     return;  /* premature IDAT; an error will occur later */
                 png_data_freer(context->libpng_ptr, context->info_ptr, PNG_USER_WILL_FREE_DATA, PNG_FREE_ROWS);
             }
             /* Else there is split IDAT overhead. Join IDATs. */
-            stats->idat_size += png_get_uint_32(data);
         }
         else
             opng_handle_chunk(png_ptr, chunk_sig);
@@ -384,25 +359,7 @@ static void opng_write_data(png_structp png_ptr, png_bytep data, size_t length)
             {
                 /* This is the header of the first IDAT. */
                 context->crt_idat_offset = ftell(stream);
-                /* Try guessing the size of the final (joined) IDAT. */
-                if (context->expected_idat_size <= OPNG_IDAT_SIZE_MAX)
-                {
-                    /* The guess is expected to be right. */
-                    context->crt_idat_size = context->expected_idat_size;
-                    /* TODO:
-                     * This algorithm can't handle IDAT sizes larger than
-                     * the maximum chunk size (2**31 - 1) correctly.
-                     */
-                    if (context->expected_idat_size > 2147483647)
-                        png_error(png_ptr,  "Can't write IDAT if size >= 2GB");
-                }
-                else
-                {
-                    /* The guess could be wrong.
-                     * The size of the final IDAT will be revised.
-                     */
-                    context->crt_idat_size = length;
-                }
+                context->crt_idat_size = length;
                 png_save_uint_32(data, (png_uint_32)context->crt_idat_size);
                 /* Start computing the CRC of the final IDAT. */
                 context->crt_idat_crc = crc32(0, opng_sig_IDAT, 4);
@@ -422,9 +379,7 @@ static void opng_write_data(png_structp png_ptr, png_bytep data, size_t length)
                  * Finalize IDAT before resuming the normal operation.
                  */
                 png_save_uint_32(buf, context->crt_idat_crc);
-                if (fwrite(buf, 1, 4, stream) != 4)
-                    io_state = 0;  /* error */
-                stats->file_size += 4;
+                fwrite(buf, 1, 4, stream);
                 if (stats->idat_size != context->crt_idat_size)
                 {
                     /* The IDAT size, unknown at the start of encoding,
@@ -457,15 +412,13 @@ static void opng_write_data(png_structp png_ptr, png_bytep data, size_t length)
     /* Write the data. */
     if (fwrite(data, 1, length, stream) != length)
         png_error(png_ptr, "Can't write file");
-    stats->file_size += length;
 }
 
 /*
- * Imports an image from an image file stream.
- * The image may be either in PNG format or in an external file format.
+ * Imports an image from an PNG file stream.
  * The function returns 0 on success or -1 on error.
  */
-int opng_decode_image(struct opng_codec_context *context, FILE *stream, const char *fname)
+int opng_decode_image(struct opng_codec_context *context, FILE *stream, const char *fname, bool force_no_palette)
 {
     context->libpng_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, opng_read_error, opng_read_warning);
     context->info_ptr = png_create_info_struct(context->libpng_ptr);
@@ -482,26 +435,18 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
     opng_init_stats(stats);
     context->stream = stream;
     context->fname = fname;
+    if (force_no_palette) {
+    png_set_palette_to_rgb(context->libpng_ptr);
+    }
 
     Try
     {
         png_set_keep_unknown_chunks(context->libpng_ptr, PNG_HANDLE_CHUNK_ALWAYS, NULL, 0);
         png_set_read_fn(context->libpng_ptr, context, opng_read_data);
-        if (opng_read_image(context->libpng_ptr, context->info_ptr, opng_user_get_FILE) <= 0)
+        if (opng_read_image(context->libpng_ptr, context->info_ptr) <= 0)
         {
             opng_error(context->fname, "Unrecognized image file format");
             return -1;
-        }
-        if (stats->file_size == 0)
-        {
-            if (fseek(context->stream, 0, SEEK_END) == 0)
-            {
-                stats->file_size = (unsigned long)ftell(context->stream);
-                if (stats->file_size > LONG_MAX)
-                    stats->file_size = 0;
-            }
-            if (stats->file_size == 0)
-                opng_warning(context->fname, "Can't get the file size");
         }
     }
     Catch (err_msg)
@@ -521,7 +466,6 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
             return -1;
         }
     }
-
     opng_load_image(context->image, context->libpng_ptr, context->info_ptr);
     return 0;
 }
@@ -529,13 +473,13 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
 /*
  * Attempts to reduce the imported image.
  */
-int opng_decode_reduce_image(struct opng_codec_context *context, int reductions, bool force_palette_if_possible, bool force_no_palette)
+int opng_decode_reduce_image(struct opng_codec_context *context, int reductions, bool force_palette_if_possible)
 {
     const char * volatile err_msg;  /* volatile is required by cexcept */
 
     Try
     {
-        png_uint_32 result = opng_reduce_image(context->libpng_ptr, context->info_ptr, (png_uint_32)reductions, force_palette_if_possible, force_no_palette);
+        png_uint_32 result = opng_reduce_image(context->libpng_ptr, context->info_ptr, (png_uint_32)reductions, force_palette_if_possible);
         if (result != OPNG_REDUCE_NONE)
         {
             /* Write over the old image object. */
@@ -614,15 +558,9 @@ int opng_encode_image(struct opng_codec_context *context, int filter, FILE *stre
     }
     Catch (err_msg)
     {
-        /* err_msg can be NULL if this was an interrupted trial.
-         * Set IDAT size to anything beyond OPNG_IDAT_SIZE_MAX.
-         */
-        stats->idat_size = OPNG_IDAT_SIZE_MAX + 1;
-        if (err_msg != NULL)
-        {
-            opng_error(fname, err_msg);
-            return -1;
-        }
+        stats->idat_size = OPTK_INT64_MAX;
+        opng_error(fname, err_msg);
+        return -1;
     }
     return 0;
 }
@@ -639,7 +577,7 @@ void opng_encode_finish(struct opng_codec_context *context)
 /*
  * Copies a PNG file stream to another PNG file stream.
  */
-int opng_copy_png(struct opng_codec_context *context,FILE *in_stream, const char *in_fname,FILE *out_stream, const char *out_fname)
+int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const char *in_fname, FILE *out_stream, const char *out_fname)
 {
     volatile png_bytep buf;  /* volatile is required by cexcept */
     const png_uint_32 buf_size_incr = 0x1000;

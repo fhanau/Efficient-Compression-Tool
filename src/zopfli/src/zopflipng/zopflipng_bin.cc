@@ -45,7 +45,7 @@ int Zopflipng(int iterationnum, bool Metaremove, const char * Input, bool strict
     std::vector<unsigned char> origpng;
     lodepng::load_file(origpng, Input);
     std::vector<unsigned char> resultpng;
-    if (ZopfliPNGOptimize(origpng, png_options, &resultpng, best_filter)) {return 2;}
+    if (ZopfliPNGOptimize(origpng, png_options, &resultpng, best_filter, Mode, Input)) {return 2;}
     if (resultpng.size() >= origpng.size()) {return 1;}
     lodepng::save_file(resultpng, Input);
     return 0;

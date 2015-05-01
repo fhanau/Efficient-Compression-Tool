@@ -52,7 +52,7 @@ int PNGAPI opng_validate_image(png_structp png_ptr, png_infop info_ptr);
  * The parameter reductions indicates the intended reductions.
  * The function returns the successful reductions.
  */
-png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, png_uint_32 reductions, bool force_palette_if_possible, bool force_no_palette);
+png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, png_uint_32 reductions, bool force_palette_if_possible);
 
 /*
  * PNG reduction flags.

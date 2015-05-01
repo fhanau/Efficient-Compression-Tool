@@ -1,13 +1,13 @@
 CC = gcc
 CXX = g++
-CFLAGS =-Ofast -DNDEBUG -std=gnu11
+CFLAGS = -Ofast -DNDEBUG -std=gnu11
 CXXFLAGS= -Ofast -DNDEBUG -std=gnu++11
 
 OBJECTS = blocksplitter.o cache.o codec.o deflate.o hash.o image.o katajainen.o lz77.o opngreduc.o squeeze.o trans.o tree.o util.o
 CXXSRC = support.cpp zopfli/src/zopflipng/zopflipng_lib.cc zopfli/src/zopflipng/zopflipng_bin.cc \
 zopfli/src/zopflipng/lodepng/lodepng.cpp zopfli/src/zopflipng/lodepng/lodepng_util.cpp optipng/optipng.cpp jpegtran.cpp
 
-.PHONY: zlib libpng mozjpeg all
+.PHONY: zlib libpng mozjpeg deps all
 all:
 	$(CC) -c $(CFLAGS) optipng/codec.c optipng/image.c optipng/trans.c \
 	zopfli/src/zopfli/util.c zopfli/src/zopfli/deflate.c zopfli/src/zopfli/squeeze.c zopfli/src/zopfli/lz77.c zopfli/src/zopfli/katajainen.c \

@@ -98,7 +98,7 @@ static int opng_insert_palette_entry(png_colorp palette, int *num_palette, png_b
       while (low <= high)
       {
          mid = (low + high) / 2;
-         cmp = OPNG_CMP_ARGB(alpha, red, green, blue,trans_alpha[mid], palette[mid].red, palette[mid].green, palette[mid].blue);
+         cmp = OPNG_CMP_ARGB(alpha, red, green, blue, trans_alpha[mid], palette[mid].red, palette[mid].green, palette[mid].blue);
          if (cmp < 0)
             high = mid - 1;
          else if (cmp > 0)
@@ -277,7 +277,7 @@ static png_uint_32 opng_analyze_bits(png_structp png_ptr, png_infop info_ptr, pn
 {
    png_uint_32 height, width;
    int bit_depth, color_type;
-   png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type,NULL, NULL, NULL);
+   png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL);
    if (bit_depth < 8)
       return OPNG_REDUCE_NONE;  /* not applicable */
    if (color_type & PNG_COLOR_MASK_PALETTE)
@@ -1174,7 +1174,7 @@ static png_uint_32 opng_reduce_palette(png_structp png_ptr, png_infop info_ptr, 
  * The parameter reductions indicates the intended reductions.
  * The function returns the successful reductions.
  */
-png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, png_uint_32 reductions, bool force_palette_if_possible, bool force_no_palette)
+png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, png_uint_32 reductions, bool force_palette_if_possible)
 {
    if (!opng_validate_image(png_ptr, info_ptr))
    {
@@ -1183,6 +1183,7 @@ png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, pn
    }
 
    int color_type = png_get_color_type(png_ptr, info_ptr);
+
 
    /* The reductions below must be applied in this particular order. */
 
@@ -1209,4 +1210,5 @@ png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, pn
 
    return result;
 }
+
 #endif /* OPNG_IMAGE_REDUCTIONS_SUPPORTED */

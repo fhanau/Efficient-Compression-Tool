@@ -113,7 +113,7 @@ static void opng_print_image_info_line(const struct opng_image *image)
     }
     else
     {
-        opng_printf(", %s%s%s\n",image->color_type & PNG_COLOR_MASK_COLOR ? "RGB" : "grayscale", image->color_type & PNG_COLOR_MASK_ALPHA ? "+alpha" : "",
+        opng_printf(", %s%s%s\n", image->color_type & PNG_COLOR_MASK_COLOR ? "RGB" : "grayscale", image->color_type & PNG_COLOR_MASK_ALPHA ? "+alpha" : "",
                     image->trans_color_ptr != NULL ? "+transparency" : "");
     }
 }
@@ -153,7 +153,7 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
     struct opng_encoding_stats *stats = &session->in_stats;
 
     opng_init_codec_context(&context, image, stats, session->transformer);
-    if (opng_decode_image(&context, stream, session->in_fname) < 0)
+    if (opng_decode_image(&context, stream, session->in_fname, force_no_palette) < 0)
     {
         opng_decode_finish(&context, 1);
         return -1;
@@ -168,8 +168,6 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
 #ifndef NDEBUG
     opng_print_image_info_line(image);
 #endif
-    opng_printf("   IDAT size = %llu bytes\n"
-                "   file size = %llu bytes\n", stats->idat_size, stats->file_size);
     if (stats->flags & OPNG_HAS_SNIPPED_IMAGES)
     {
         opng_printf("Snipping:\n");
@@ -183,7 +181,7 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
 
     // Choose the applicable image reductions.
     int reductions = OPNG_REDUCE_ALL;
-    if (options->nz  || stats->flags & OPNG_HAS_DIGITAL_SIGNATURE || stats->flags & OPNG_HAS_MULTIPLE_IMAGES)
+    if (options->nz  || stats->flags & OPNG_HAS_DIGITAL_SIGNATURE || stats->flags & OPNG_HAS_MULTIPLE_IMAGES || force_no_palette)
     {
         // Do not reduce files with PNG datastreams under -nz, signed files or files with APNG chunks.
         reductions = OPNG_REDUCE_NONE;
@@ -198,7 +196,7 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
     }
     // Try to reduce the image.
     if (reductions != OPNG_REDUCE_NONE){
-        reductions = opng_decode_reduce_image(&context, reductions, force_palette_if_possible, force_no_palette);
+        reductions = opng_decode_reduce_image(&context, reductions, force_palette_if_possible);
         opng_printf("Reducing:\n");
 #ifndef NDEBUG
         opng_print_image_info_line(image);
@@ -234,13 +232,13 @@ static int opng_write_file(struct opng_session *session, int filter, FILE *strea
 static int opng_copy_file(struct opng_session *session, FILE *in_stream, FILE *out_stream)
 {
     struct opng_codec_context context;
-    opng_init_codec_context(&context,NULL, &session->out_stats, session->transformer);
-    return opng_copy_png(&context, in_stream, session->in_fname,out_stream, session->out_fname);
+    opng_init_codec_context(&context, NULL, &session->out_stats, session->transformer);
+    return opng_copy_png(&context, in_stream, session->in_fname, out_stream, session->out_fname);
 }
 
 static int opng_optimize_impl(struct opng_session *session, const char *in_fname, bool force_palette_if_possible, bool force_no_palette)
 {
-    int optimal_filter=-1;
+    int optimal_filter = -1;
     FILE * fstream = fopen(in_fname, "rb");
     if (fstream == NULL)
     {
@@ -281,12 +279,14 @@ static int opng_optimize_impl(struct opng_session *session, const char *in_fname
         return -1;
     }
     // Check the backup file.
-    if (exists(((std::string)in_fname).append(".bak").c_str()) > 0 || (!options->nz && (exists(((std::string)in_fname).append(".bak2").c_str()) > 0)))
+    if ((!force_no_palette && exists(((std::string)in_fname).append(".bak").c_str()) > 0) || (!options->nz && (exists(((std::string)in_fname).append(".bak2").c_str()) > 0)))
     {   opng_error(in_fname, "Can't back up the output file");
         return -1;
     }
     // Todo: check backup write perms
+    if (!force_no_palette) {
     rename(in_fname, (((std::string)in_fname).append(".bak")).c_str());
+    }
     if (options->nz){
         fstream = fopen((((std::string)in_fname).append(".bak")).c_str(), "rb");
         if (fstream == NULL)
@@ -314,7 +314,12 @@ static int opng_optimize_impl(struct opng_session *session, const char *in_fname
              filter <= OPNG_FILTER_MAX; ++filter)
         {
             if (filter > 0 && filter < 5 && options->optim_level != 5){continue;}
-            fstream = fopen(filter == OPNG_FILTER_MIN ? in_fname: ((std::string)in_fname).append(".bak2").c_str(), "wb");
+            if (force_no_palette){
+                fstream = fopen(((std::string)in_fname).append(".bak2").c_str(), "wb");
+            }
+            else {
+                fstream = fopen(filter == OPNG_FILTER_MIN ? in_fname: ((std::string)in_fname).append(".bak2").c_str(), "wb");
+            }
             opng_write_file(session, filter, fstream, options->optim_level);
             fclose(fstream);
             if (filter == OPNG_FILTER_MIN){
@@ -324,13 +329,14 @@ static int opng_optimize_impl(struct opng_session *session, const char *in_fname
             else {
                 if (best_idat<=session->out_stats.idat_size){unlink((((std::string)in_fname).append(".bak2")).c_str());
                 }
-                else{unlink(in_fname);
-                    rename((((std::string)in_fname).append(".bak2")).c_str(), in_fname);
+                else{
+                    if (force_no_palette){unlink((((std::string)in_fname).append(".bak2")).c_str());}
+                    else{unlink(in_fname);
+                        rename((((std::string)in_fname).append(".bak2")).c_str(), in_fname);}
                     best_idat = session->out_stats.idat_size;
                     optimal_filter = filter;}
             }
         }
-        //opng_printf("Trying: %d combination%s\n", filter+1, filter == 0 ? "" : "s");
     }
     return optimal_filter;
 }
@@ -371,7 +377,7 @@ int Optipng(int filter, const char * Input, bool force_palette_if_possible, bool
     }
     the_optimizer->options = options;
     the_optimizer->transformer = opng_seal_transformer(the_transformer);
-    int rval = opng_optimize_file(the_optimizer,Input, force_palette_if_possible, force_no_palette);
+    int rval = opng_optimize_file(the_optimizer, Input, force_palette_if_possible, force_no_palette);
     free(the_optimizer);
     opng_destroy_transformer(the_transformer);
     return rval;

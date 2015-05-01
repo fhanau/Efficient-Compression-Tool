@@ -690,15 +690,6 @@ without warning.
 void save_file(const std::vector<unsigned char>& buffer, const std::string& filename);
 #endif //LODEPNG_COMPILE_DISK
 #endif //LODEPNG_COMPILE_PNG
-
-#ifdef LODEPNG_COMPILE_ZLIB
-#ifdef LODEPNG_COMPILE_DECODER
-//Zlib-decompress an unsigned char buffer
-unsigned decompress(std::vector<unsigned char>& out, const unsigned char* in, size_t insize,
-                    const LodePNGDecompressSettings& settings = lodepng_default_decompress_settings);
-#endif //LODEPNG_COMPILE_DECODER
-
-#endif //LODEPNG_COMPILE_ZLIB
 } //namespace lodepng
 #endif /*LODEPNG_COMPILE_CPP*/
 

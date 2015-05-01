@@ -57,7 +57,7 @@ static void opng_sigs_sort_uniq(struct opng_sigs *sigs)
 
     /* Sort. */
     qsort(buffer, count, 4, opng_sigs_cmp);
-    size_t i,j;
+    size_t i, j;
     /* Uniq. */
     for (i = 1, j = 0; i < count; ++i)
     {
@@ -101,21 +101,6 @@ static int opng_sigs_find(const struct opng_sigs *sigs, const png_byte *chunk_si
 static int opng_sigs_add(struct opng_sigs *sigs, const char *chunk_name)
 {
     const png_byte * chunk_sig = (const png_byte *)chunk_name;
-
-    /* If the maximum buffer size is reached, sort the buffer, remove
-     * duplicates and check if the signature to be added already exists.
-     * This allows the opng_sigs structure to maintain the properties
-     * of a set.
-     *
-     * This strategy allows fast insertions without interleaved lookups,
-     * followed by fast lookups without other insertions.
-     */
-    if (sigs->count >= OPNG_SIGS_SIZE_MAX)
-    {
-        opng_sigs_sort_uniq(sigs);
-        if (opng_sigs_find(sigs, chunk_sig))
-            return 0;
-    }
 
     /* If the current buffer is filled, reallocate a larger size. */
     if (sigs->count >= sigs->capacity)
@@ -194,7 +179,7 @@ void opng_transform_chunk (opng_transformer_t *transformer, const char *chunk, i
                 err_message = "Use -strip apngc to strip APNG chunks";
             }
             if (err_message!=NULL){
-                printf("%s",err_message);
+                printf("%s", err_message);
                 return;
             }
         }

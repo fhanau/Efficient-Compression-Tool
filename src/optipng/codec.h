@@ -52,7 +52,6 @@ struct opng_codec_context
     const opng_transformer_t *transformer;
     optk_int64_t crt_idat_offset;
     optk_uint64_t crt_idat_size;
-    optk_uint64_t expected_idat_size;
     png_uint_32 crt_idat_crc;
     int crt_chunk_is_allowed;
     int crt_chunk_is_idat;
@@ -70,12 +69,6 @@ enum
     OPNG_HAS_ERRORS            = 0x0100,
 };
 
-/* File-level IDAT constants.
- * The (global) IDAT size is the sum of all IDAT chunk sizes.
- */
-    /* This is a gigantic and yet practical soft limit. */
-static const optk_uint64_t OPNG_IDAT_SIZE_MAX = OPTK_INT64_MAX;
-
 /*
  * Initializes a codec context object.
  */
@@ -86,7 +79,7 @@ void opng_init_codec_context(struct opng_codec_context *context, struct opng_ima
  * The image may be either in PNG format or in an external file format.
  * The function returns 0 on success or -1 on error.
  */
-int opng_decode_image(struct opng_codec_context *context,FILE *stream, const char *fname);
+int opng_decode_image(struct opng_codec_context *context, FILE *stream, const char *fname, bool force_no_palette);
 
 /*
  * Attempts to reduce the imported image.
@@ -94,7 +87,7 @@ int opng_decode_image(struct opng_codec_context *context,FILE *stream, const cha
  * or -1 on error.
  * No error is normally expected to occur; if it does, it indicates a defect.
  */
-int opng_decode_reduce_image(struct opng_codec_context *context, int reductions, bool force_palette_if_possible, bool force_no_palette);
+int opng_decode_reduce_image(struct opng_codec_context *context, int reductions, bool force_palette_if_possible);
 
 /*
  * Stops the decoder.
@@ -122,7 +115,7 @@ void opng_encode_finish(struct opng_codec_context *context);
  * Copies a PNG file stream to another PNG file stream.
  * The function returns 0 on success or -1 on error.
  */
-int opng_copy_png(struct opng_codec_context *context,FILE *in_stream, const char *in_fname,FILE *out_stream, const char *out_fname);
+int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const char *in_fname, FILE *out_stream, const char *out_fname);
 
 /*
  * Tests whether the given chunk is an image chunk.

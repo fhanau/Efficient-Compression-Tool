@@ -28,6 +28,7 @@
 #include "lodepng/lodepng.h"
 #include "lodepng/lodepng_util.h"
 #include "../zopfli/deflate.h"
+#include "../../../main.h"
 
 ZopfliPNGOptions::ZopfliPNGOptions()
   : lossy_transparent(true)
@@ -144,11 +145,13 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
   }
 }
 
+
+
 // Tries to optimize given a single PNG filter strategy.
 // Returns 0 if ok, other value for error
 static unsigned TryOptimize(
-    const std::vector<unsigned char>& image, const std::vector<unsigned char>& origfile,unsigned w, unsigned h, const lodepng::State& inputstate, bool bit16, const ZopfliPNGOptions* png_options, std::vector<unsigned char>* out
-                            /*, int best_filter*/) {
+    const std::vector<unsigned char>& image, unsigned w, unsigned h, const lodepng::State& inputstate, bool bit16, const ZopfliPNGOptions* png_options, std::vector<unsigned char>* out, int best_filter
+                            , int Mode, const char * Input) {
     lodepng::State state;
     state.encoder.zlibsettings.custom_deflate = CustomPNGDeflate;
     state.encoder.zlibsettings.custom_context = png_options;
@@ -165,59 +168,40 @@ static unsigned TryOptimize(
         state.info_raw.bitdepth = 16;
     }
 
-
-  std::vector<unsigned char> filters;
-    lodepng::getFilterTypes(filters, origfile);
-    state.encoder.filter_strategy = LFS_PREDEFINED;
-    state.encoder.predefined_filters = &filters[0];
-    /*if (best_filter == 0)
+    if (best_filter == 0)
     {state.encoder.filter_strategy = LFS_ZERO;}
     else if (best_filter== 5)
-    {state.encoder.filter_strategy = LFS_MINSUM;}
+    //{state.encoder.filter_strategy = LFS_MINSUM;}
+        {state.encoder.filter_strategy = LFS_ENTROPY;}
     else {
         std::vector<unsigned char> filters;
         filters.resize(h, best_filter);
         state.encoder.filter_strategy = LFS_PREDEFINED;
         state.encoder.predefined_filters = &filters[0];
-    }*/
+    }
 
-
-
-
+    //Palette sorting (Should be in seperate function)
     /*if (state.info_png.color.colortype == LCT_PALETTE){
-        //const char * x=state.info_png.color.palette;
         unsigned char * pal = state.info_png.color.palette;
         lodepng_palette_clear(&state.info_png.color);
-        std::vector<int> bigga;
+        std::vector<int> sort;
         for (size_t x = 0; x < state.info_png.color.palettesize; x++){
             int v=x*4;
-            bigga[x]=pal[v]+pal[v+1]+pal[v+2];
+            sort[x]=pal[v]+pal[v+1]+pal[v+2];
         }
         for(size_t f = 0; f < state.info_png.color.palettesize; f++){
         int d=0;
-        int detwelve = -1;
+        int highest = -1;
         for(size_t y = 0; y < state.info_png.color.palettesize; y++){
-            if (bigga[y]>d){
-                d = bigga[y];
-                detwelve = y;}
+            if (sort[y]>d){
+                d = sort[y];
+                highest = y;}
         }
-        bigga[detwelve]=-1;
-        //if (detwelve==-1){
-        //    break;
-        //}
+        sort[highest]=-1;
             int t=d*4;
             lodepng_palette_add(&state.info_png.color, pal[t], pal[t+1], pal[t+2], pal[t+3]);
-            //int v=f*4;
-            //pal2[v]=pal[t];
-            //pal2[v+1]=pal[t+1];
-            //pal2[v+2]=pal[t+2];
-            //pal2[v+3]=pal[t+4];
         }
-        //state.info_png.color.palette = pal2;
     }*/
-
-
-
 
     unsigned error = lodepng::encode(*out, image, w, h, state);
     // For very small output, also try without palette, it may be smaller thanks
@@ -230,8 +214,22 @@ static unsigned TryOptimize(
         LodePNGColorMode& color = teststate.info_png.color;
         if (color.colortype == LCT_PALETTE && (testboth < 2048 || color.palettesize>192) && (testboth < 1024 || color.palettesize>64) && (testboth < 512 || color.palettesize>40) && (testboth < 300 || color.palettesize>9))
         {
-            //Todo:
-            //Call zlib chain here again to get better filter and always force palette in zlib toolchain in other cases?
+            //This improves compression, but produces libpng warnings
+            /*if (Mode>2) {
+            best_filter = Optipng(Mode, Input, false, true);
+            if (best_filter == 0)
+            {state.encoder.filter_strategy = LFS_ZERO;}
+            else if (best_filter== 5)
+                //{state.encoder.filter_strategy = LFS_MINSUM;}
+            {state.encoder.filter_strategy = LFS_ENTROPY;}
+            else {
+                std::vector<unsigned char> filters;
+                filters.resize(h, best_filter);
+                state.encoder.filter_strategy = LFS_PREDEFINED;
+                state.encoder.predefined_filters = &filters[0];
+            }
+            }*/
+
             std::vector<unsigned char> out2;
             state.encoder.auto_convert = 0;
             bool grey = true;
@@ -263,10 +261,7 @@ static unsigned TryOptimize(
   return 0;
 }
 
-unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng,
-    const ZopfliPNGOptions& png_options,
-    std::vector<unsigned char>* resultpng, int best_filter
-                           ) {
+unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter, int Mode, const char * Input) {
   std::vector<unsigned char> image;
   unsigned w, h;
   unsigned error;
@@ -294,7 +289,7 @@ unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng,
     }
   }
     std::vector<unsigned char> temp;
-    error = TryOptimize(image, origpng, w, h, inputstate, bit16, &png_options, &temp/*, best_filter*/);
+    error = TryOptimize(image, w, h, inputstate, bit16, &png_options, &temp, best_filter, Mode, Input);
     if (!error) {
         (*resultpng).swap(temp);  // Store best result so far in the output.
     }

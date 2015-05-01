@@ -72,8 +72,7 @@ static void ECT_ReportSavings(){
     else if (bk==3){counter2=(char *)"G";}
     else {counter2=(char *)"";}
     printf("Processed %lu file%s\n"
-           "Saved "
-           ,processedfiles, processedfiles>1 ? "s":"");
+           "Saved ", processedfiles, processedfiles>1 ? "s":"");
     if (k==0){printf("%0.0f", smul);}
     else{printf("%0.2f", smul);}
     printf("%sB out of ", counter);
@@ -84,76 +83,81 @@ static void ECT_ReportSavings(){
 }
 
 #ifdef PNG_SUPPORTED
-static void OptimizePNG(const char * Filepath, const ECTOptions& ECTopt){
+static void OptimizePNG(const char * Filepath, const ECTOptions& Options){
     int x=1;
     long long size = filesize(Filepath);
-    if(ECTopt.Mode==5){
-        Zopflipng(1,ECTopt.Metadata,Filepath,ECTopt.Strict, 2, 0);
+    if(Options.Mode==5){
+        x=Zopflipng(1, Options.Metadata, Filepath, Options.Strict, 2, 0);
     }
-    int filter = Optipng(ECTopt.Mode,Filepath, false, false);
+    //Disabled as using this causes libpng warnings
+    //if (Options.mode>2)
+    //int filter = Optipng(Options.Mode, Filepath, Options.Mode!=1, false);
+    int filter = Optipng(Options.Mode, Filepath, false, false);
     if (filter == -1){
         return;
     }
-    if (ECTopt.Mode!=1){
-        int PNGiterations;
-        if (ECTopt.Mode==2){PNGiterations=1;}
-        else if (ECTopt.Mode==3){PNGiterations=5;}
-        else if (ECTopt.Mode==4){PNGiterations=15;}
-        else {PNGiterations=60;}
-        x=Zopflipng(PNGiterations,ECTopt.Metadata,Filepath,ECTopt.Strict, ECTopt.Mode, filter);
+    if (Options.Mode!=1){
+        if (Options.Mode == 5){
+            Zopflipng(60, Options.Metadata, Filepath, Options.Strict, 5, filter);}
+        else {
+            int PNGiterations;
+            if (Options.Mode==2){PNGiterations=1;}
+            else if (Options.Mode==3){PNGiterations=5;}
+            else {PNGiterations=15;}
+            x=Zopflipng(PNGiterations, Options.Metadata, Filepath, Options.Strict, Options.Mode, filter);}
     }
     long long size2 = filesize(Filepath);
     if (size2<=size&&size2>1){unlink(((std::string)Filepath).append(".bak").c_str());}
-    else {unlink(Filepath);rename(((std::string)Filepath).append(".bak").c_str(),Filepath);}
-    if(ECTopt.Metadata && x==1){Optipng(0,Filepath, false, false);}
+    else {unlink(Filepath);rename(((std::string)Filepath).append(".bak").c_str(), Filepath);}
+    if(Options.Metadata && x==1){Optipng(0, Filepath, false, false);}
 }
 #endif
 
 #ifdef JPEG_SUPPORTED
 static int OptimizeJPEG(const char * Filepath, bool metadata, bool progressive, bool arithmetic){
-    return mozjpegtran(arithmetic,progressive,metadata,Filepath,Filepath);
+    return mozjpegtran(arithmetic, progressive, metadata, Filepath, Filepath);
 }
 #endif
 
-void PerFileWrapper(const char * Input, const ECTOptions& ECTopt){
+void PerFileWrapper(const char * Input, const ECTOptions& Options){
     std::string Ext = Input;
     std::string x =Ext.substr(Ext.find_last_of(".") + 1);
     bool supported=false;
 #if defined JPEG_SUPPORTED && defined PNG_SUPPORTED
-    if ((ECTopt.PNG_ACTIVE && (x== "PNG" || x == "png"))||(ECTopt.JPEG_ACTIVE && (x== "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"))){supported=true;}
+    if ((Options.PNG_ACTIVE && (x== "PNG" || x == "png"))||(Options.JPEG_ACTIVE && (x== "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"))){supported=true;}
 #elif defined JPEG_SUPPORTED
-    if (ECTopt.JPEG_ACTIVE && (x== "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg")){supported=true;}
+    if (Options.JPEG_ACTIVE && (x== "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg")){supported=true;}
 #elif defined PNG_SUPPORTED
-    if (ECTopt.PNG_ACTIVE && (x== "PNG" || x == "png")){supported=true;}
+    if (Options.PNG_ACTIVE && (x== "PNG" || x == "png")){supported=true;}
 #endif
     if (supported){
         long long size = filesize(Input);
         if (size<100000000 && size>0){
             int y=0;
 #ifdef PNG_SUPPORTED
-            if (x== "PNG" || x == "png"){OptimizePNG(Input,ECTopt);}
+            if (x== "PNG" || x == "png"){OptimizePNG(Input, Options);}
 #ifdef JPEG_SUPPORTED
             else
 #endif
 #endif
 #ifdef JPEG_SUPPORTED
                 if (x== "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"){
-                if (ECTopt.Progressive){
-                    if(OptimizeJPEG(Input,ECTopt.Metadata,true,ECTopt.Arithmetic)!=0){y++;}
-                    if((ECTopt.Mode==1&&size<6142)||(ECTopt.Mode==2&&size<8192)||(ECTopt.Mode==3&&size<15360)||(ECTopt.Mode==4&&size<30720)||(ECTopt.Mode==5&&size<51200)){
-                        if(OptimizeJPEG(Input,ECTopt.Metadata,false,ECTopt.Arithmetic)!=0){y++;}}
-                    else if ((ECTopt.Mode==2&&size<26142)||(ECTopt.Mode==3&&size<45360)||(ECTopt.Mode==4&&size<70720)||(ECTopt.Mode==5&&size<101200)){
+                if (Options.Progressive){
+                    if(OptimizeJPEG(Input, Options.Metadata, true, Options.Arithmetic)!=0){y++;}
+                    if((Options.Mode==1&&size<6142)||(Options.Mode==2&&size<8192)||(Options.Mode==3&&size<15360)||(Options.Mode==4&&size<30720)||(Options.Mode==5&&size<51200)){
+                        if(OptimizeJPEG(Input, Options.Metadata, false, Options.Arithmetic)!=0){y++;}}
+                    else if ((Options.Mode==2&&size<26142)||(Options.Mode==3&&size<45360)||(Options.Mode==4&&size<70720)||(Options.Mode==5&&size<101200)){
                         long long procs = filesize(Input);
-                        if((ECTopt.Mode==1&&procs<6142)||(ECTopt.Mode==2&&procs<8192)||(ECTopt.Mode==3&&procs<15360)||(ECTopt.Mode==4&&procs<30720)||(ECTopt.Mode==5&&procs<51200)){
-                            if(OptimizeJPEG(Input,ECTopt.Metadata,false,ECTopt.Arithmetic)!=0){y++;}}
+                        if((Options.Mode==1&&procs<6142)||(Options.Mode==2&&procs<8192)||(Options.Mode==3&&procs<15360)||(Options.Mode==4&&procs<30720)||(Options.Mode==5&&procs<51200)){
+                            if(OptimizeJPEG(Input, Options.Metadata, false, Options.Arithmetic)!=0){y++;}}
                         else{y++;}
                     }
                     else{y++;}
                 }
-                else{if(OptimizeJPEG(Input,ECTopt.Metadata,false,ECTopt.Arithmetic)!=0){y++;}y++;}
+                else{if(OptimizeJPEG(Input, Options.Metadata, false, Options.Arithmetic)!=0){y++;}y++;}
             }
 #endif
-            if(ECTopt.SavingsCounter){
+            if(Options.SavingsCounter){
                 processedfiles++;
                 bytes+=size;
                 if(y!=2){
@@ -166,58 +170,58 @@ void PerFileWrapper(const char * Input, const ECTOptions& ECTopt){
 }
 
 int main(int argc, const char * argv[]) {
-    ECTOptions ECTopt;
-    ECTopt.Metadata = false;
-    ECTopt.Progressive = false;
-    ECTopt.Mode = 1;
+    ECTOptions Options;
+    Options.Metadata = false;
+    Options.Progressive = false;
+    Options.Mode = 1;
 #ifdef BOOST_SUPPORTED
-    ECTopt.Recurse = false;
+    Options.Recurse = false;
 #endif
-    ECTopt.PNG_ACTIVE = true;
-    ECTopt.JPEG_ACTIVE = true;
-    ECTopt.Arithmetic = false;
-    ECTopt.SavingsCounter = true;
-    ECTopt.Strict = false;
+    Options.PNG_ACTIVE = true;
+    Options.JPEG_ACTIVE = true;
+    Options.Arithmetic = false;
+    Options.SavingsCounter = true;
+    Options.Strict = false;
     if (argc>=2){
         for (int i = 1; i < argc-1; i++) {
             std::string arg = argv[i];
-            if (arg == "-strip" || arg == "-s"){ECTopt.Metadata=true;}
-            else if (arg == "-progressive" || arg == "-p") {ECTopt.Progressive=true;}
-            else if (arg == "-M1") {ECTopt.Mode=1;}
-            else if (arg == "-M2") {ECTopt.Mode=2;}
-            else if (arg == "-M3") {ECTopt.Mode=3;}
-            else if (arg == "-M4") {ECTopt.Mode=4;}
-            else if (arg == "-M5") {ECTopt.Mode=5;}
+            if (arg == "-strip" || arg == "-s"){Options.Metadata=true;}
+            else if (arg == "-progressive" || arg == "-p") {Options.Progressive=true;}
+            else if (arg == "-M1") {Options.Mode=1;}
+            else if (arg == "-M2") {Options.Mode=2;}
+            else if (arg == "-M3") {Options.Mode=3;}
+            else if (arg == "-M4") {Options.Mode=4;}
+            else if (arg == "-M5") {Options.Mode=5;}
             else if (arg == "-h" || arg == "-help") {Usage(); return 0;}
-            else if (arg == "-quiet" || arg == "-q") {ECTopt.SavingsCounter=false;}
+            else if (arg == "-quiet" || arg == "-q") {Options.SavingsCounter=false;}
 #ifdef BOOST_SUPPORTED
-            else if (arg == "--disable-jpeg" || arg == "--disable-jpg"){ECTopt.JPEG_ACTIVE=false;}
-            else if (arg == "--disable-png"){ECTopt.PNG_ACTIVE=false;}
-            else if (arg == "-recurse" || arg == "-r")  {ECTopt.Recurse=1;}
+            else if (arg == "--disable-jpeg" || arg == "--disable-jpg"){Options.JPEG_ACTIVE=false;}
+            else if (arg == "--disable-png"){Options.PNG_ACTIVE=false;}
+            else if (arg == "-recurse" || arg == "-r")  {Options.Recurse=1;}
 #endif
-            else if (arg == "--strict") {ECTopt.Strict=true;}
-//            else if (arg == "--arithmetic") {ECTopt.Arithmetic=true;}
+            else if (arg == "--strict") {Options.Strict=true;}
+//            else if (arg == "--arithmetic") {Options.Arithmetic=true;}
             else {printf("Unknown flag: %s\n", argv[i]); return 0;}
         }
 #ifdef BOOST_SUPPORTED
         if (boost::filesystem::is_regular_file(argv[argc-1])){
-            PerFileWrapper(argv[argc-1],ECTopt);
+            PerFileWrapper(argv[argc-1], Options);
         }
         else if (boost::filesystem::is_directory(argv[argc-1])){
-            if(ECTopt.Recurse){boost::filesystem::recursive_directory_iterator a(argv[argc-1]), b;
+            if(Options.Recurse){boost::filesystem::recursive_directory_iterator a(argv[argc-1]), b;
                 std::vector<boost::filesystem::path> paths(a, b);
-                for(unsigned long i=0;i<paths.size();i++){PerFileWrapper(paths[i].c_str(),ECTopt);}
+                for(unsigned long i=0;i<paths.size();i++){PerFileWrapper(paths[i].c_str(), Options);}
             }
             else{
                 boost::filesystem::directory_iterator a(argv[argc-1]), b;
                 std::vector<boost::filesystem::path> paths(a, b);
-                for(unsigned long i=0;i<paths.size();i++){PerFileWrapper(paths[i].c_str(),ECTopt);}
+                for(unsigned long i=0;i<paths.size();i++){PerFileWrapper(paths[i].c_str(), Options);}
             }
         }
 #else
-        PerFileWrapper(argv[argc-1],ECTopt);
+        PerFileWrapper(argv[argc-1], Options);
 #endif
-        if(ECTopt.SavingsCounter){ECT_ReportSavings();}
+        if(Options.SavingsCounter){ECT_ReportSavings();}
     }
     else {Usage();}
 }

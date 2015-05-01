@@ -45,18 +45,6 @@ struct opng_sigs
 };
 
 /*
- * The maximum size of the chunk signature set.
- *
- * This size is a very large number under typical PNG chunk handling
- * requirements, yet it limits the occupied memory to a reasonably small
- * limit.
- */
-enum
-{
-    OPNG_SIGS_SIZE_MAX = 1024
-};
-
-/*
  * Object IDs.
  *
  * The underlying bitset representation is highly efficient, although
