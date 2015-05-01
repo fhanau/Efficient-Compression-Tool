@@ -39,6 +39,17 @@ namespace lodepng
 {
 
 /*
+Inserts chunks into the given png file. The chunks must be fully encoded,
+including length, type, content and CRC.
+The array index determines where it goes:
+0: between IHDR and PLTE, 1: between PLTE and IDAT, 2: between IDAT and IEND.
+They're appended at the end of those locations within the PNG.
+Returns 0 if ok, non-0 if error happened.
+*/
+unsigned insertChunks(std::vector<unsigned char>& png,
+                    const std::vector<std::vector<unsigned char> > chunks[3]);
+
+/*
 Returns the names and full chunks (including the name and everything else that
 makes up the chunk) for all chunks except IHDR, PLTE, IDAT and IEND.
 It separates the chunks into 3 separate lists, representing the chunks between
