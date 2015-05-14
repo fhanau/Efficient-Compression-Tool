@@ -53,24 +53,21 @@ static void jcopy_markers_execute (j_decompress_ptr srcinfo, j_compress_ptr dsti
 static void parse_switches (j_compress_ptr cinfo, bool progressive, bool arithmetic, bool for_real)
 {
     cinfo->err->trace_level = 0;
-    if (progressive == false){
+    if (!progressive){
         jpeg_c_set_int_param(cinfo, JINT_COMPRESS_PROFILE, JCP_FASTEST);
-        if(arithmetic == false){
-            cinfo->optimize_coding = TRUE;
-        }
+        cinfo->optimize_coding = TRUE;
     }
     if (arithmetic){
         cinfo->arith_code = TRUE;
         cinfo->optimize_coding = FALSE;
     }
-    if (for_real) {
-    if (cinfo->num_scans != 0)     /* process -progressive */
-      jpeg_simple_progression(cinfo);
-  }
+    if (for_real && cinfo->num_scans != 0 && progressive) { /* process -progressive */
+        jpeg_simple_progression(cinfo);
+    }
   return;
 }
 
-int mozjpegtran (bool arithmetic, bool progressive, bool copyoption, const char * Input, const char * Output)
+int mozjpegtran (bool arithmetic, bool progressive, bool copyoption, const char * Infile, const char * Outfile)
 {
     struct jpeg_decompress_struct srcinfo;
     struct jpeg_compress_struct dstinfo;
@@ -96,17 +93,16 @@ int mozjpegtran (bool arithmetic, bool progressive, bool copyoption, const char 
        needs to affects the source too.
      */
 
-    parse_switches(&dstinfo, progressive, arithmetic, FALSE);
+    parse_switches(&dstinfo, progressive, arithmetic, false);
     jsrcerr.trace_level = jdsterr.trace_level;
     srcinfo.mem->max_memory_to_use = dstinfo.mem->max_memory_to_use;
 
     /* Open the input file. */
-    if ((fp = fopen(Input, "rb")) == NULL) {
-        fprintf(stderr, "%s: can't open %s for reading\n", progname, Input);
+    if ((fp = fopen(Infile, "rb")) == NULL) {
+        fprintf(stderr, "%s: can't open %s for reading\n", progname, Infile);
         return 2;
     }
 
-#if JPEG_LIB_VERSION >= 80 || defined(MEM_SRCDST_SUPPORTED)
     size_t nbytes;
     do {
         inbuffer = (unsigned char *)realloc(inbuffer, insize + INPUT_BUF_SIZE);
@@ -116,17 +112,14 @@ int mozjpegtran (bool arithmetic, bool progressive, bool copyoption, const char 
       }
         nbytes = JFREAD(fp, &inbuffer[insize], INPUT_BUF_SIZE);
         if (nbytes < INPUT_BUF_SIZE && ferror(fp)) {
-            fprintf(stderr, "%s: can't read from %s\n", progname, Input);
+            fprintf(stderr, "%s: can't read from %s\n", progname, Infile);
         }
         insize += (unsigned long)nbytes;
     } while (nbytes == INPUT_BUF_SIZE);
     jpeg_mem_src(&srcinfo, inbuffer, insize);
-#else
-    jpeg_stdio_src(&srcinfo, fp);
-#endif
 
     /* Enable saving of extra markers that we want to copy */
-    if (copyoption == false) {
+    if (!copyoption) {
         jpeg_save_markers(&srcinfo, JPEG_COM, 0xFFFF);
         for (int m = 0; m < 16; m++)
             jpeg_save_markers(&srcinfo, JPEG_APP0 + m, 0xFFFF);
@@ -152,21 +145,11 @@ int mozjpegtran (bool arithmetic, bool progressive, bool copyoption, const char 
     
     fclose(fp);
 
-    /* Open the output file. */
-    if ((fp = fopen(Output, "wb")) == NULL) {
-        fprintf(stderr, "%s: can't open %s for writing\n", progname, Output);
-        return 2;
-    }
-
     /* Adjust default compression parameters by re-parsing the options */
-    parse_switches(&dstinfo, progressive, arithmetic, TRUE);
+    parse_switches(&dstinfo, progressive, arithmetic, true);
 
     /* Specify data destination for compression */
-#if JPEG_LIB_VERSION >= 80 || defined(MEM_SRCDST_SUPPORTED)
     jpeg_mem_dest(&dstinfo, &outbuffer, &outsize);
-#else
-    jpeg_stdio_dest(&dstinfo, fp);
-#endif
 
     /* Start compressor (note no image data is actually written here) */
     jpeg_write_coefficients(&dstinfo, dst_coef_arrays);
@@ -178,26 +161,26 @@ int mozjpegtran (bool arithmetic, bool progressive, bool copyoption, const char 
     jpeg_finish_compress(&dstinfo);
     
     unsigned char *buffer = outbuffer;
-    unsigned long size = outsize;
-    int x=0;
-    if (progressive){
-    if (insize <= size) {
-        size = insize;
-        buffer = inbuffer;
+    int x = 0;
+
+    if (insize < outsize || (progressive && insize == outsize)){
         x = 1;
     }
-    }
-    else{
-        if (insize < size) {
-            size = insize;
-            buffer = inbuffer;
-            x = 1;
-        }
-    }
 
-    size_t nbytes2 = JFWRITE(fp, buffer, size);
-    if (nbytes2 < size && ferror(fp)) {
-        fprintf(stderr, "%s: can't write to %s\n", progname, Output);
+    /* Better file than before */
+    else{
+        /* Open the output file. */
+        if ((fp = fopen(Outfile, "wb")) == NULL) {
+            fprintf(stderr, "%s: can't open %s for writing\n", progname, Outfile);
+            free(inbuffer);
+            return 2;
+        }
+
+        /* Write new file. */
+        size_t nbytes2 = JFWRITE(fp, buffer, outsize);
+        if (nbytes2 < outsize && ferror(fp)) {
+            fprintf(stderr, "%s: can't write to %s\n", progname, Outfile);
+        }
     }
     jpeg_destroy_compress(&dstinfo);
     jpeg_finish_decompress(&srcinfo);
