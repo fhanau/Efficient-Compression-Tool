@@ -183,7 +183,7 @@ void opng_transform_chunk (opng_transformer_t *transformer, const char *chunk, i
                 return;
             }
         }
-        printf("Cant %s %s", strip ? "strip" : "protect", chunk);
+        printf("Can't %s %s", strip ? "strip" : "protect", chunk);
     }
 }
 
