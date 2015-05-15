@@ -14,25 +14,50 @@
 #define OPNGCORE_CODEC_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "opngtrans.h"
-#include "integer.h"
 #include "opngreduc/opngreduc.h"
+
+#ifndef __STDC_LIMIT_MACROS
+#define __STDC_LIMIT_MACROS 1
+#endif
+#ifndef __STDC_CONSTANT_MACROS
+#define __STDC_CONSTANT_MACROS 1
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /*
+ * Use the Standard C minimum-width integer types.
+ *
+ * The exact-width types intN_t and uintN_t are not guaranteed to exist
+ * for all N=8,16,32,64. For example, certain dedicated CPUs may handle
+ * 32-bit and 64-bit integers only, with sizeof(int)==sizeof(char)==1.
+ * On the other hand, any minimum-width integer type is guaranteed to be
+ * the same as its exact-width counterpart, when the latter does exist.
+ *
+ * Since exact-width integer semantics is not strictly required, we use
+ * int_leastN_t and uint_leastN_t, which are required to exist for all
+ * N=8,16,32,64.
+ */
+
+typedef int_least64_t  optk_int64_t;
+typedef uint_least64_t optk_uint64_t;
+
+#define OPTK_INT64_MAX  INT_LEAST64_MAX
+
+/*
  * The encoding statistics structure.
  */
 struct opng_encoding_stats
 {
-    png_uint_32 flags;
-    png_uint_32 plte_trns_size;
     optk_uint64_t idat_size;
-    optk_uint64_t file_size;
     optk_int64_t datastream_offset;
+    png_uint_32 flags;
+    bool first;
 };
 
 /*
@@ -105,17 +130,10 @@ void opng_decode_finish(struct opng_codec_context *context, int free_data);
 int opng_encode_image(struct opng_codec_context *context, int filter, FILE *stream, const char *fname, int mode);
 
 /*
- * Stops the decoder.
- * Frees the stored PNG image data and clears the internal image object,
- * if required.
- */
-void opng_encode_finish(struct opng_codec_context *context);
-
-/*
  * Copies a PNG file stream to another PNG file stream.
  * The function returns 0 on success or -1 on error.
  */
-int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const char *in_fname, FILE *out_stream, const char *out_fname);
+int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const char *Infile, FILE *out_stream, const char *Outfile);
 
 /*
  * Tests whether the given chunk is an image chunk.

@@ -30,6 +30,7 @@
 #include "codec.h"
 #include "image.h"
 #include "../support.h"
+#include "../main.h"
 
 //The user options structure
 struct opng_options
@@ -54,25 +55,15 @@ struct opng_session
     struct opng_image image;
     struct opng_encoding_stats in_stats;
     struct opng_encoding_stats out_stats;
-    const char *in_fname;
-    const char *out_fname;
+    const char *Infile;
+    const char *Outfile;
     png_uint_32 flags;
 };
 
 // Creates an optimizer object.
-static opng_optimizer_t * opng_create_optimizer()
+static opng_optimizer * opng_create_optimizer()
 {
-    return (opng_optimizer_t *)calloc(1, sizeof(struct opng_optimizer));
-}
-
-static unsigned logging_level = OPNG_MSG_DEFAULT;
-
-/*
- * Sets the logging severity level.
- */
-void opng_set_logging(unsigned level)
-{
-    logging_level = level;
+    return (opng_optimizer *)calloc(1, sizeof(struct opng_optimizer));
 }
 
 /*
@@ -93,30 +84,8 @@ void opng_error(const char *fname, const char *message)
 }
 
 #ifndef NDEBUG
-// Prints a line of information regarding the image representation.
-static void opng_print_image_info_line(const struct opng_image *image)
-{
-    static const int type_channels[8] = {1, 0, 3, 1, 2, 0, 4, 0};
 
-    /* Print the channel depth and the bit depth. */
-    int channels = type_channels[image->color_type & 7];
-    if (channels != 1)
-        opng_printf("   %dx%d bits/pixel", channels, image->bit_depth);
-    else {
-        opng_printf("   %d bit%s/pixel", image->bit_depth, image->bit_depth != 1 ? "s" : "");
-    }
-
-    /* Print the color information and the image type. */
-    if (image->color_type & PNG_COLOR_MASK_PALETTE)
-    {
-        opng_printf(", %d color%s%s in palette\n", image->num_palette, image->num_palette > 1 ? "s": "", image->num_trans > 0 ? " (%d transparent)" : "");
-    }
-    else
-    {
-        opng_printf(", %s%s%s\n", image->color_type & PNG_COLOR_MASK_COLOR ? "RGB" : "grayscale", image->color_type & PNG_COLOR_MASK_ALPHA ? "+alpha" : "",
-                    image->trans_color_ptr != NULL ? "+transparency" : "");
-    }
-}
+static bool logging;
 
 /*
  * Prints a printf-formatted informational message (level = OPNG_MSG_INFO)
@@ -127,7 +96,7 @@ __attribute__ ((format (printf, 1, 2)))
 #endif
 void opng_printf(const char *format, ...)
 {
-    if (logging_level > OPNG_MSG_INFO)
+    if (!logging)
         return;
     va_list arg_ptr;
     va_start(arg_ptr, format);
@@ -153,35 +122,15 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
     struct opng_encoding_stats *stats = &session->in_stats;
 
     opng_init_codec_context(&context, image, stats, session->transformer);
-    if (opng_decode_image(&context, stream, session->in_fname, force_no_palette) < 0)
+    if (opng_decode_image(&context, stream, session->Infile, force_no_palette) < 0)
     {
         opng_decode_finish(&context, 1);
         return -1;
     }
-
-    // Display the input image file information.
-    opng_printf("   %u pixels, %sPNG format%s\n",
-                image->width*image->height,
-                stats->flags &  OPNG_HAS_MULTIPLE_IMAGES ? "A" : "",
-                image->interlace_type != PNG_INTERLACE_NONE ? ", interlaced" : "");
-    opng_printf("Processing:\n");
-#ifndef NDEBUG
-    opng_print_image_info_line(image);
-#endif
-    if (stats->flags & OPNG_HAS_SNIPPED_IMAGES)
-    {
-        opng_printf("Snipping:\n");
-    }
-
-    if (stats->flags & OPNG_HAS_STRIPPED_METADATA)
-    {
-        opng_printf("Stripping metadata:\n");
-    }
     const struct opng_options *options = session->options;
-
     // Choose the applicable image reductions.
     int reductions = OPNG_REDUCE_ALL;
-    if (options->nz  || stats->flags & OPNG_HAS_DIGITAL_SIGNATURE || stats->flags & OPNG_HAS_MULTIPLE_IMAGES || force_no_palette)
+    if (options->nz || stats->flags & OPNG_HAS_DIGITAL_SIGNATURE || stats->flags & OPNG_HAS_MULTIPLE_IMAGES || force_no_palette)
     {
         // Do not reduce files with PNG datastreams under -nz, signed files or files with APNG chunks.
         reductions = OPNG_REDUCE_NONE;
@@ -197,14 +146,10 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
     // Try to reduce the image.
     if (reductions != OPNG_REDUCE_NONE){
         reductions = opng_decode_reduce_image(&context, reductions, force_palette_if_possible);
-        opng_printf("Reducing:\n");
-#ifndef NDEBUG
-        opng_print_image_info_line(image);
-#endif
     }
     if (reductions < 0)
     {
-        opng_error(session->in_fname, "An unexpected error occurred while reducing the image");
+        opng_error(session->Infile, "An unexpected error occurred while reducing the image");
         opng_decode_finish(&context, 1);
         return -1;
     }
@@ -223,9 +168,7 @@ static int opng_write_file(struct opng_session *session, int filter, FILE *strea
                             &session->image,
                             &session->out_stats,
                             session->transformer);
-    int result = opng_encode_image(&context, filter, stream, session->out_fname, mode);
-    opng_encode_finish(&context);
-    return result;
+    return opng_encode_image(&context, filter, stream, session->Outfile, mode);
 }
 
 // PNG file copying
@@ -233,16 +176,15 @@ static int opng_copy_file(struct opng_session *session, FILE *in_stream, FILE *o
 {
     struct opng_codec_context context;
     opng_init_codec_context(&context, NULL, &session->out_stats, session->transformer);
-    return opng_copy_png(&context, in_stream, session->in_fname, out_stream, session->out_fname);
+    return opng_copy_png(&context, in_stream, session->Infile, out_stream, session->Outfile);
 }
 
-static int opng_optimize_impl(struct opng_session *session, const char *in_fname, bool force_palette_if_possible, bool force_no_palette)
+static int opng_optimize_impl(struct opng_session *session, const char *Infile, bool force_palette_if_possible, bool force_no_palette)
 {
-    int optimal_filter = -1;
-    FILE * fstream = fopen(in_fname, "rb");
+    FILE * fstream = fopen(Infile, "rb");
     if (fstream == NULL)
     {
-        opng_error(in_fname, "Can't open file");
+        opng_error(Infile, "Can't open file");
         return -1;
     }
     int result = opng_read_file(session, fstream, force_palette_if_possible, force_no_palette);
@@ -259,81 +201,78 @@ static int opng_optimize_impl(struct opng_session *session, const char *in_fname
         {
             opng_printf("Recoverable errors found in input. Fixing...\n");
         }
-        else{
-        return -1;
+        else
+        {
+            return -1;
         }
     }
     
     // Check the digital signature flag.
     if (session->flags & OPNG_HAS_DIGITAL_SIGNATURE)
     {
-        opng_error(in_fname,"This file is digitally signed and can't be processed");
+        opng_error(Infile,"This file is digitally signed and can't be processed");
         return -1;
     }
     if (options->nz && !session->flags & OPNG_HAS_SNIPPED_IMAGES && !session->flags & OPNG_HAS_STRIPPED_METADATA){
-        return 0;}
+        return 0;
+    }
 
     //R/W access + existing files
-    if (writepermission(in_fname) !=1){
-        opng_error(in_fname, "Can't write file");
+    if (writepermission(Infile) !=1){
+        opng_error(Infile, "Can't write file");
         return -1;
     }
     // Check the backup file.
-    if ((!force_no_palette && exists(((std::string)in_fname).append(".bak").c_str()) > 0) || (!options->nz && (exists(((std::string)in_fname).append(".bak2").c_str()) > 0)))
-    {   opng_error(in_fname, "Can't back up the output file");
+    if ((!force_no_palette && exists(((std::string)Infile).append(".bak").c_str()) > 0) || (!options->nz && (exists(((std::string)Infile).append(".bak2").c_str()) > 0)))
+    {   opng_error(Infile, "Can't back up the output file");
         return -1;
     }
     // Todo: check backup write perms
     if (!force_no_palette) {
-    rename(in_fname, (((std::string)in_fname).append(".bak")).c_str());
+    rename(Infile, (((std::string)Infile).append(".bak")).c_str());
     }
+    int optimal_filter = -1;
     if (options->nz){
-        fstream = fopen((((std::string)in_fname).append(".bak")).c_str(), "rb");
+        fstream = fopen((((std::string)Infile).append(".bak")).c_str(), "rb");
         if (fstream == NULL)
-        {opng_error(in_fname, "Can't reopen file");}
+        {opng_error(Infile, "Can't reopen file");}
         else if (fseek(fstream, session->in_stats.datastream_offset, SEEK_SET) != 0){
-            opng_error(in_fname, "Can't reposition file");
+            opng_error(Infile, "Can't reposition file");
             fclose(fstream);
         }
         else {
-            FILE * out_stream = fopen(in_fname, "wb");
+            FILE * out_stream = fopen(Infile, "wb");
             if (out_stream == NULL)
             {
-                opng_error(in_fname, "Can't open file for writing");
+                opng_error(Infile, "Can't open file for writing");
             }
             else {opng_copy_file(session, fstream, out_stream);
                 fclose(fstream);
                 fclose(out_stream);
-                unlink((((std::string)in_fname).append(".bak")).c_str());}
+                unlink((((std::string)Infile).append(".bak")).c_str());}
         }
+        return 0;
     }
     else {
         optk_uint64_t best_idat = 0;
-        /* Iterate through the "hyper-rectangle" (zc, zm, zs, f). */
-        for (int filter = OPNG_FILTER_MIN;
-             filter <= OPNG_FILTER_MAX; ++filter)
+        optimal_filter = 0;
+        /* Iterate through filters PNG_FILTER_NONE and PNG_ALL_FILTERS. */
+        for (int filter = 0;
+             filter <= 5; filter+=5)
         {
-            if (filter > 0 && filter < 5 && options->optim_level != 5){continue;}
-            if (force_no_palette){
-                fstream = fopen(((std::string)in_fname).append(".bak2").c_str(), "wb");
-            }
-            else {
-                fstream = fopen(filter == OPNG_FILTER_MIN ? in_fname: ((std::string)in_fname).append(".bak2").c_str(), "wb");
-            }
+            fstream = fopen((filter == 0 && !force_no_palette) ? Infile: ((std::string)Infile).append(".bak2").c_str(), "wb");
             opng_write_file(session, filter, fstream, options->optim_level);
             fclose(fstream);
-            if (filter == OPNG_FILTER_MIN){
-                optimal_filter = filter;
+            if (filter == 0){
                 best_idat = session->out_stats.idat_size;
             }
             else {
-                if (best_idat<=session->out_stats.idat_size){unlink((((std::string)in_fname).append(".bak2")).c_str());
+                if (best_idat <= session->out_stats.idat_size){unlink((((std::string)Infile).append(".bak2")).c_str());
                 }
                 else{
-                    if (force_no_palette){unlink((((std::string)in_fname).append(".bak2")).c_str());}
-                    else{unlink(in_fname);
-                        rename((((std::string)in_fname).append(".bak2")).c_str(), in_fname);}
-                    best_idat = session->out_stats.idat_size;
+                    if (force_no_palette){unlink((((std::string)Infile).append(".bak2")).c_str());}
+                    else{unlink(Infile);
+                        rename((((std::string)Infile).append(".bak2")).c_str(), Infile);}
                     optimal_filter = filter;}
             }
         }
@@ -341,7 +280,7 @@ static int opng_optimize_impl(struct opng_session *session, const char *in_fname
     return optimal_filter;
 }
 
-static int opng_optimize_file(opng_optimizer_t *optimizer, const char *in_fname, bool force_palette_if_possible, bool force_no_palette)
+static int opng_optimize_file(opng_optimizer *optimizer, const char *Infile, bool force_palette_if_possible, bool force_no_palette)
 {
     struct opng_session session;
     const struct opng_options * options = &optimizer->options;
@@ -349,36 +288,35 @@ static int opng_optimize_file(opng_optimizer_t *optimizer, const char *in_fname,
     session.options = options;
     session.transformer = optimizer->transformer;
     opng_init_image(&session.image);
-    int optimal_filter = opng_optimize_impl(&session, in_fname, force_palette_if_possible, force_no_palette);
+    int optimal_filter = opng_optimize_impl(&session, Infile, force_palette_if_possible, force_no_palette);
     opng_clear_image(&session.image);
     return optimal_filter;
 }
 
 static struct opng_options options;
 
-int Optipng(int filter, const char * Input, bool force_palette_if_possible, bool force_no_palette)
+int Optipng(int level, const char * Infile, bool force_palette_if_possible, bool force_no_palette)
 {
     memset(&options, 0, sizeof(options));
-    opng_optimizer_t *the_optimizer = opng_create_optimizer();
+    opng_optimizer *the_optimizer = opng_create_optimizer();
     opng_transformer_t *the_transformer = opng_create_transformer();
     //Logging works only if NDEBUG is not defined and should be used only for testing
-    //opng_set_logging(OPNG_MSG_INFO);
+    //logging = true;
 
-    if (filter==0){
+    if (level == 0){
         options.nz=1;
-        opng_transform_chunk (the_transformer, "all",1);
-        //Protect chunks
-        //opng_transform_chunk (the_transformer, "all",0);
+        //Strip chunks
+        opng_transform_chunk (the_transformer, "all", 1);
         //Strip APNG chunks
-        //opng_transform_chunk (the_transformer, "apngc",1);
+        //opng_transform_chunk (the_transformer, "apngc", 1);
     }
     else{
-        options.optim_level = filter;
+        options.optim_level = level;
     }
     the_optimizer->options = options;
     the_optimizer->transformer = opng_seal_transformer(the_transformer);
-    int rval = opng_optimize_file(the_optimizer, Input, force_palette_if_possible, force_no_palette);
+    int val = opng_optimize_file(the_optimizer, Infile, force_palette_if_possible, force_no_palette);
     free(the_optimizer);
     opng_destroy_transformer(the_transformer);
-    return rval;
+    return val;
 }

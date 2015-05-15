@@ -21,7 +21,6 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 
 #include "hash.h"
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 

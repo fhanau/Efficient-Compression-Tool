@@ -10,18 +10,18 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-long long filesize (const char * Input) {
+long long filesize (const char * Infile) {
     struct stat stats;
     //Todo: 
-    if (stat(Input, &stats) != 0){}
+    if (stat(Infile, &stats) != 0){}
     return stats.st_size;
 }
 
-bool exists(const char * Input) {
+bool exists(const char * Infile) {
     struct stat stats;
-    return stat(Input, &stats) == 0;
+    return stat(Infile, &stats) == 0;
 }
 
-bool writepermission (const char * Input) {
-    return !access (Input, W_OK);
+bool writepermission (const char * Infile) {
+    return !access (Infile, W_OK);
 }

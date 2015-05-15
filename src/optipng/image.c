@@ -42,7 +42,7 @@ void opng_load_image(struct opng_image *image, png_structp png_ptr, png_infop in
 
     png_get_IHDR(png_ptr, info_ptr,
         &image->width, &image->height, &image->bit_depth, &image->color_type,
-        &image->interlace_type, &image->compression_type, &image->filter_type);
+        &image->interlace_type, NULL, NULL);
     image->row_pointers = png_get_rows(png_ptr, info_ptr);
     png_get_PLTE(png_ptr, info_ptr, &image->palette, &image->num_palette);
     /* Transparency information is not metadata, although tRNS is ancillary. */
@@ -82,7 +82,7 @@ void opng_store_image(struct opng_image *image, png_structp png_ptr, png_infop i
 {
     png_set_IHDR(png_ptr, info_ptr,
         image->width, image->height, image->bit_depth, image->color_type,
-        image->interlace_type, image->compression_type, image->filter_type);
+        image->interlace_type, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE );
     png_set_rows(png_ptr, info_ptr, image->row_pointers);
     if (image->palette != NULL)
         png_set_PLTE(png_ptr, info_ptr, image->palette, image->num_palette);

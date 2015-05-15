@@ -21,6 +21,7 @@
 
 #include "mozjpeg/jinclude.h"
 #include "mozjpeg/jpeglib.h"
+#include "main.h"
 
 #define INPUT_BUF_SIZE  4096
 

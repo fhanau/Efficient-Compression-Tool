@@ -320,7 +320,7 @@ static void string_set(char** out, const char* in)
 
 /* ////////////////////////////////////////////////////////////////////////// */
 
-unsigned lodepng_read32bitInt(const unsigned char* buffer)
+static unsigned lodepng_read32bitInt(const unsigned char* buffer)
 {
   return (unsigned)((buffer[0] << 24) | (buffer[1] << 16) | (buffer[2] << 8) | buffer[3]);
 }
@@ -1761,9 +1761,6 @@ void lodepng_info_init(LodePNGInfo* info)
   LodePNGText_init(info);
   LodePNGIText_init(info);
 
-  info->time_defined = 0;
-  info->phys_defined = 0;
-
   LodePNGUnknownChunks_init(info);
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
 }
@@ -2537,16 +2534,16 @@ unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out,
   if(error) return error;
   mode_out->key_defined = 0;
 
-  if(prof.key && w * h <= 16) {
+  if(prof.key && w * h <= 49) {
     prof.alpha = 1; /*too few pixels to justify tRNS chunk overhead*/
     if(prof.bits < 8) prof.bits = 8; /*PNG has no alphachannel modes with less than 8-bit per channel*/
   }
   grey_ok = !prof.colored && !prof.alpha; /*grey without alpha, with potentially low bits*/
   n = prof.numcolors;
   palettebits = n <= 2 ? 1 : (n <= 4 ? 2 : (n <= 16 ? 4 : 8));
-  palette_ok = n <= 256 && (n * 2 < w * h) && prof.bits <= 8;
-  if(w * h < n * 2) palette_ok = 0; /*don't add palette overhead if image has only a few pixels*/
-  if(grey_ok && prof.bits <= palettebits) palette_ok = 0; /*grey is less overhead*/
+  palette_ok = n <= 256 && prof.bits <= 8;
+  if(w * h < n * 2) {palette_ok = 0;} /*don't add palette overhead if image has only a few pixels*/
+  if(grey_ok && prof.bits <= palettebits) {palette_ok = 0;}  /*grey is less overhead*/
 
   if(palette_ok)
   {
@@ -3248,33 +3245,6 @@ static unsigned readChunk_iTXt(LodePNGInfo* info, const LodePNGDecompressSetting
 
   return error;
 }
-
-static unsigned readChunk_tIME(LodePNGInfo* info, const unsigned char* data, size_t chunkLength)
-{
-  if(chunkLength != 7) return 73; /*invalid tIME chunk size*/
-
-  info->time_defined = 1;
-  info->time.year = 256u * data[0] + data[1];
-  info->time.month = data[2];
-  info->time.day = data[3];
-  info->time.hour = data[4];
-  info->time.minute = data[5];
-  info->time.second = data[6];
-
-  return 0; /* OK */
-}
-
-static unsigned readChunk_pHYs(LodePNGInfo* info, const unsigned char* data, size_t chunkLength)
-{
-  if(chunkLength != 9) return 74; /*invalid pHYs chunk size*/
-
-  info->phys_defined = 1;
-  info->phys_x = 16777216u * data[0] + 65536u * data[1] + 256u * data[2] + data[3];
-  info->phys_y = 16777216u * data[4] + 65536u * data[5] + 256u * data[6] + data[7];
-  info->phys_unit = data[8];
-
-  return 0; /* OK */
-}
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
 
 /*read a PNG, the result will be in the same color type as the PNG (hence "generic")*/
@@ -3398,16 +3368,6 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
         state->error = readChunk_iTXt(&state->info_png, &state->decoder.zlibsettings, data, chunkLength);
         if(state->error) break;
       }
-    }
-    else if(lodepng_chunk_type_equals(chunk, "tIME"))
-    {
-      state->error = readChunk_tIME(&state->info_png, data, chunkLength);
-      if(state->error) break;
-    }
-    else if(lodepng_chunk_type_equals(chunk, "pHYs"))
-    {
-      state->error = readChunk_pHYs(&state->info_png, data, chunkLength);
-      if(state->error) break;
     }
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
     else /*it's not an implemented chunk type, so ignore it: skip over the data*/
@@ -3814,39 +3774,6 @@ static unsigned addChunk_bKGD(ucvector* out, const LodePNGInfo* info)
 
   error = addChunk(out, "bKGD", bKGD.data, bKGD.size);
   ucvector_cleanup(&bKGD);
-
-  return error;
-}
-
-static unsigned addChunk_tIME(ucvector* out, const LodePNGTime* time)
-{
-  unsigned error = 0;
-  unsigned char* data = (unsigned char*)lodepng_malloc(7);
-  if(!data) return 83; /*alloc fail*/
-  data[0] = (unsigned char)(time->year / 256);
-  data[1] = (unsigned char)(time->year % 256);
-  data[2] = (unsigned char)time->month;
-  data[3] = (unsigned char)time->day;
-  data[4] = (unsigned char)time->hour;
-  data[5] = (unsigned char)time->minute;
-  data[6] = (unsigned char)time->second;
-  error = addChunk(out, "tIME", data, 7);
-  lodepng_free(data);
-  return error;
-}
-
-static unsigned addChunk_pHYs(ucvector* out, const LodePNGInfo* info)
-{
-  unsigned error = 0;
-  ucvector data;
-  ucvector_init(&data);
-
-  lodepng_add32bitInt(&data, info->phys_x);
-  lodepng_add32bitInt(&data, info->phys_y);
-  ucvector_push_back(&data, info->phys_unit);
-
-  error = addChunk(out, "pHYs", data.data, data.size);
-  ucvector_cleanup(&data);
 
   return error;
 }
@@ -4398,8 +4325,6 @@ unsigned lodepng_encode(unsigned char** out, size_t* outsize,
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
     /*bKGD (must come between PLTE and the IDAt chunks*/
     if(info.background_defined) addChunk_bKGD(&outv, &info);
-    /*pHYs (must come before the IDAT chunks)*/
-    if(info.phys_defined) addChunk_pHYs(&outv, &info);
 
     /*unknown chunks between PLTE and IDAT*/
     if(info.unknown_chunks_data[1])
@@ -4412,8 +4337,6 @@ unsigned lodepng_encode(unsigned char** out, size_t* outsize,
     state->error = addChunk_IDAT(&outv, data, datasize, &state->encoder.zlibsettings);
     if(state->error) break;
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-    /*tIME*/
-    if(info.time_defined) addChunk_tIME(&outv, &info.time);
     /*tEXt and/or zTXt*/
     for(i = 0; i != info.text_num; ++i)
     {
@@ -4546,7 +4469,7 @@ const char* lodepng_error_text(unsigned code)
     case 48: return "empty input or file doesn't exist";
     case 49: return "jumped past memory while generating dynamic huffman tree";
     case 50: return "jumped past memory while generating dynamic huffman tree";
-    case 51: return "jumped past memory while inflating huffman block";
+    //case 51: return "jumped past memory while inflating huffman block";
     case 52: return "jumped past memory while inflating";
     case 53: return "size of zlib data too small";
     case 54: return "repeat symbol in tree while there was no value symbol yet";
@@ -4557,11 +4480,11 @@ const char* lodepng_error_text(unsigned code)
     case 56: return "given output image colortype or bitdepth not supported for color conversion";
     case 57: return "invalid CRC encountered (checking CRC can be disabled)";
     case 58: return "invalid ADLER32 encountered (checking ADLER32 can be disabled)";
-    case 59: return "requested color conversion not supported";
-    case 60: return "invalid window size given in the settings of the encoder (must be 0-32768)";
+    //case 59: return "requested color conversion not supported";
+    //case 60: return "invalid window size given in the settings of the encoder (must be 0-32768)";
     case 61: return "invalid BTYPE given in the settings of the encoder (only 0, 1 and 2 are allowed)";
     /*LodePNG leaves the choice of RGB to greyscale conversion formula to the user.*/
-    case 62: return "conversion from color to greyscale not supported";
+    //case 62: return "conversion from color to greyscale not supported";
     case 63: return "length of a chunk too long, max allowed for PNG is 2147483647 bytes per chunk"; /*(2^31-1)*/
     /*this would result in the inability of a deflated block to ever contain an end code. It must be at least 1.*/
     case 64: return "the length of the END symbol 256 in the Huffman tree is 0";
@@ -4571,25 +4494,25 @@ const char* lodepng_error_text(unsigned code)
     case 69: return "unknown chunk type with 'critical' flag encountered by the decoder";
     case 71: return "unexisting interlace mode given to encoder (must be 0 or 1)";
     case 72: return "while decoding, unexisting compression method encountering in zTXt or iTXt chunk (it must be 0)";
-    case 73: return "invalid tIME chunk size";
-    case 74: return "invalid pHYs chunk size";
+    //case 73: return "invalid tIME chunk size";
+    //case 74: return "invalid pHYs chunk size";
     /*length could be wrong, or data chopped off*/
     case 75: return "no null termination char found while decoding text chunk";
     case 76: return "iTXt chunk too short to contain required bytes";
     case 77: return "integer overflow in buffer size";
     case 78: return "failed to open file for reading"; /*file doesn't exist or couldn't be opened for reading*/
     case 79: return "failed to open file for writing";
-    case 80: return "tried creating a tree of 0 symbols";
-    case 81: return "lazy matching at pos 0 is impossible";
+    //case 80: return "tried creating a tree of 0 symbols";
+    //case 81: return "lazy matching at pos 0 is impossible";
     case 82: return "color conversion to palette requested while a color isn't in palette";
     case 83: return "memory allocation failed";
     case 84: return "given image too small to contain all pixels to be encoded";
-    case 86: return "impossible offset in lz77 encoding (internal bug)";
+    //case 86: return "impossible offset in lz77 encoding (internal bug)";
     case 87: return "must provide custom zlib function pointer if LODEPNG_COMPILE_ZLIB is not defined";
     case 88: return "invalid filter strategy given for LodePNGEncoderSettings.filter_strategy";
     case 89: return "text chunk keyword too short or long: must have size 1-79";
     /*the windowsize in the LodePNGCompressSettings. Requiring POT(==> & instead of %) makes encoding 12% faster.*/
-    case 90: return "windowsize must be a power of two";
+    //case 90: return "windowsize must be a power of two";
     case 91: return "invalid decompressed idat size";
     case 92: return "too many pixels, not supported";
     case 93: return "zero width or height is invalid";

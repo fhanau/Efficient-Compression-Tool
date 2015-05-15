@@ -9,17 +9,20 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <cstring>
 #include <unistd.h>
 
-//Compile support for folder input. Requires linking of Boost::filesystem and Boost::system
+#include "gztools.h"
+
+//Compile support for folder input. Requires linking of Boost::filesystem and Boost::system.
 #ifdef BOOST_SUPPORTED
 #include <vector>
 #include <boost/filesystem.hpp>
 #endif
 
 struct ECTOptions{
-    int Mode;
-    int Filter;
+    int  Mode;
+    int  Filter;
     bool Metadata;
     bool Progressive;
     bool JPEG_ACTIVE;
@@ -27,22 +30,13 @@ struct ECTOptions{
     bool SavingsCounter;
     bool Strict;
     bool Arithmetic;
+    bool Gzip;
 #ifdef BOOST_SUPPORTED
     bool Recurse;
 #endif
 };
 
-//Compile PNG recompression support
-#define PNG_SUPPORTED
-
-#ifdef PNG_SUPPORTED
-int Optipng(int filter, const char * Input, bool force_palette_if_possible, bool force_no_palette /*, int second_filter, int filterdiff/*/);
-int Zopflipng(int iterationnum, bool blocksplitboth, const char * Input, bool strict, int Mode, int best_filter);
-#endif
-
-//Compile JPEG recompression support
-#define JPEG_SUPPORTED
-
-#ifdef JPEG_SUPPORTED
-int mozjpegtran (bool arithmetic, bool progressive, bool copyoption, const char * Input, const char * Output);
-#endif
+int Optipng(int filter, const char * Infile, bool force_palette_if_possible, bool force_no_palette /*, int second_filter, int filterdiff/*/);
+int Zopflipng(bool blocksplitboth, const char * Infile, bool strict, int Mode, int best_filter);
+int mozjpegtran (bool arithmetic, bool progressive, bool copyoption, const char * Infile, const char * Outfile);
+int ZopfliGzip(const char* filename, const char* outname, int mode);

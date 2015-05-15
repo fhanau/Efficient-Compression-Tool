@@ -33,13 +33,6 @@ int PNGAPI opng_validate_image(png_structp png_ptr, png_infop info_ptr);
 
 #endif /* PNG_INFO_IMAGE_SUPPORTED */
 
-
-#ifndef OPNG_NO_IMAGE_REDUCTIONS
-#define OPNG_IMAGE_REDUCTIONS_SUPPORTED
-#endif
-
-#ifdef OPNG_IMAGE_REDUCTIONS_SUPPORTED
-
 #ifndef PNG_tRNS_SUPPORTED
 #error OPNG_IMAGE_REDUCTIONS_SUPPORTED requires proper transparency support
 #endif
@@ -87,9 +80,6 @@ png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, pn
 #define OPNG_REDUCE_ALL  \
    (OPNG_REDUCE_BIT_DEPTH | OPNG_REDUCE_COLOR_TYPE | \
     OPNG_REDUCE_PALETTE | OPNG_REDUCE_METADATA)
-
-#endif /* OPNG_IMAGE_REDUCTIONS_SUPPORTED */
-
 
 #ifdef __cplusplus
 } /* extern "C" */

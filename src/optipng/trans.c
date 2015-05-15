@@ -1,5 +1,5 @@
 /*
- * opngtrans/chunksig.c
+ * opngtrans/trans.c
  * Image Transformation & Chunk signatures.
  *
  * Copyright (C) 2011 Cosmin Truta.

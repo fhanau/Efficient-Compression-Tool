@@ -45,7 +45,7 @@ maxblocks: set a limit to the amount of blocks. Set to 0 to mean no limit.
 void ZopfliBlockSplitLZ77(const unsigned short* litlens,
                           const unsigned short* dists,
                           size_t llsize, size_t maxblocks,
-                          size_t** splitpoints, size_t* npoints);
+                          size_t** splitpoints, size_t* npoints, unsigned long maxsplitting);
 
 /*
 Does blocksplitting on uncompressed data.

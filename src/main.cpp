@@ -38,6 +38,7 @@ static void Usage() {
 #ifdef BOOST_SUPPORTED
             " -recurse       Recursively search directories\n"
 #endif
+            " -gzip          Compress file with GZIP algorithm\n"
             " -quiet         Print only error messages\n"
             " -help          Print this help\n"
             "Advanced Options:\n"
@@ -54,9 +55,9 @@ static void Usage() {
 }
 
 static void ECT_ReportSavings(){
-    if (processedfiles!=0){
-    int bk=0;
-    int k=0;
+    if (processedfiles!= 0){
+    int bk = 0;
+    int k = 0;
     double smul=savings;
     double bmul=bytes;
     while (smul>1024){smul/=1024;k++;}
@@ -82,86 +83,95 @@ static void ECT_ReportSavings(){
     else {printf("No compatible files found\n");}
 }
 
-#ifdef PNG_SUPPORTED
-static void OptimizePNG(const char * Filepath, const ECTOptions& Options){
+static int ECTGzip(const char * Infile, const int Mode){
+    if (!IsGzip(Infile)){
+        if (exists(((std::string)Infile).append(".gz").c_str())){
+            return 2;
+        }
+        ZopfliGzip(Infile, NULL, Mode);
+        return 1;
+    }
+    else {
+        if (exists(((std::string)Infile).append(".ungz").c_str())){
+            return 2;
+        }
+        if (exists(((std::string)Infile).append(".ungz.gz").c_str())){
+            return 2;
+        }
+        ungz(Infile, ((std::string)Infile).append(".ungz").c_str());
+        ZopfliGzip(((std::string)Infile).append(".ungz").c_str(), NULL, Mode);
+        if (filesize(((std::string)Infile).append(".ungz.gz").c_str()) < filesize(Infile)){
+            unlink(Infile);
+            rename(((std::string)Infile).append(".ungz.gz").c_str(), Infile);
+        }
+        else {
+            unlink(((std::string)Infile).append(".ungz.gz").c_str());
+        }
+        unlink(((std::string)Infile).append(".ungz").c_str());
+        return 0;
+    }
+}
+
+static void OptimizePNG(const char * Infile, const ECTOptions& Options){
     int x=1;
-    long long size = filesize(Filepath);
+    long long size = filesize(Infile);
     if(Options.Mode==5){
-        x=Zopflipng(1, Options.Metadata, Filepath, Options.Strict, 2, 0);
+        x=Zopflipng(Options.Metadata, Infile, Options.Strict, 2, 0);
     }
     //Disabled as using this causes libpng warnings
     //if (Options.mode>2)
-    //int filter = Optipng(Options.Mode, Filepath, Options.Mode!=1, false);
-    int filter = Optipng(Options.Mode, Filepath, false, false);
+    //int filter = Optipng(Options.Mode, Infile, Options.Mode!=1, false);
+    int filter = Optipng(Options.Mode, Infile, false, false);
     if (filter == -1){
         return;
     }
     if (Options.Mode!=1){
         if (Options.Mode == 5){
-            Zopflipng(60, Options.Metadata, Filepath, Options.Strict, 5, filter);}
+            Zopflipng(Options.Metadata, Infile, Options.Strict, 5, filter);}
         else {
-            int PNGiterations;
-            if (Options.Mode==2){PNGiterations=1;}
-            else if (Options.Mode==3){PNGiterations=5;}
-            else {PNGiterations=15;}
-            x=Zopflipng(PNGiterations, Options.Metadata, Filepath, Options.Strict, Options.Mode, filter);}
+            x=Zopflipng(Options.Metadata, Infile, Options.Strict, Options.Mode, filter);}
     }
-    long long size2 = filesize(Filepath);
-    if (size2<=size&&size2>1){unlink(((std::string)Filepath).append(".bak").c_str());}
-    else {unlink(Filepath);rename(((std::string)Filepath).append(".bak").c_str(), Filepath);}
-    if(Options.Metadata && x==1){Optipng(0, Filepath, false, false);}
+    long long size2 = filesize(Infile);
+    if (size2<=size&&size2>1){unlink(((std::string)Infile).append(".bak").c_str());}
+    else {unlink(Infile);rename(((std::string)Infile).append(".bak").c_str(), Infile);}
+    if(Options.Metadata && x==1){Optipng(0, Infile, false, false);}
 }
-#endif
 
-#ifdef JPEG_SUPPORTED
-static int OptimizeJPEG(const char * Filepath, bool metadata, bool progressive, bool arithmetic){
-    return mozjpegtran(arithmetic, progressive, metadata, Filepath, Filepath);
+static void OptimizeJPEG(const char * Infile, const ECTOptions& Options){
+    mozjpegtran(Options.Arithmetic, Options.Progressive, Options.Metadata, Infile, Infile);
+    if (Options.Progressive){
+        long long fs = filesize(Infile);
+        if((Options.Mode == 1 && fs < 6142) || (Options.Mode == 2 && fs < 8192) || (Options.Mode == 3 && fs < 15360) || (Options.Mode == 4 && fs < 30720) || (Options.Mode == 5 && fs < 51200)){
+            mozjpegtran(Options.Arithmetic, false, Options.Metadata, Infile, Infile);
+        }
+    }
 }
-#endif
 
-void PerFileWrapper(const char * Input, const ECTOptions& Options){
-    std::string Ext = Input;
-    std::string x =Ext.substr(Ext.find_last_of(".") + 1);
-    bool supported=false;
-#if defined JPEG_SUPPORTED && defined PNG_SUPPORTED
-    if ((Options.PNG_ACTIVE && (x== "PNG" || x == "png"))||(Options.JPEG_ACTIVE && (x== "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"))){supported=true;}
-#elif defined JPEG_SUPPORTED
-    if (Options.JPEG_ACTIVE && (x== "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg")){supported=true;}
-#elif defined PNG_SUPPORTED
-    if (Options.PNG_ACTIVE && (x== "PNG" || x == "png")){supported=true;}
-#endif
-    if (supported){
-        long long size = filesize(Input);
-        if (size<100000000 && size>0){
-            int y=0;
-#ifdef PNG_SUPPORTED
-            if (x== "PNG" || x == "png"){OptimizePNG(Input, Options);}
-#ifdef JPEG_SUPPORTED
-            else
-#endif
-#endif
-#ifdef JPEG_SUPPORTED
-                if (x== "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"){
-                if (Options.Progressive){
-                    if(OptimizeJPEG(Input, Options.Metadata, true, Options.Arithmetic)!=0){y++;}
-                    if((Options.Mode==1&&size<6142)||(Options.Mode==2&&size<8192)||(Options.Mode==3&&size<15360)||(Options.Mode==4&&size<30720)||(Options.Mode==5&&size<51200)){
-                        if(OptimizeJPEG(Input, Options.Metadata, false, Options.Arithmetic)!=0){y++;}}
-                    else if ((Options.Mode==2&&size<26142)||(Options.Mode==3&&size<45360)||(Options.Mode==4&&size<70720)||(Options.Mode==5&&size<101200)){
-                        long long procs = filesize(Input);
-                        if((Options.Mode==1&&procs<6142)||(Options.Mode==2&&procs<8192)||(Options.Mode==3&&procs<15360)||(Options.Mode==4&&procs<30720)||(Options.Mode==5&&procs<51200)){
-                            if(OptimizeJPEG(Input, Options.Metadata, false, Options.Arithmetic)!=0){y++;}}
-                        else{y++;}
-                    }
-                    else{y++;}
-                }
-                else{if(OptimizeJPEG(Input, Options.Metadata, false, Options.Arithmetic)!=0){y++;}y++;}
+static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
+    std::string Ext = Infile;
+    std::string x = Ext.substr(Ext.find_last_of(".") + 1);
+
+    if ((Options.PNG_ACTIVE && (x == "PNG" || x == "png")) || (Options.JPEG_ACTIVE && (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"))  || Options.Gzip){
+        long long size = filesize(Infile);
+        int statcompressedfile = 0;
+        if (size<100000000) {
+            if (x == "PNG" || x == "png"){
+                OptimizePNG(Infile, Options);
             }
-#endif
+            else if (x== "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"){
+                OptimizeJPEG(Infile, Options);
+            }
+            else if (Options.Gzip){
+                statcompressedfile = ECTGzip(Infile, Options.Mode);
+            }
             if(Options.SavingsCounter){
                 processedfiles++;
-                bytes+=size;
-                if(y!=2){
-                    savings=savings+size-filesize(Input);
+                bytes += size;
+                if (!statcompressedfile){
+                savings = savings + size - filesize(Infile);
+                }
+                else if (statcompressedfile == 1){
+                    savings = savings + size - filesize(((std::string)Infile).append(".gz").c_str());
                 }
             }
         }
@@ -180,27 +190,28 @@ int main(int argc, const char * argv[]) {
     Options.PNG_ACTIVE = true;
     Options.JPEG_ACTIVE = true;
     Options.Arithmetic = false;
+    Options.Gzip = false;
     Options.SavingsCounter = true;
     Options.Strict = false;
     if (argc>=2){
         for (int i = 1; i < argc-1; i++) {
-            std::string arg = argv[i];
-            if (arg == "-strip" || arg == "-s"){Options.Metadata=true;}
-            else if (arg == "-progressive" || arg == "-p") {Options.Progressive=true;}
-            else if (arg == "-M1") {Options.Mode=1;}
-            else if (arg == "-M2") {Options.Mode=2;}
-            else if (arg == "-M3") {Options.Mode=3;}
-            else if (arg == "-M4") {Options.Mode=4;}
-            else if (arg == "-M5") {Options.Mode=5;}
-            else if (arg == "-h" || arg == "-help") {Usage(); return 0;}
-            else if (arg == "-quiet" || arg == "-q") {Options.SavingsCounter=false;}
+            if (strncmp(argv[i], "-strip", 2) == 0){Options.Metadata = true;}
+            else if (strncmp(argv[i], "-progressive", 2) == 0) {Options.Progressive = true;}
+            else if (strcmp(argv[i], "-M1") == 0) {Options.Mode = 1;}
+            else if (strcmp(argv[i], "-M2") == 0) {Options.Mode = 2;}
+            else if (strcmp(argv[i], "-M3") == 0) {Options.Mode = 3;}
+            else if (strcmp(argv[i], "-M4") == 0) {Options.Mode = 4;}
+            else if (strcmp(argv[i], "-M5") == 0) {Options.Mode = 5;}
+            else if (strncmp(argv[i], "-gzip", 2) == 0) {Options.Gzip = true;}
+            else if (strncmp(argv[i], "-help", 2) == 0) {Usage(); return 0;}
+            else if (strncmp(argv[i], "-quiet", 2) == 0) {Options.SavingsCounter = false;}
 #ifdef BOOST_SUPPORTED
-            else if (arg == "--disable-jpeg" || arg == "--disable-jpg"){Options.JPEG_ACTIVE=false;}
-            else if (arg == "--disable-png"){Options.PNG_ACTIVE=false;}
-            else if (arg == "-recurse" || arg == "-r")  {Options.Recurse=1;}
+            else if (strcmp(argv[i], "--disable-jpeg") == 0 || strcmp(argv[i], "--disable-jpg") == 0 ){Options.JPEG_ACTIVE = false;}
+            else if (strcmp(argv[i], "--disable-png") == 0 || strcmp(argv[i], "--disable-png") == 0 ){Options.PNG_ACTIVE = false;}
+            else if (strncmp(argv[i], "-recurse", 2) == 0)  {Options.Recurse = 1;}
 #endif
-            else if (arg == "--strict") {Options.Strict=true;}
-//            else if (arg == "--arithmetic") {Options.Arithmetic=true;}
+            else if (strcmp(argv[i], "--strict") == 0) {Options.Strict = true;}
+            //else if (strcmp(argv[i], "--arithmetic") == 0) {Options.Arithmetic = true;}
             else {printf("Unknown flag: %s\n", argv[i]); return 0;}
         }
 #ifdef BOOST_SUPPORTED
@@ -210,12 +221,12 @@ int main(int argc, const char * argv[]) {
         else if (boost::filesystem::is_directory(argv[argc-1])){
             if(Options.Recurse){boost::filesystem::recursive_directory_iterator a(argv[argc-1]), b;
                 std::vector<boost::filesystem::path> paths(a, b);
-                for(unsigned long i=0;i<paths.size();i++){PerFileWrapper(paths[i].c_str(), Options);}
+                for(unsigned long i = 0;i<paths.size();i++){PerFileWrapper(paths[i].c_str(), Options);}
             }
             else{
                 boost::filesystem::directory_iterator a(argv[argc-1]), b;
                 std::vector<boost::filesystem::path> paths(a, b);
-                for(unsigned long i=0;i<paths.size();i++){PerFileWrapper(paths[i].c_str(), Options);}
+                for(unsigned long i = 0;i<paths.size();i++){PerFileWrapper(paths[i].c_str(), Options);}
             }
         }
 #else

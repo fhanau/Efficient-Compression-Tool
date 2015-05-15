@@ -29,8 +29,6 @@ struct opng_image
     png_uint_16p hist;             /* hIST */
     int bit_depth;
     int color_type;
-    int compression_type;
-    int filter_type;
     int interlace_type;
     int num_palette;
     int num_trans;
@@ -41,8 +39,8 @@ struct opng_image
     png_color_16p background_ptr;  /* bKGD */
     png_color_16 trans_color;
     png_color_16 background;
-    png_color_8p sig_bit_ptr;      /* sBIT */
     png_unknown_chunkp unknowns;   /* everything else */
+    png_color_8p sig_bit_ptr;      /* sBIT */
     png_color_8 sig_bit;
     png_colorp palette;            /* PLTE */
 

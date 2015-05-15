@@ -182,8 +182,8 @@ static int FindLargestSplittableBlock(
 void ZopfliBlockSplitLZ77(const unsigned short* litlens,
                           const unsigned short* dists,
                           size_t llsize, size_t maxblocks,
-                          size_t** splitpoints, size_t* npoints) {
-  if (llsize < 10) return;  /* This code fails on tiny files. */
+                          size_t** splitpoints, size_t* npoints, unsigned long maxsplitting) {
+  if (llsize < maxsplitting) return;  /* This code fails on tiny files. */
 
   size_t llpos = 0;
   size_t numblocks = 1;
@@ -228,7 +228,7 @@ void ZopfliBlockSplitLZ77(const unsigned short* litlens,
       break;  /* No further split will probably reduce compression. */
     }
 
-    if (lend - lstart < 10) {
+    if (lend - lstart < maxsplitting) {
       break;
     }
   }
@@ -262,8 +262,18 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
   results in better blocks. */
   ZopfliLZ77Greedy(&s, in, instart, inend, &store);
 
+  unsigned long maxsplitting;
+  if (options->numiterations == 1){
+    maxsplitting = 300;
+  }
+  else if (options->numiterations == 5) {
+    maxsplitting = 100;
+  }
+  else {
+    maxsplitting = 25;
+  }
   ZopfliBlockSplitLZ77(store.litlens, store.dists, store.size, maxblocks,
-                       &lz77splitpoints, &nlz77points);
+                       &lz77splitpoints, &nlz77points, maxsplitting);
 
   /* Convert LZ77 positions to positions in the uncompressed input. */
   pos = instart;

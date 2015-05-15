@@ -380,7 +380,7 @@ Change the population counts in a way that the consequent Hufmann tree
 compression, especially its rle-part will be more likely to compress this data
 more efficiently. length containts the size of the histogram.
 */
-void OptimizeHuffmanForRle(int length, size_t* counts) {
+static void OptimizeHuffmanForRle(int length, size_t* counts) {
   int i, k, stride;
   size_t symbol, sum, limit;
   int* good_for_rle;
@@ -527,7 +527,7 @@ bp: output bit pointer
 out: dynamic output array to append to
 outsize: dynamic output array size
 */
-static void AddLZ77Block(const ZopfliOptions* options, int btype, int final,
+static void AddLZ77Block(int btype, int final,
                          const unsigned short* litlens,
                          const unsigned short* dists,
                          size_t lstart, size_t lend,
@@ -538,7 +538,6 @@ static void AddLZ77Block(const ZopfliOptions* options, int btype, int final,
     unsigned d_lengths[32];
     unsigned ll_symbols[288];
     unsigned d_symbols[32];
-    //size_t uncompressed_size = 0;
     AddBit(final, bp, out, outsize);
     AddBit(btype & 1, bp, out, outsize);
     AddBit((btype & 2) >> 1, bp, out, outsize);
@@ -553,7 +552,6 @@ static void AddLZ77Block(const ZopfliOptions* options, int btype, int final,
     }
     ZopfliLengthsToSymbols(ll_lengths, 288, 15, ll_symbols);
     ZopfliLengthsToSymbols(d_lengths, 32, 15, d_symbols);
-    //size_t detect_block_size = *outsize;
     AddLZ77Data(litlens, dists, lstart, lend
 #ifndef NDEBUG
                 , expected_data_size
@@ -563,15 +561,6 @@ static void AddLZ77Block(const ZopfliOptions* options, int btype, int final,
                 );
     /* End symbol. */
     AddHuffmanBits(ll_symbols[256], ll_lengths[256], bp, out, outsize);
-    //for (size_t i = lstart; i < lend; i++) {
-    //    uncompressed_size += dists[i] == 0 ? 1 : litlens[i];
-    //}
-    //size_t compressed_size = *outsize - detect_block_size;
-    if (options->verbose) {
-        /*fprintf(stderr, "compressed block size: %d (%dk) (unc: %d)\n",
-                (int)compressed_size, (int)(compressed_size / 1024),
-                (int)(uncompressed_size));*/
-    }
 }
 static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
                                 const unsigned char* in,
@@ -597,7 +586,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
 
   /* For small block, encoding with fixed tree can be smaller. For large block,
   don't bother doing this expensive test, dynamic tree will be better.*/
-  if (store.size < 1000) {
+    if ((options->numiterations > 5 && store.size < 2000) || store.size < 800) {
     double dyncost, fixedcost;
     ZopfliLZ77Store fixedstore;
     ZopfliInitLZ77Store(&fixedstore);
@@ -615,7 +604,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
     }
   }
 
-  AddLZ77Block(s.options, btype, final,
+  AddLZ77Block(btype, final,
                store.litlens, store.dists, 0, store.size,
                blocksize, bp, out, outsize);
 
@@ -684,7 +673,7 @@ Parameters: see description of the ZopfliDeflate function.
   for (i = 0; i <= npoints; i++) {
     size_t start = i == 0 ? 0 : splitpoints[i - 1];
     size_t end = i == npoints ? store.size : splitpoints[i];
-    AddLZ77Block(options, 2, i == npoints && final,
+    AddLZ77Block(2, i == npoints && final,
                  store.litlens, store.dists, start, end, 0,
                  bp, out, outsize);
   }
@@ -711,8 +700,8 @@ static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
                        const unsigned char* in, size_t instart, size_t inend,
                        unsigned char* bp, unsigned char** out,
                        size_t* outsize) {
-    /*Blocksplitting likely wont improve compression on small images*/
-    if (inend<1400){
+    /* Blocksplitting likely wont improve compression on small images */
+    if ((instart - inend) < 1400){
         DeflateDynamicBlock(options, final, in, instart, inend, bp, out, outsize);
     }
     else {
@@ -739,10 +728,4 @@ void ZopfliDeflate(const ZopfliOptions* options, int final,
     i += size;
   }
 #endif
-  /*if (options->verbose) {
-    fprintf(stderr,
-            "Original Size: %d, Deflate: %d, Compression: %f%% Removed\n",
-            (int)insize, (int)*outsize,
-            100.0 * (double)(insize - *outsize) / (double)insize);
-  }*/
 }

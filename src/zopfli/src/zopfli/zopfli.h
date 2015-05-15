@@ -33,11 +33,6 @@ extern "C" {
 Options used throughout the program.
 */
 typedef struct ZopfliOptions {
-  /* Whether to print output */
-  int verbose;
-
-  /* Whether to print more detailed output */
-  int verbose_more;
 
   /*
   Maximum amount of times to rerun forward and backward pass to optimize LZ77
@@ -67,20 +62,27 @@ typedef struct ZopfliOptions {
   */
   int blocksplittingmax;
 
-    /*
-     limit the max hash chain hits for this hash value. This has an effect only
-     on files where the hash value is the same very often. On these files, this
-     gives worse compression (the value should ideally be 32768, which is the
-     ZOPFLI_WINDOW_SIZE, while zlib uses 4096 even for best level), but makes it
-     faster on some specific files.
-     Good value: e.g. 8192.
-     */
+  /*
+  Limit the max hash chain hits for this hash value. This has an effect only
+  on files where the hash value is the same very often. On these files, this
+  gives worse compression (the value should ideally be 32768, which is the
+  ZOPFLI_WINDOW_SIZE, while zlib uses 4096 even for best level), but makes it
+  faster on some specific files.
+  Good value: e.g. 8192.
+  */
   int chain_length;
 
 } ZopfliOptions;
 
 /* Initializes options with default values. */
-void ZopfliInitOptions(ZopfliOptions* options);
+void ZopfliInitOptions(ZopfliOptions* options, int mode);
+
+/* Output format */
+typedef enum {
+    ZOPFLI_FORMAT_GZIP,
+    ZOPFLI_FORMAT_ZLIB,
+    ZOPFLI_FORMAT_DEFLATE
+} ZopfliFormat;
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -6,18 +6,6 @@
  * as libpng.
  */
 
-/* CAUTION:
- * Image reductions do not work well under certain transformations.
- *
- * Transformations like PNG_BGR, PNG_SWAP_BYTES, PNG_FILLER, PNG_INVERT_ALPHA,
- * and possibly others, require special treatment. However, the libpng API
- * does not currently convey the effect of transformations on its internal
- * state or on the layout of pixel data.
- *
- * Transformations which affect pixel depth (e.g. PNG_FILLER) are especially
- * dangerous when used in conjunction with this code, and should be avoided.
- */
-
 /*Modified by Felix Hanau.*/
 
 #include "opngreduc.h"
@@ -53,8 +41,6 @@ int PNGAPI opng_validate_image(png_structp png_ptr, png_infop info_ptr)
 
    return 1;
 }
-
-#ifdef OPNG_IMAGE_REDUCTIONS_SUPPORTED
 
 #define OPNG_CMP_RGB(R1, G1, B1, R2, G2, B2) \
    (((int)(R1) != (int)(R2)) ?      \
@@ -823,9 +809,9 @@ static png_uint_32 opng_reduce_to_palette(png_structp png_ptr, png_infop info_pt
      * vs.
      * sizeof(PLTE) + sizeof(tRNS)
      */
-       //5/3 times sizeof(PLTE) + sizeof(tRNS) as:
-       //1. Palette is uncompressed additional IDAT data is
-       //2. Headers
+       /* 5/3 times sizeof(PLTE) + sizeof(tRNS) as:
+          1. Palette is uncompressed additional IDAT data is
+          2. Headers */
     if (num_palette >= 0 && !force_palette_if_possible)
     {
         int dest_bit_depth;
@@ -840,7 +826,7 @@ static png_uint_32 opng_reduce_to_palette(png_structp png_ptr, png_infop info_pt
         else
             dest_bit_depth = 8;
         /* Do the comparison in a way that does not cause overflow. */
-        //if (channels * 8 == dest_bit_depth || (3 * num_palette + num_trans) * 8 / (channels * 8 - dest_bit_depth) / width / height >= 1)
+        /*if (channels * 8 == dest_bit_depth || (3 * num_palette + num_trans) * 8 / (channels * 8 - dest_bit_depth) / width / height >= 1) */
         if (channels * 8 == dest_bit_depth || (12 + (5 * num_palette + num_trans)) * 8 / (channels * 8 - dest_bit_depth) / width / height >= 1)
         {num_palette = -1;}
     }
@@ -1210,5 +1196,3 @@ png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, pn
 
    return result;
 }
-
-#endif /* OPNG_IMAGE_REDUCTIONS_SUPPORTED */

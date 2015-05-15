@@ -21,51 +21,6 @@
 #include "trans.h"
 #include "opngcore.h"
 
-
-static int opng_sig_is_png(png_structp png_ptr, png_bytep sig, size_t sig_size)
-{
-    static const png_byte png_file_sig[8] = {137, 80, 78, 71, 13, 10, 26, 10};
-    static const png_byte png_ihdr_sig[8] = {0, 0, 0, 13, 73, 72, 68, 82};
-
-    /* Since png_read_png() fails rather abruptly with png_error(),
-     * spend a little more effort to ensure that the format is indeed PNG.
-     * Among other things, look for the presence of IHDR.
-     */
-    if (sig_size <= 43)  /* size of (IHDR + IDAT) > (12+13) + (12+6) */
-        return -1;
-    int has_png_sig = (memcmp(sig, png_file_sig, 8) == 0);
-    if (memcmp(sig + (has_png_sig ? 8 : 0), png_ihdr_sig, 8) != 0)
-    {
-        png_error(png_ptr, "Not a valid PNG");
-    }
-    return 1;  /*valid PNG*/
-}
-
-static int PNGAPI opng_read_image(png_structp png_ptr, png_infop info_ptr)
-{
-    /* Precondition. */
-#ifdef PNG_FLAG_MALLOC_NULL_MEM_OK
-    if (png_ptr->flags & PNG_FLAG_MALLOC_NULL_MEM_OK)
-        png_error(png_ptr, "ECT requires a safe allocator");
-#endif
-
-    FILE * stream = ((struct opng_codec_context *)(png_get_io_ptr(png_ptr)))->stream;
-    png_byte sig[128];
-    size_t num = fread(sig, 1, 128, stream);
-    rewind(stream);
-    if (opng_sig_is_png(png_ptr, sig, num) > 0)
-    {
-        png_read_png(png_ptr, info_ptr, 0, NULL);
-        if (getc(stream) != EOF)
-        {
-            png_warning(png_ptr, "Extraneous data found after IEND");
-            fseek(stream, 0, SEEK_END);
-        }
-        return 1;
-    }
-    return 0;
-}
-
 /*
  * User exception setup.
  * See cexcept.h for more info
@@ -76,7 +31,7 @@ struct exception_context the_exception_context[1];
 /*
  * Encoder tables
  */
-static const int filter_table[OPNG_FILTER_MAX + 1] =
+static const int filter_table[6] =
 {
     PNG_FILTER_NONE  /* 0 */,
     PNG_FILTER_SUB   /* 1 */,
@@ -89,7 +44,6 @@ static const int filter_table[OPNG_FILTER_MAX + 1] =
 /*
  * The chunk signatures recognized and handled by this codec.
  */
-const png_byte opng_sig_PLTE[4] = { 0x50, 0x4c, 0x54, 0x45 };
 const png_byte opng_sig_tRNS[4] = { 0x74, 0x52, 0x4e, 0x53 };
 const png_byte opng_sig_IDAT[4] = { 0x49, 0x44, 0x41, 0x54 };
 const png_byte opng_sig_IEND[4] = { 0x49, 0x45, 0x4e, 0x44 };
@@ -219,7 +173,7 @@ static int opng_allow_chunk(struct opng_codec_context *context, png_bytep chunk_
  */
 static void opng_handle_chunk(png_structp png_ptr, png_bytep chunk_type)
 {
-    if (opng_is_image_chunk(chunk_type) || (memcmp(chunk_type, opng_sig_PLTE, 4) == 0 || memcmp(chunk_type, opng_sig_tRNS, 4) == 0))
+    if (opng_is_image_chunk(chunk_type))
         return;
     struct opng_codec_context * context = (struct opng_codec_context *)png_get_io_ptr(png_ptr);
     struct opng_encoding_stats * stats = context->stats;
@@ -266,22 +220,20 @@ static void opng_read_data(png_structp png_ptr, png_bytep data, size_t length)
     struct opng_codec_context * context = (struct opng_codec_context *)png_get_io_ptr(png_ptr);
     struct opng_encoding_stats * stats = context->stats;
     FILE * stream = context->stream;
-
     /* Read the data. */
     if (fread(data, 1, length, stream) != length)
         png_error(png_ptr, "Can't read file or unexpected end of file");
 
-    if (stats->file_size == 0)  /* first piece of PNG data */
+    if (stats->first == false)  /* first piece of PNG data */
     {
         OPNG_ASSERT(length == 8, "PNG I/O must start with the first 8 bytes");
         stats->datastream_offset = ftell(stream) - 8;
         if (stats->datastream_offset < 0)
             png_error(png_ptr,"Can't get the file-position indicator in file");
+        stats->first = true;
     }
-    stats->file_size += length;
 
     /* Handle the optipng-specific events. */
-    OPNG_ASSERT((io_state & PNG_IO_READING) && (io_state_loc != 0), "Incorrect info in png_ptr->io_state");
     if ((png_get_io_state(png_ptr) & PNG_IO_MASK_LOC) == PNG_IO_CHUNK_HDR)
     {
         /* In libpng 1.4.x and later, the chunk length and the chunk name
@@ -291,23 +243,10 @@ static void opng_read_data(png_structp png_ptr, png_bytep data, size_t length)
         OPNG_ASSERT(length == 8, "Reading chunk header, expecting 8 bytes");
         png_bytep chunk_sig = data + 4;
 
-        if (memcmp(chunk_sig, opng_sig_IDAT, 4) == 0)
+        if (memcmp(chunk_sig, opng_sig_IDAT, 4) != 0)
         {
-            OPNG_ASSERT(png_ptr == context->libpng_ptr, "Incorrect I/O handler setup");
-            if (png_get_rows(context->libpng_ptr, context->info_ptr) == NULL)
-            {
-                /* This is the first IDAT. Allocate the rows here, bypassing
-                 * libpng. This allows to initialize the contents and perform
-                 * recovery in case of a premature EOF.
-                 */
-                if (png_get_image_height(context->libpng_ptr, context->info_ptr) == 0)
-                    return;  /* premature IDAT; an error will occur later */
-                png_data_freer(context->libpng_ptr, context->info_ptr, PNG_USER_WILL_FREE_DATA, PNG_FREE_ROWS);
-            }
-            /* Else there is split IDAT overhead. Join IDATs. */
-        }
-        else
             opng_handle_chunk(png_ptr, chunk_sig);
+        }
     }
 }
 
@@ -391,7 +330,6 @@ static void opng_write_data(png_structp png_ptr, png_bytep data, size_t length)
                     if (fgetpos(stream, &pos) != 0 || fflush(stream) != 0 || (fseek(stream, context->crt_idat_offset, SEEK_SET) != 0) ||
                         (fwrite(buf, 1, 4, stream)!=4) || (fflush(stream) != 0) || (fsetpos(stream, &pos) != 0)){
                         io_state = 0;}
-                    /* Ensure that the IDAT size was indeed unknown. */
                 }
                 if (io_state == 0)
                     png_error(png_ptr, "Can't finalize IDAT");
@@ -443,16 +381,10 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
     {
         png_set_keep_unknown_chunks(context->libpng_ptr, PNG_HANDLE_CHUNK_ALWAYS, NULL, 0);
         png_set_read_fn(context->libpng_ptr, context, opng_read_data);
-        if (opng_read_image(context->libpng_ptr, context->info_ptr) <= 0)
-        {
-            opng_error(context->fname, "Unrecognized image file format");
-            return -1;
-        }
+        png_read_png(context->libpng_ptr, context->info_ptr, 0, NULL);
     }
     Catch (err_msg)
     {
-        OPNG_ASSERT(err_msg != NULL, "No error message");
-        OPNG_ASSERT(stats->flags & OPNG_HAS_ERRORS, "No error flag");
         if (opng_validate_image(context->libpng_ptr, context->info_ptr))
         {
             /* The critical image info has already been loaded.
@@ -562,22 +494,15 @@ int opng_encode_image(struct opng_codec_context *context, int filter, FILE *stre
         opng_error(fname, err_msg);
         return -1;
     }
-    return 0;
-}
-
-/*
- * Stops the encoder.
- */
-void opng_encode_finish(struct opng_codec_context *context)
-{
     png_data_freer(context->libpng_ptr, context->info_ptr, PNG_USER_WILL_FREE_DATA, PNG_FREE_ALL);
     png_destroy_write_struct(&context->libpng_ptr, &context->info_ptr);
+    return 0;
 }
 
 /*
  * Copies a PNG file stream to another PNG file stream.
  */
-int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const char *in_fname, FILE *out_stream, const char *out_fname)
+int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const char *Infile, FILE *out_stream, const char *Outfile)
 {
     volatile png_bytep buf;  /* volatile is required by cexcept */
     const png_uint_32 buf_size_incr = 0x1000;
@@ -596,7 +521,7 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
     struct opng_encoding_stats * stats = context->stats;
     opng_init_stats(stats);
     context->stream = out_stream;
-    context->fname = out_fname;
+    context->fname = Outfile;
     png_set_write_fn(context->libpng_ptr, context, opng_write_data, NULL);
 
     Try
@@ -613,7 +538,7 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
         {
             if (fread(chunk_hdr, 8, 1, in_stream) != 1)  /* length + name */
             {
-                opng_error(in_fname, "Read error");
+                opng_error(Infile, "Read error");
                 result = -1;
                 break;
             }
@@ -622,7 +547,7 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
             {
                 if (buf == NULL && length == 0x89504e47UL)  /* "\x89PNG" */
                     continue;  /* skip the signature */
-                opng_error(in_fname, "Data error");
+                opng_error(Infile, "Data error");
                 result = -1;
                 break;
             }
@@ -636,7 +561,7 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
             }
             if (fread(buf, length + 4, 1, in_stream) != 1)  /* data + crc */
             {
-                opng_error(in_fname, "Read error");
+                opng_error(Infile, "Read error");
                 result = -1;
                 break;
             }
@@ -645,7 +570,7 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
     }
     Catch (err_msg)
     {
-        opng_error(out_fname, err_msg);
+        opng_error(Outfile, err_msg);
         result = -1;
     }
 

@@ -270,19 +270,6 @@ unsigned lodepng_can_have_alpha(const LodePNGColorMode* info);
 /*Returns the byte size of a raw image buffer with given width, height and color mode*/
 size_t lodepng_get_raw_size(unsigned w, unsigned h, const LodePNGColorMode* color);
 
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-/*The information of a Time chunk in PNG.*/
-typedef struct LodePNGTime
-{
-  unsigned year;    /*2 bytes used (0-65535)*/
-  unsigned month;   /*1-12*/
-  unsigned day;     /*1-31*/
-  unsigned hour;    /*0-23*/
-  unsigned minute;  /*0-59*/
-  unsigned second;  /*0-60 (to allow for leap seconds)*/
-} LodePNGTime;
-#endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
-
 /*Information about the PNG image, except pixels, width and height.*/
 typedef struct LodePNGInfo
 {
@@ -336,16 +323,6 @@ typedef struct LodePNGInfo
   char** itext_langtags; /*language tag for this text's language, ISO/IEC 646 string, e.g. ISO 639 language tag*/
   char** itext_transkeys; /*keyword translated to the international language - UTF-8 string*/
   char** itext_strings; /*the actual international text - UTF-8 string*/
-
-  /*time chunk (tIME)*/
-  unsigned time_defined; /*set to 1 to make the encoder generate a tIME chunk*/
-  LodePNGTime time;
-
-  /*phys chunk (pHYs)*/
-  unsigned phys_defined; /*if 0, there is no pHYs chunk and the values below are undefined, if 1 else there is one*/
-  unsigned phys_x; /*pixels per unit in x direction*/
-  unsigned phys_y; /*pixels per unit in y direction*/
-  unsigned phys_unit; /*may be 0 (unknown unit) or 1 (metre)*/
 
   /*
   unknown chunks
@@ -810,8 +787,6 @@ The following features are supported by the decoder:
     zTXt: compressed textual information
     iTXt: international textual information
     bKGD: suggested background color
-    pHYs: physical dimensions
-    tIME: modification time
 
 1.2. features not supported
 ---------------------------

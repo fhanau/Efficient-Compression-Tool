@@ -26,7 +26,6 @@ Jyrki Katajainen, Alistair Moffat, Andrew Turpin".
 /*Modified by Felix Hanau*/
 
 #include "katajainen.h"
-#include <assert.h>
 #include <stdlib.h>
 
 typedef struct Node Node;

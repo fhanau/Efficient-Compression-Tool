@@ -9,11 +9,11 @@
 #ifndef __Efficient_Compression_Tool__support__
 #define __Efficient_Compression_Tool__support__
 
-// Returns Filesize of Input
-long long filesize (const char * Input);
+// Returns Filesize of Infile
+long long filesize (const char * Infile);
 
-bool exists(const char * Input);
+bool exists(const char * Infile);
 
-bool writepermission (const char * Input);
+bool writepermission (const char * Infile);
 
 #endif /* defined(__Efficient_Compression_Tool__support__) */

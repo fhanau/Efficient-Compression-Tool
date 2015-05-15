@@ -71,15 +71,6 @@ Good values: e.g. 5, 8.
 #define ZOPFLI_CACHE_LENGTH 24
 
 /*
-limit the max hash chain hits for this hash value. This has an effect only
-on files where the hash value is the same very often. On these files, this
-gives worse compression (the value should ideally be 32768, which is the
-ZOPFLI_WINDOW_SIZE, while zlib uses 4096 even for best level), but makes it
-faster on some specific files.
-Good value: e.g. 8192.
-*/
-
-/*
 Whether to use the longest match cache for ZopfliFindLongestMatch. This cache
 consumes a lot of memory but speeds it up. No effect on compression size.
 */

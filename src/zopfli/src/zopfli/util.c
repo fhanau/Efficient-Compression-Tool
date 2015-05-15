@@ -203,11 +203,32 @@ int ZopfliGetLengthSymbol(int l) {
   return table[l];
 }
 
-void ZopfliInitOptions(ZopfliOptions* options) {
-  options->verbose = 0;
-  options->verbose_more = 0;
-  options->numiterations = 15;
+void ZopfliInitOptions(ZopfliOptions* options, int mode) {
+  if (mode < 3) {
+    options->numiterations = 1;
+  }
+  else if (mode < 4) {
+    options->numiterations = 5;
+  }
+  else if (mode < 5) {
+    options->numiterations = 15;
+  }
+  else {
+    options->numiterations = 60;
+  }
+  if (mode < 3) {
+    options->chain_length = 256;
+  }
+  else if (mode < 4) {
+    options->chain_length = 600;
+  }
+  else if (mode < 5) {
+    options->chain_length = 8192;
+  }
+  else {
+    options->chain_length = 32768;
+  }
   options->blocksplitting = 1;
   options->blocksplittinglast = 0;
-  options->blocksplittingmax = 15;
+  options->blocksplittingmax = mode > 2 ? 0 : 15;
 }

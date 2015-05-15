@@ -65,35 +65,6 @@ void ZopfliStoreLitLenDist(unsigned short length, unsigned short dist,
   ZOPFLI_APPEND_DATA(dist, &store->dists, &size2);
 }
 
-/*
-Gets a score of the length given the distance. Typically, the score of the
-length is the length itself, but if the distance is very long, decrease the
-score of the length a bit to make up for the fact that long distances use large
-amounts of extra bits.
-
-This is not an accurate score, it is a heuristic only for the greedy LZ77
-implementation. More accurate cost models are employed later. Making this
-heuristic more accurate may hurt rather than improve compression.
-
-The two direct uses of this heuristic are:
--avoid using a length of 3 in combination with a long distance. This only has
- an effect if length == 3.
--make a slightly better choice between the two options of the lazy matching.
-
-Indirectly, this affects:
--the block split points if the default of block splitting first is used, in a
- rather unpredictable way
--the first zopfli run, so it affects the chance of the first run being closer
- to the optimal output
-*/
-static int GetLengthScore(int length, int distance) {
-  /*
-  At 1024, the distance uses 9+ extra bits and this seems to be the sweet spot
-  on tested files.
-  */
-  return distance > 1024 ? length - 1 : length;
-}
-
 #ifndef NDEBUG
 void ZopfliVerifyLenDist(const unsigned char* data, size_t datasize, size_t pos,
                          unsigned short dist, unsigned short length) {
@@ -236,17 +207,17 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
     return;
   }
 #endif
-    int chain_counter = s->options->chain_length;   /*For quitting early. */
-#ifndef NDEBUG
-    int* hhashval = h->hashval;
-#endif
   if (size - pos < ZOPFLI_MIN_MATCH) {
     /* The rest of the code assumes there are at least ZOPFLI_MIN_MATCH bytes to
-       try. */
+     try. */
     *length = 0;
     *distance = 0;
     return;
   }
+  int chain_counter = s->options->chain_length;   /*For quitting early. */
+#ifndef NDEBUG
+  int* hhashval = h->hashval;
+#endif
 
   if (pos + limit > size) {
     limit = size - pos;
@@ -345,6 +316,16 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
 void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
                       size_t instart, size_t inend,
                       ZopfliLZ77Store* store) {
+  unsigned lengthscoresearch;
+  if (s->options->numiterations < 5){
+    lengthscoresearch = 640;
+  }
+  else if (s->options->numiterations < 15){
+    lengthscoresearch = 768;
+  }
+  else {
+    lengthscoresearch = 1024;
+  }
   size_t i = 0, j;
   unsigned short leng;
   unsigned short dist;
@@ -377,11 +358,11 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
 
     ZopfliFindLongestMatch(s, h, in, i, inend, ZOPFLI_MAX_MATCH, dummysublen,
                            &dist, &leng);
-    lengthscore = GetLengthScore(leng, dist);
+    lengthscore = dist > lengthscoresearch ? leng - 1 : leng;
 
 #ifdef ZOPFLI_LAZY_MATCHING
     /* Lazy matching. */
-    prevlengthscore = GetLengthScore(prev_length, prev_match);
+    prevlengthscore = prev_match > lengthscoresearch ? prev_length - 1 : prev_length;
     if (match_available) {
       match_available = 0;
       if (lengthscore > prevlengthscore + 1) {
