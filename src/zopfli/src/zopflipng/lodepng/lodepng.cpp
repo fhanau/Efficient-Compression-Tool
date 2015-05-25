@@ -33,6 +33,7 @@ Rename this file to lodepng.cpp to use it for C++, or to lodepng.c to use it for
 
 #include "lodepng.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -3836,15 +3837,6 @@ static void filterScanline(unsigned char* out, const unsigned char* scanline, co
   }
 }
 
-/* log2 approximation. A slight bit faster than std::log. */
-static float flog2(float f)
-{
-  float result = 0;
-  while(f > 32) { result += 4; f /= 16; }
-  while(f > 2) { ++result; f /= 2; }
-  return result + 1.442695f * (f * f * f / 3 - 3 * f * f / 2 + 3 * f - 1.83333f);
-}
-
 static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, unsigned h,
                        const LodePNGColorMode* info, const LodePNGEncoderSettings* settings)
 {
@@ -3979,7 +3971,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         for(x = 0; x != 256; ++x)
         {
           float p = count[x] / (float)(linebytes + 1);
-          sum[type] += count[x] == 0 ? 0 : flog2(1 / p) * p;
+          sum[type] += count[x] == 0 ? 0 : log2f(1 / p) * p;
         }
         /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
         if(type == 0 || sum[type] < smallest)
