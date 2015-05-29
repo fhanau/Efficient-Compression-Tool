@@ -49,7 +49,7 @@ typedef struct ZopfliHash {
 } ZopfliHash;
 
 /* Allocates and initializes all fields of ZopfliHash. */
-void ZopfliInitHash(size_t window_size, ZopfliHash* h);
+void ZopfliInitHash(ZopfliHash* h);
 
 /* Frees all fields of ZopfliHash. */
 void ZopfliCleanHash(ZopfliHash* h);

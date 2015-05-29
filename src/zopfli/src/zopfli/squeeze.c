@@ -228,7 +228,7 @@ static double GetBestLengths(ZopfliBlockState *s,
   costs = (float*)malloc(sizeof(float) * (blocksize + 1));
   if (!costs) exit(-1); /* Allocation failed. */
 
-  ZopfliInitHash(ZOPFLI_WINDOW_SIZE, h);
+  ZopfliInitHash(h);
   ZopfliWarmupHash(in, windowstart, inend, h);
   for (i = windowstart; i < instart; i++) {
     ZopfliUpdateHash(in, i, inend, h);
@@ -345,7 +345,7 @@ static void FollowPath(ZopfliBlockState* s,
 
   if (instart == inend) return;
 
-  ZopfliInitHash(ZOPFLI_WINDOW_SIZE, h);
+  ZopfliInitHash(h);
   ZopfliWarmupHash(in, windowstart, inend, h);
   for (i = windowstart; i < instart; i++) {
     ZopfliUpdateHash(in, i, inend, h);
