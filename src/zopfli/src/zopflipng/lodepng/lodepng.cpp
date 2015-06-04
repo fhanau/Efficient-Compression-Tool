@@ -1012,7 +1012,7 @@ static unsigned update_adler32(unsigned adler, const unsigned char* data, unsign
 }
 
 /*Return the adler32 of the bytes data[0..len-1]*/
-static unsigned adler32(const unsigned char* data, unsigned len)
+unsigned adler32(const unsigned char* data, unsigned len)
 {
   return update_adler32(1L, data, len);
 }

@@ -17,35 +17,10 @@ Author: lode.vandevenne@gmail.com (Lode Vandevenne)
 Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 */
 
+#include "deflate.h"
 #include "zlib_container.h"
 #include "util.h"
-
-#include <stdio.h>
-
-#include "deflate.h"
-
-
-/* Calculates the adler32 checksum of the data */
-static unsigned adler32(const unsigned char* data, size_t size)
-{
-  static const unsigned sums_overflow = 5550;
-  unsigned s1 = 1;
-  unsigned s2 = 1 >> 16;
-
-  while (size > 0) {
-    size_t amount = size > sums_overflow ? sums_overflow : size;
-    size -= amount;
-    while (amount > 0) {
-      s1 += (*data++);
-      s2 += s1;
-      amount--;
-    }
-    s1 %= 65521;
-    s2 %= 65521;
-  }
-
-  return (s2 << 16) | s1;
-}
+#include "../zopflipng/lodepng/lodepng.h"
 
 void ZopfliZlibCompress(const ZopfliOptions* options,
                         const unsigned char* in, size_t insize,
@@ -69,9 +44,4 @@ void ZopfliZlibCompress(const ZopfliOptions* options,
   ZOPFLI_APPEND_DATA((checksum >> 16) % 256, out, outsize);
   ZOPFLI_APPEND_DATA((checksum >> 8) % 256, out, outsize);
   ZOPFLI_APPEND_DATA(checksum % 256, out, outsize);
-
-    /*fprintf(stderr,
-            "Original Size: %d, Zlib: %d, Compression: %f%% Removed\n",
-            (int)insize, (int)*outsize,
-            100.0 * (double)(insize - *outsize) / (double)insize);*/
 }
