@@ -39,7 +39,7 @@ struct ZopfliPNGOptions {
     bool lossy_8bit;
 
     // remove PNG chunks
-    bool removechunks;
+    bool strip;
     
     int Mode;
 };
@@ -47,7 +47,7 @@ struct ZopfliPNGOptions {
 ZopfliPNGOptions::ZopfliPNGOptions()
 : lossy_transparent(true)
 , lossy_8bit(false)
-, removechunks(false)
+, strip(false)
 {
 }
 
@@ -59,7 +59,7 @@ static unsigned CustomPNGDeflate(unsigned char** out, size_t* outsize, const uns
     ZopfliOptions options;
     ZopfliInitOptions(&options, png_options->Mode);
     ZopfliDeflate(&options, 1, in, insize, &bp, out, outsize);
-    return 0;  // OK
+    return 0;
 }
 
 // Returns 32-bit integer value for RGBA color.
@@ -189,12 +189,7 @@ static unsigned TryOptimize(
     if (best_filter == 0)
     {state.encoder.filter_strategy = LFS_ZERO;}
     else if (best_filter== 5)
-        //{state.encoder.filter_strategy = LFS_MINSUM;}
     {state.encoder.filter_strategy = LFS_ENTROPY;}
-    else {
-        printf("Filter strategy not supported");
-        return 111;
-    }
 
     //Palette sorting (Should be in seperate function). This is an untested experiment and likely wont improve compression.
     /*if (state.info_png.color.colortype == LCT_PALETTE){
@@ -236,15 +231,8 @@ static unsigned TryOptimize(
              best_filter = Optipng(Mode, Infile, false, true);
              if (best_filter == 0)
              {state.encoder.filter_strategy = LFS_ZERO;}
-             else if (best_filter== 5)
-             //{state.encoder.filter_strategy = LFS_MINSUM;}
+             else 
              {state.encoder.filter_strategy = LFS_ENTROPY;}
-             else {
-             std::vector<unsigned char> filters;
-             filters.resize(h, best_filter);
-             state.encoder.filter_strategy = LFS_PREDEFINED;
-             state.encoder.predefined_filters = &filters[0];
-             }
              }*/
 
             std::vector<unsigned char> out2;
@@ -279,13 +267,14 @@ static unsigned TryOptimize(
 }
 
 static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter
-                                  /*, int Mode, const char * Infile*/) {
+/*, int Mode, const char * Infile*/) {
+
+
     std::vector<unsigned char> image;
     unsigned w, h;
-    unsigned error;
     lodepng::State inputstate;
 
-    error = lodepng::decode(image, w, h, inputstate, origpng);
+    unsigned error = lodepng::decode(image, w, h, inputstate, origpng);
 
     if (error) {
         printf("Decoding error %i: %s\n", error, lodepng_error_text(error));
@@ -311,7 +300,7 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
     if (!error) {
         (*resultpng).swap(temp);  // Store best result so far in the output.
     }
-    if (!png_options.removechunks) {
+    if (!png_options.strip) {
         std::vector<std::string> names[3];
         std::vector<std::vector<unsigned char> > chunks[3];
         lodepng::getChunks(names, chunks, origpng);
@@ -320,15 +309,15 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
     return error;
 }
 
-int Zopflipng(bool Metaremove, const char * Infile, bool strict, int Mode, int best_filter) {
+int Zopflipng(bool strip, const char * Infile, bool strict, int Mode, int filter) {
     ZopfliPNGOptions png_options;
     png_options.Mode = Mode;
     if (strict){png_options.lossy_transparent = false;}
-    png_options.removechunks = Metaremove;
+    png_options.strip = strip;
     std::vector<unsigned char> origpng;
     lodepng::load_file(origpng, Infile);
     std::vector<unsigned char> resultpng;
-    if (ZopfliPNGOptimize(origpng, png_options, &resultpng, best_filter/*, Mode, Infile*/)) {return 2;}
+    if (ZopfliPNGOptimize(origpng, png_options, &resultpng, filter/*, Mode, Infile*/)) {return 2;}
     if (resultpng.size() >= origpng.size()) {return 1;}
     lodepng::save_file(resultpng, Infile);
     return 0;

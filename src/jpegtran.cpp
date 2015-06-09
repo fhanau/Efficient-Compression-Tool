@@ -68,7 +68,7 @@ static void parse_switches (j_compress_ptr cinfo, bool progressive, bool arithme
   return;
 }
 
-int mozjpegtran (bool arithmetic, bool progressive, bool copyoption, const char * Infile, const char * Outfile)
+int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Infile, const char * Outfile)
 {
     struct jpeg_decompress_struct srcinfo;
     struct jpeg_compress_struct dstinfo;
@@ -120,7 +120,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool copyoption, const char 
     jpeg_mem_src(&srcinfo, inbuffer, insize);
 
     /* Enable saving of extra markers that we want to copy */
-    if (!copyoption) {
+    if (!strip) {
         jpeg_save_markers(&srcinfo, JPEG_COM, 0xFFFF);
         for (int m = 0; m < 16; m++)
             jpeg_save_markers(&srcinfo, JPEG_APP0 + m, 0xFFFF);

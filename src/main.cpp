@@ -60,24 +60,24 @@ static void ECT_ReportSavings(){
     int k = 0;
     double smul=savings;
     double bmul=bytes;
-    while (smul>1024){smul/=1024;k++;}
-    while (bmul>1024){bmul/=1024;bk++;}
+    while (smul > 1024){smul /= 1024; k++;}
+    while (bmul > 1024){bmul /= 1024; bk++;}
     char *counter;
-    if (k==1){counter=(char *)"K";}
-    else if (k==2){counter=(char *)"M";}
-    else if (k==3){counter=(char *)"G";}
-    else {counter=(char *)"";}
+    if (k == 1){counter = (char *)"K";}
+    else if (k == 2){counter = (char *)"M";}
+    else if (k == 3){counter = (char *)"G";}
+    else {counter = (char *)"";}
     char *counter2;
-    if (bk==1){counter2=(char *)"K";}
-    else if (bk==2){counter2=(char *)"M";}
-    else if (bk==3){counter2=(char *)"G";}
-    else {counter2=(char *)"";}
+    if (bk == 1){counter2=(char *)"K";}
+    else if (bk == 2){counter2 = (char *)"M";}
+    else if (bk == 3){counter2 = (char *)"G";}
+    else {counter2 = (char *)"";}
     printf("Processed %lu file%s\n"
            "Saved ", processedfiles, processedfiles>1 ? "s":"");
-    if (k==0){printf("%0.0f", smul);}
+    if (k == 0){printf("%0.0f", smul);}
     else{printf("%0.2f", smul);}
     printf("%sB out of ", counter);
-    if (bk==0){printf("%0.0f", bmul);}
+    if (bk == 0){printf("%0.0f", bmul);}
     else{printf("%0.2f", bmul);}
     printf("%sB (%0.3f%%)\n", counter2, (100.0 * savings)/bytes);}
     else {printf("No compatible files found\n");}
@@ -113,36 +113,37 @@ static int ECTGzip(const char * Infile, const int Mode){
 }
 
 static void OptimizePNG(const char * Infile, const ECTOptions& Options){
-    int x=1;
+    int x = 1;
     long long size = filesize(Infile);
     if(Options.Mode==5){
-        x=Zopflipng(Options.Metadata, Infile, Options.Strict, 2, 0);
+        x = Zopflipng(Options.strip, Infile, Options.Strict, 2, 0);
     }
     //Disabled as using this causes libpng warnings
     //if (Options.mode>2)
     //int filter = Optipng(Options.Mode, Infile, Options.Mode!=1, false);
     int filter = Optipng(Options.Mode, Infile, false, false);
+
     if (filter == -1){
         return;
     }
-    if (Options.Mode!=1){
+    if (Options.Mode != 1){
         if (Options.Mode == 5){
-            Zopflipng(Options.Metadata, Infile, Options.Strict, 5, filter);}
+            Zopflipng(Options.strip, Infile, Options.Strict, 5, filter);}
         else {
-            x=Zopflipng(Options.Metadata, Infile, Options.Strict, Options.Mode, filter);}
+            x=Zopflipng(Options.strip, Infile, Options.Strict, Options.Mode, filter);}
     }
     long long size2 = filesize(Infile);
     if (size2<=size&&size2>1){unlink(((std::string)Infile).append(".bak").c_str());}
     else {unlink(Infile);rename(((std::string)Infile).append(".bak").c_str(), Infile);}
-    if(Options.Metadata && x==1){Optipng(0, Infile, false, false);}
+    if(Options.strip && x == 1){Optipng(0, Infile, false, false);}
 }
 
 static void OptimizeJPEG(const char * Infile, const ECTOptions& Options){
-    mozjpegtran(Options.Arithmetic, Options.Progressive, Options.Metadata, Infile, Infile);
+    mozjpegtran(Options.Arithmetic, Options.Progressive, Options.strip, Infile, Infile);
     if (Options.Progressive){
         long long fs = filesize(Infile);
         if((Options.Mode == 1 && fs < 6142) || (Options.Mode == 2 && fs < 8192) || (Options.Mode == 3 && fs < 15360) || (Options.Mode == 4 && fs < 30720) || (Options.Mode == 5 && fs < 51200)){
-            mozjpegtran(Options.Arithmetic, false, Options.Metadata, Infile, Infile);
+            mozjpegtran(Options.Arithmetic, false, Options.strip, Infile, Infile);
         }
     }
 }
@@ -181,7 +182,7 @@ static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
 
 int main(int argc, const char * argv[]) {
     ECTOptions Options;
-    Options.Metadata = false;
+    Options.strip = false;
     Options.Progressive = false;
     Options.Mode = 1;
 #ifdef BOOST_SUPPORTED
@@ -195,7 +196,7 @@ int main(int argc, const char * argv[]) {
     Options.Strict = false;
     if (argc>=2){
         for (int i = 1; i < argc-1; i++) {
-            if (strncmp(argv[i], "-strip", 2) == 0){Options.Metadata = true;}
+            if (strncmp(argv[i], "-strip", 2) == 0){Options.strip = true;}
             else if (strncmp(argv[i], "-progressive", 2) == 0) {Options.Progressive = true;}
             else if (strcmp(argv[i], "-M1") == 0) {Options.Mode = 1;}
             else if (strcmp(argv[i], "-M2") == 0) {Options.Mode = 2;}
@@ -221,12 +222,12 @@ int main(int argc, const char * argv[]) {
         else if (boost::filesystem::is_directory(argv[argc-1])){
             if(Options.Recurse){boost::filesystem::recursive_directory_iterator a(argv[argc-1]), b;
                 std::vector<boost::filesystem::path> paths(a, b);
-                for(unsigned long i = 0;i<paths.size();i++){PerFileWrapper(paths[i].c_str(), Options);}
+                for(unsigned long i = 0; i<paths.size(); i++){PerFileWrapper(paths[i].c_str(), Options);}
             }
             else{
                 boost::filesystem::directory_iterator a(argv[argc-1]), b;
                 std::vector<boost::filesystem::path> paths(a, b);
-                for(unsigned long i = 0;i<paths.size();i++){PerFileWrapper(paths[i].c_str(), Options);}
+                for(unsigned long i = 0; i<paths.size(); i++){PerFileWrapper(paths[i].c_str(), Options);}
             }
         }
 #else
