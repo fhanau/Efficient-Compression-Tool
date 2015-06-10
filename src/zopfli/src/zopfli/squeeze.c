@@ -125,9 +125,10 @@ static double GetCostFixed(unsigned litlen, unsigned dist, void* unused) {
     if (litlen <= 143) return 8;
     else return 9;
   } else {
-    /* litlen > 4 is simplified ZopfliGetLengthSymbol(litlen) > 279 */
-    double cost = 12 + ZopfliGetDistExtraBits(dist) + ZopfliGetLengthExtraBits(litlen) + litlen > 4;
-    return cost;
+    double cost = 12;
+    /* litlen > 114 is simplified ZopfliGetLengthSymbol(litlen) > 279 */
+    if (litlen > 114) cost += 1;
+    return cost + ZopfliGetDistExtraBits(dist) + ZopfliGetLengthExtraBits(litlen);
   }
 }
 
