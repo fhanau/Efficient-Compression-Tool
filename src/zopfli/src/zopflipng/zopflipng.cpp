@@ -345,7 +345,7 @@ int Zopflipng(bool strip, const char * Infile, bool strict, int Mode, int filter
     std::vector<unsigned char> origpng;
     lodepng::load_file(origpng, Infile);
     std::vector<unsigned char> resultpng;
-    if (ZopfliPNGOptimize(origpng, png_options, &resultpng, filter/*, Mode, Infile*/)) {return 2;}
+    if (ZopfliPNGOptimize(origpng, png_options, &resultpng, filter/*, Mode, Infile*/)) {return -1;}
     if (resultpng.size() >= origpng.size()) {return 1;}
     lodepng::save_file(resultpng, Infile);
     return 0;

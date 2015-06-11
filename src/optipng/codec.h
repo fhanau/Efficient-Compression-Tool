@@ -80,6 +80,7 @@ struct opng_codec_context
     png_uint_32 crt_idat_crc;
     int crt_chunk_is_allowed;
     int crt_chunk_is_idat;
+    bool no_write;
 };
 
 /*

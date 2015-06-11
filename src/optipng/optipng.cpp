@@ -161,13 +161,14 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
 }
 
 // Writes an image to a PNG file stream.
-static int opng_write_file(struct opng_session *session, int filter, FILE *stream, int mode)
+static int opng_write_file(struct opng_session *session, FILE *stream, int filter, int mode, bool no_write)
 {
     struct opng_codec_context context;
     opng_init_codec_context(&context,
                             &session->image,
                             &session->out_stats,
                             session->transformer);
+    context.no_write = no_write;
     return opng_encode_image(&context, filter, stream, session->Outfile, mode);
 }
 
@@ -228,7 +229,7 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
         return -1;
     }
     // Todo: check backup write perms
-    if (!force_no_palette) {
+    if (!force_no_palette && options->optim_level < 2) {
     rename(Infile, (((std::string)Infile).append(".bak")).c_str());
     }
     int optimal_filter = -1;
@@ -256,25 +257,32 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
     else {
         optk_uint64_t best_idat = 0;
         optimal_filter = 0;
-        /* Iterate through filters PNG_FILTER_NONE and PNG_ALL_FILTERS. */
-        for (int filter = 0;
-             filter <= 5; filter+=5)
-        {
-            fstream = fopen((filter == 0 && !force_no_palette) ? Infile: ((std::string)Infile).append(".bak2").c_str(), "wb");
-            opng_write_file(session, filter, fstream, options->optim_level);
+        int level = 6;
+        if (options->optim_level == 1){
+            level = 5;
+        }
+        else if (options->optim_level > 3){
+            level = 9;
+        }
+        else if (options->optim_level == 3){
+            level = 7;
+        }
+
+        // Try filters PNG_FILTER_NONE and PNG_ALL_FILTERS.
+
+        // fstream is not initalized but that doesn't matter as it isn't used
+        opng_write_file(session, fstream, 0, level, true);
+        best_idat = session->out_stats.idat_size;
+
+        opng_write_file(session, fstream, 1, level, true);
+
+        if (best_idat > session->out_stats.idat_size){
+            optimal_filter = 5;}
+
+        if (options->optim_level == 1){
+            fstream = fopen(Infile, "wb");
+            opng_write_file(session, fstream, optimal_filter == 5, 9, false);
             fclose(fstream);
-            if (filter == 0){
-                best_idat = session->out_stats.idat_size;
-            }
-            else {
-                if (best_idat <= session->out_stats.idat_size){unlink((((std::string)Infile).append(".bak2")).c_str());
-                }
-                else{
-                    if (force_no_palette){unlink((((std::string)Infile).append(".bak2")).c_str());}
-                    else{unlink(Infile);
-                        rename((((std::string)Infile).append(".bak2")).c_str(), Infile);}
-                    optimal_filter = filter;}
-            }
         }
     }
     return optimal_filter;

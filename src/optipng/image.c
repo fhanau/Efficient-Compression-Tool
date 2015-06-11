@@ -16,16 +16,6 @@
 #include "image.h"
 
 /*
- * Deallocate memory in a manner that is compatible with libpng's memory
- * allocation/deallocation routines, png_malloc() and png_free().
- * If those routines change, this must be changed accordingly.
- */
-static void opng_free(void *ptr)
-{
-    free(ptr);
-}
-
-/*
  * Initializes an image object.
  */
 void opng_init_image(struct opng_image *image)
@@ -114,20 +104,15 @@ void opng_clear_image(struct opng_image *image)
         return;  /* nothing to clean up */
 
     for (png_uint_32 i = 0; i < image->height; ++i)
-        opng_free(image->row_pointers[i]);
-    opng_free(image->row_pointers);
-    opng_free(image->palette);
-    opng_free(image->trans_alpha);
-    opng_free(image->hist);
+        free(image->row_pointers[i]);
+    free(image->row_pointers);
+    free(image->palette);
+    free(image->trans_alpha);
+    free(image->hist);
     for (int j = 0; j < image->num_unknowns; ++j)
-        opng_free(image->unknowns[j].data);
-    opng_free(image->unknowns);
+        free(image->unknowns[j].data);
+    free(image->unknowns);
     /* DO NOT deallocate background_ptr, sig_bit_ptr, trans_color_ptr.
      * See the comments regarding double copying inside opng_load_image_info().
      */
-
-    /* Clear the space here and do not worry about double-deallocation issues
-     * that might arise later on.
-     */
-    memset(image, 0, sizeof(*image));
 }

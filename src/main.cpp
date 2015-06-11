@@ -132,10 +132,19 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
         else {
             x=Zopflipng(Options.strip, Infile, Options.Strict, Options.Mode, filter);}
     }
-    long long size2 = filesize(Infile);
-    if (size2<=size&&size2>1){unlink(((std::string)Infile).append(".bak").c_str());}
-    else {unlink(Infile);rename(((std::string)Infile).append(".bak").c_str(), Infile);}
-    if(Options.strip && x == 1){Optipng(0, Infile, false, false);}
+    else {
+        if (filesize(Infile) <= size){
+            unlink(((std::string)Infile).append(".bak").c_str());
+        }
+        else {
+            unlink(Infile);
+            rename(((std::string)Infile).append(".bak").c_str(), Infile);
+        }
+    }
+
+    if(Options.strip && x){
+        Optipng(0, Infile, false, false);
+    }
 }
 
 static void OptimizeJPEG(const char * Infile, const ECTOptions& Options){

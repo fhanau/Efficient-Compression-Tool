@@ -29,19 +29,6 @@ define_exception_type(const char *);
 struct exception_context the_exception_context[1];
 
 /*
- * Encoder tables
- */
-static const int filter_table[6] =
-{
-    PNG_FILTER_NONE  /* 0 */,
-    PNG_FILTER_SUB   /* 1 */,
-    PNG_FILTER_UP    /* 2 */,
-    PNG_FILTER_AVG   /* 3 */,
-    PNG_FILTER_PAETH /* 4 */,
-    PNG_ALL_FILTERS  /* 5 */
-};
-
-/*
  * The chunk signatures recognized and handled by this codec.
  */
 const png_byte opng_sig_tRNS[4] = { 0x74, 0x52, 0x4e, 0x53 };
@@ -101,6 +88,7 @@ void opng_init_codec_context(struct opng_codec_context *context, struct opng_ima
     context->image = image;
     context->stats = stats;
     context->transformer = transformer;
+    context->no_write = false;
 }
 
 /*
@@ -273,12 +261,14 @@ static void opng_write_data(png_structp png_ptr, png_bytep data, size_t length)
         {
             context->crt_chunk_is_idat = 1;
             stats->idat_size += png_get_uint_32(data);
-            /* Abandon the trial if IDAT is bigger than the maximum allowed. */
         }
         else  /* not IDAT */
         {
             context->crt_chunk_is_idat = 0;
         }
+    }
+    if (context->no_write){
+        return;
     }
 
     /* Continue only if the current chunk type is allowed. */
@@ -364,7 +354,7 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
     {
         opng_error(NULL, "Out of memory");
         png_destroy_read_struct(&context->libpng_ptr, &context->info_ptr, NULL);
-        return -1;
+        exit(1);
     }
 
     opng_init_image(context->image);
@@ -454,7 +444,7 @@ void opng_decode_finish(struct opng_codec_context *context, int free_data)
 /*
  * Encodes an image to a PNG file stream.
  */
-int opng_encode_image(struct opng_codec_context *context, int filter, FILE *stream, const char *fname, int mode)
+int opng_encode_image(struct opng_codec_context *context, int filtered, FILE *stream, const char *fname, int level)
 {
     const char * volatile err_msg;  /* volatile is required by cexcept */
 
@@ -464,7 +454,7 @@ int opng_encode_image(struct opng_codec_context *context, int filter, FILE *stre
     {
         opng_error(NULL, "Out of memory");
         png_destroy_write_struct(&context->libpng_ptr, &context->info_ptr);
-        return -1;
+        exit(1);
     }
 
     struct opng_encoding_stats * stats = context->stats;
@@ -474,9 +464,10 @@ int opng_encode_image(struct opng_codec_context *context, int filter, FILE *stre
 
     Try
     {
-        png_set_filter(context->libpng_ptr, PNG_FILTER_TYPE_BASE, filter_table[filter]);
-        if (mode!=2){
-            png_set_compression_level(context->libpng_ptr, mode == 3 ? 7 : 9);
+
+        png_set_filter(context->libpng_ptr, PNG_FILTER_TYPE_BASE, filtered ? PNG_ALL_FILTERS : PNG_FILTER_NONE);
+        if (level != 6){
+            png_set_compression_level(context->libpng_ptr, level);
         }
         png_set_compression_mem_level(context->libpng_ptr, 8);
         png_set_compression_window_bits(context->libpng_ptr, 15);
@@ -515,7 +506,7 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
     if (context->libpng_ptr == NULL)
     {
         opng_error(NULL, "Out of memory");
-        return -1;
+        exit(1);
     }
 
     struct opng_encoding_stats * stats = context->stats;
