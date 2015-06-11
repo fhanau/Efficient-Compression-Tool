@@ -64,7 +64,7 @@ static unsigned CustomPNGDeflate(unsigned char** out, size_t* outsize, const uns
 
 // Returns 32-bit integer value for RGBA color.
 static unsigned ColorIndex(const unsigned char* color) {
-    return color[0] + 256u * color[1] + 65536u * color[2] + 16777216u * color[3];
+    return color[0] + (color[1] << 8) + (color[2] << 16) + (color[3] << 24);
 }
 
 // Counts amount of colors in the image, up to 257. If transparent_counts_as_one
@@ -76,7 +76,9 @@ static void CountColors(std::set<unsigned>* unique, const unsigned char* image, 
         unsigned index = ColorIndex(&image[i * 4]);
         if (transparent_counts_as_one && image[i * 4 + 3] == 0) index = 0;
         unique->insert(index);
+        if (i>256){
         if (unique->size() > 256) break;
+        }
     }
 }
 
@@ -87,10 +89,18 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
     //      There are big improvements possible here.
 
     std::set<unsigned> count;  // Color count, up to 257.
-    CountColors(&count, image, w, h, true);
+
     // If true, means palette is possible so avoid using different RGB values for
     // the transparent color.
-    bool palette = count.size() <= 256;
+    bool palette;
+    if(inputstate->info_png.color.colortype == LCT_PALETTE) {
+        palette = w * h < inputstate->info_png.color.palettesize * 2;
+    }
+    else{
+        CountColors(&count, image, w, h, true);
+        unsigned long colors = count.size();
+        palette = colors <= 256 && w * h < colors * 2;
+    }
 
     if (!filter && !palette) {
         for (size_t i = 0; i < w * h; i++) {
@@ -106,15 +116,27 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
         // First check if we want to preserve potential color-key background color,
         // or instead use the last encountered RGB value all the time to save bytes.
         bool key = true;
-        for (size_t i = 0; i < w * h; i++) {
-            if (image[i * 4 + 3] > 0 && image[i * 4 + 3] < 255) {
-                key = false;
-                break;
+        // Makes no difference if palette
+        if (!palette){
+            for (size_t i = 0; i < w * h; i++) {
+                if (image[i * 4 + 3] > 0 && image[i * 4 + 3] < 255) {
+                    key = false;
+                    break;
+                }
             }
         }
         unsigned char r = 0, g = 0, b = 0;
-        for (size_t i = 0; i < w * h; i++) {
-            if (image[i * 4 + 3] == 0) {
+        if (palette && !filter){
+            // Use RGB value of first encountered pixel. This can be
+            // used as a valid color key, or in case of palette ensures a color
+            // existing in the input image palette is used.
+            r = image[0];
+            g = image[1];
+            b = image[2];
+        }
+        else if (key || palette){
+            for (size_t i = 0; i < w * h; i++) {
+                if (image[i * 4 + 3] == 0) {
                 // Use RGB value of first encountered transparent pixel. This can be
                 // used as a valid color key, or in case of palette ensures a color
                 // existing in the input image palette is used.
@@ -122,10 +144,16 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
                 g = image[i * 4 + 1];
                 b = image[i * 4 + 2];
                 break;
+                }
             }
         }
         for (size_t i = 0; i < w * h; i++) {
             // if alpha is 0, alter the RGB value to a possibly more efficient one.
+            if (!palette && i % w == 0){
+                r = 0;
+                g = 0;
+                b = 0;
+            }
             if (image[i * 4 + 3] == 0) {
                 image[i * 4 + 0] = r;
                 image[i * 4 + 1] = g;
