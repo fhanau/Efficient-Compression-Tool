@@ -206,29 +206,33 @@ int ZopfliGetLengthSymbol(int l) {
 void ZopfliInitOptions(ZopfliOptions* options, int mode) {
   if (mode < 3) {
     options->numiterations = 1;
+    options->chain_length = 400;
+    options->lengthscoresearch = 640;
+    options->noblocksplitlz = 1000;
   }
   else if (mode < 4) {
     options->numiterations = 5;
-  }
-  else if (mode < 5) {
-    options->numiterations = 15;
-  }
-  else {
-    options->numiterations = 60;
-  }
-  if (mode < 3) {
-    options->chain_length = 256;
-  }
-  else if (mode < 4) {
     options->chain_length = 600;
-  }
-  else if (mode < 5) {
-    options->chain_length = 8192;
+    options->lengthscoresearch = 768;
+    options->noblocksplitlz = 100;
   }
   else {
-    options->chain_length = 32768;
+    options->lengthscoresearch = 1024;
+    options->noblocksplitlz = 25;
+    if (mode < 5) {
+    options->numiterations = 15;
+    options->chain_length = 8192;
+    }
+    else {
+      options->numiterations = 60;
+      options->chain_length = 32768;
+    }
   }
+  options->skipdynamic = mode > 2 ? 80 : 400;
   options->blocksplitting = 1;
   options->blocksplittinglast = 0;
   options->blocksplittingmax = mode > 2 ? 0 : 15;
+  options->trystatic = mode > 3 ? 2000 : 800;
+  options->noblocksplit = 1400;
+  /* TODO: Add FindMinimum 1024 and 9.*/
 }

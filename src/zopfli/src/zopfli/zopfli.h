@@ -68,9 +68,23 @@ typedef struct ZopfliOptions {
   gives worse compression (the value should ideally be 32768, which is the
   ZOPFLI_WINDOW_SIZE, while zlib uses 4096 even for best level), but makes it
   faster on some specific files.
-  Good value: e.g. 8192.
   */
   int chain_length;
+
+  /* When to reduce length in ZopfliLZ77Greedy. */
+  unsigned lengthscoresearch;
+
+  /* Don't try to use dynamic block under this size. */
+  unsigned skipdynamic;
+
+  /* Try static block if dynamic block is smaller than this. Needs to be much higher than skipdynamic. */
+  unsigned trystatic;
+
+  /* Don't blocksplit under this size. */
+  unsigned noblocksplit;
+
+  /* Don't blocksplit under this size (LZ77'd data). */
+  unsigned noblocksplitlz;
 
 } ZopfliOptions;
 

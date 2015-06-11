@@ -262,18 +262,7 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
   results in better blocks. */
   ZopfliLZ77Greedy(&s, in, instart, inend, &store);
 
-  unsigned long maxsplitting;
-  if (options->numiterations == 1){
-    maxsplitting = 300;
-  }
-  else if (options->numiterations == 5) {
-    maxsplitting = 100;
-  }
-  else {
-    maxsplitting = 25;
-  }
-  ZopfliBlockSplitLZ77(store.litlens, store.dists, store.size, maxblocks,
-                       &lz77splitpoints, &nlz77points, maxsplitting);
+  ZopfliBlockSplitLZ77(store.litlens, store.dists, store.size, maxblocks, &lz77splitpoints, &nlz77points, options->noblocksplitlz);
 
   /* Convert LZ77 positions to positions in the uncompressed input. */
   pos = instart;

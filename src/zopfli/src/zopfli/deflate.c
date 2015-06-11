@@ -581,7 +581,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
   s.lmc = (ZopfliLongestMatchCache*)malloc(sizeof(ZopfliLongestMatchCache));
   ZopfliInitCache(blocksize, s.lmc);
 #endif
-  if (blocksize <= 80){
+  if (blocksize <= options->skipdynamic){
     btype = 1;
     ZopfliLZ77OptimalFixed(&s, in, instart, inend, &store);
   }
@@ -592,7 +592,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
 
   /* For small block, encoding with fixed tree can be smaller. For large block,
   don't bother doing this expensive test, dynamic tree will be better.*/
-    if (blocksize > 80 && ((options->numiterations > 5 && store.size < 2000) || store.size < 800)) {
+  if (blocksize > options->skipdynamic && store.size < options->trystatic){
     double dyncost, fixedcost;
     ZopfliLZ77Store fixedstore;
     ZopfliInitLZ77Store(&fixedstore);
@@ -601,7 +601,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
         0, store.size, 2);
     fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists,
         0, fixedstore.size, 1);
-    if (fixedcost < dyncost) {
+    if (fixedcost <= dyncost) {
       btype = 1;
       ZopfliCleanLZ77Store(&store);
       store = fixedstore;
@@ -707,7 +707,7 @@ static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
                        unsigned char* bp, unsigned char** out,
                        size_t* outsize) {
     /* Blocksplitting likely wont improve compression on small images */
-    if ((inend - instart) < 1400){
+    if ((inend - instart) < options->noblocksplit){
         DeflateDynamicBlock(options, final, in, instart, inend, bp, out, outsize);
     }
     else {
