@@ -13,7 +13,6 @@ Then, open the Xcode Project and compile the program.
 
 If you want Support for optimizing all files in a folder, you need to link the Boost.Filesystem and Boost.System libraries (boost.org) and define BOOST_SUPPORTED in main.cpp.
 This is already done in the Xcode project. In both cases you need to have Boost installed.
-If you don't want JPEG or PNG support you can undefine JPEG_SUPPORTED or PNG_SUPPORTED in main.h.
 
 Dependencies:
 Make
