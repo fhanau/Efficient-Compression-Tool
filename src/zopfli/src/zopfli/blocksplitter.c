@@ -32,24 +32,52 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "util.h"
 
 /*
-The "f" for the FindMinimum function below.
-i: the current parameter of f(i)
-context: for your implementation
-*/
-typedef double FindMinimumFun(size_t i, void* context);
+ Returns estimated cost of a block in bits.  It includes the size to encode the
+ tree and the size to encode all literal, length and distance symbols and their
+ extra bits.
+
+ litlens: lz77 lit/lengths
+ dists: ll77 distances
+ lstart: start of block
+ lend: end of block (not inclusive)
+ */
+static double EstimateCost(const unsigned short* litlens,
+                           const unsigned short* dists,
+                           size_t lstart, size_t lend) {
+  return ZopfliCalculateBlockSize(litlens, dists, lstart, lend, 2);
+}
+
+typedef struct SplitCostContext {
+  const unsigned short* litlens;
+  const unsigned short* dists;
+  size_t llsize;
+  size_t start;
+  size_t end;
+} SplitCostContext;
+
+
+/*
+ Gets the cost which is the sum of the cost of the left and the right section
+ of the data.
+ */
+static double SplitCost(size_t i, void* context) {
+  SplitCostContext* c = (SplitCostContext*)context;
+  return EstimateCost(c->litlens, c->dists, c->start, i) +
+  EstimateCost(c->litlens, c->dists, i, c->end);
+}
 
 /*
 Finds minimum of function f(i) where is is of type size_t, f(i) is of type
 double, i is in range start-end (excluding end).
 */
-static size_t FindMinimum(FindMinimumFun f, void* context,
-                          size_t start, size_t end) {
-  if (end - start < 1024) {
+static size_t FindMinimum(void* context,
+                          size_t start, size_t end, unsigned cheapsearch) {
+  if (end - start < cheapsearch) {
     double best = ZOPFLI_LARGE_FLOAT;
     size_t result = start;
     size_t i;
     for (i = start; i < end; i++) {
-      double v = f(i, context);
+      double v = SplitCost(i, context);
       if (v < best) {
         best = v;
         result = i;
@@ -72,7 +100,7 @@ static size_t FindMinimum(FindMinimumFun f, void* context,
 
       for (i = 0; i < NUM; i++) {
         p[i] = start + (i + 1) * ((end - start) / (NUM + 1));
-        vp[i] = f(p[i], context);
+        vp[i] = SplitCost(p[i], context);
       }
       besti = 0;
       best = vp[0];
@@ -93,42 +121,6 @@ static size_t FindMinimum(FindMinimumFun f, void* context,
     return pos;
 #undef NUM
   }
-}
-
-/*
-Returns estimated cost of a block in bits.  It includes the size to encode the
-tree and the size to encode all literal, length and distance symbols and their
-extra bits.
-
-litlens: lz77 lit/lengths
-dists: ll77 distances
-lstart: start of block
-lend: end of block (not inclusive)
-*/
-static double EstimateCost(const unsigned short* litlens,
-                           const unsigned short* dists,
-                           size_t lstart, size_t lend) {
-  return ZopfliCalculateBlockSize(litlens, dists, lstart, lend, 2);
-}
-
-typedef struct SplitCostContext {
-  const unsigned short* litlens;
-  const unsigned short* dists;
-  size_t llsize;
-  size_t start;
-  size_t end;
-} SplitCostContext;
-
-
-/*
-Gets the cost which is the sum of the cost of the left and the right section
-of the data.
-type: FindMinimumFun
-*/
-static double SplitCost(size_t i, void* context) {
-  SplitCostContext* c = (SplitCostContext*)context;
-  return EstimateCost(c->litlens, c->dists, c->start, i) +
-      EstimateCost(c->litlens, c->dists, i, c->end);
 }
 
 static void AddSorted(size_t value, size_t** out, size_t* outsize) {
@@ -182,7 +174,7 @@ static int FindLargestSplittableBlock(
 void ZopfliBlockSplitLZ77(const unsigned short* litlens,
                           const unsigned short* dists,
                           size_t llsize, size_t maxblocks,
-                          size_t** splitpoints, size_t* npoints, unsigned long maxsplitting) {
+                          size_t** splitpoints, size_t* npoints, unsigned long maxsplitting, unsigned cheapsearch) {
   if (llsize < maxsplitting) return;  /* This code fails on tiny files. */
 
   size_t llpos = 0;
@@ -207,7 +199,7 @@ void ZopfliBlockSplitLZ77(const unsigned short* litlens,
     c.start = lstart;
     c.end = lend;
     assert(lstart < lend);
-    llpos = FindMinimum(SplitCost, &c, lstart + 1, lend);
+    llpos = FindMinimum(&c, lstart + 1, lend, cheapsearch);
 
     assert(llpos > lstart);
     assert(llpos < lend);
@@ -262,7 +254,7 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
   results in better blocks. */
   ZopfliLZ77Greedy(&s, in, instart, inend, &store);
 
-  ZopfliBlockSplitLZ77(store.litlens, store.dists, store.size, maxblocks, &lz77splitpoints, &nlz77points, options->noblocksplitlz);
+  ZopfliBlockSplitLZ77(store.litlens, store.dists, store.size, maxblocks, &lz77splitpoints, &nlz77points, options->noblocksplitlz, options->cheapsearch);
 
   /* Convert LZ77 positions to positions in the uncompressed input. */
   pos = instart;

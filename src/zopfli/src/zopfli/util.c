@@ -207,14 +207,14 @@ void ZopfliInitOptions(ZopfliOptions* options, int mode) {
   if (mode < 3) {
     options->numiterations = 1;
     options->chain_length = 400;
-    options->lengthscoresearch = 640;
+    options->lengthscoresearch = 600;
     options->noblocksplitlz = 1000;
   }
   else if (mode < 4) {
-    options->numiterations = 5;
-    options->chain_length = 600;
+    options->numiterations = 4;
+    options->chain_length = 1000;
     options->lengthscoresearch = 768;
-    options->noblocksplitlz = 100;
+    options->noblocksplitlz = 200;
   }
   else {
     options->lengthscoresearch = 1024;
@@ -228,11 +228,12 @@ void ZopfliInitOptions(ZopfliOptions* options, int mode) {
       options->chain_length = 32768;
     }
   }
+  options->cheapsearch = mode > 2 ? 1024 : 128;
   options->skipdynamic = mode > 2 ? 80 : 400;
   options->blocksplitting = 1;
   options->blocksplittinglast = 0;
   options->blocksplittingmax = mode > 2 ? 0 : 15;
   options->trystatic = mode > 3 ? 2000 : 800;
   options->noblocksplit = 1400;
-  /* TODO: Add FindMinimum 1024 and 9.*/
+  /* TODO: Add FindMinimum 9.*/
 }
