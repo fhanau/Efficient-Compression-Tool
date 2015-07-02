@@ -66,7 +66,6 @@ Prepopulates hash:
 Fills in the initial values in the hash, before ZopfliUpdateHash can be used
 correctly.
 */
-void ZopfliWarmupHash(const unsigned char* array, size_t pos, size_t end,
-                      ZopfliHash* h);
+void ZopfliWarmupHash(const unsigned char* array, size_t pos, ZopfliHash* h);
 
 #endif  /* ZOPFLI_HASH_H_ */

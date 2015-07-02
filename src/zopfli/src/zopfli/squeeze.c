@@ -227,7 +227,7 @@ static void GetBestLengths(ZopfliBlockState *s,
   for (i = 1; i < blocksize + 1; i++) costs[i] = ZOPFLI_LARGE_FLOAT;
 
   ZopfliInitHash(h);
-  ZopfliWarmupHash(in, windowstart, inend, h);
+  ZopfliWarmupHash(in, windowstart, h);
   for (i = windowstart; i < instart; i++) {
     ZopfliUpdateHash(in, i, inend, h);
   }
@@ -331,7 +331,7 @@ static void FollowPath(ZopfliBlockState* s,
   if (instart == inend) return;
 
   ZopfliInitHash(h);
-  ZopfliWarmupHash(in, windowstart, inend, h);
+  ZopfliWarmupHash(in, windowstart, h);
   for (i = windowstart; i < instart; i++) {
     ZopfliUpdateHash(in, i, inend, h);
   }

@@ -338,7 +338,7 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
   if (instart == inend) return;
 
   ZopfliInitHash(h);
-  ZopfliWarmupHash(in, windowstart, inend, h);
+  ZopfliWarmupHash(in, windowstart, h);
   for (i = windowstart; i < instart; i++) {
     ZopfliUpdateHash(in, i, inend, h);
   }
