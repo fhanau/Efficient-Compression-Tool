@@ -27,8 +27,7 @@
 
 static void jcopy_markers_execute (j_decompress_ptr srcinfo, j_compress_ptr dstinfo)
 {
-    jpeg_saved_marker_ptr marker;
-    for (marker = srcinfo->marker_list; marker != NULL; marker = marker->next) {
+    for (jpeg_saved_marker_ptr marker = srcinfo->marker_list; marker != NULL; marker = marker->next) {
         if (dstinfo->write_JFIF_header &&
             marker->marker == JPEG_APP0 &&
             marker->data_length >= 5 &&
@@ -51,25 +50,9 @@ static void jcopy_markers_execute (j_decompress_ptr srcinfo, j_compress_ptr dsti
     }
 }
 
-static void parse_switches (j_compress_ptr cinfo, bool progressive, bool arithmetic, bool for_real)
-{
-    cinfo->err->trace_level = 0;
-    if (!progressive){
-        jpeg_c_set_int_param(cinfo, JINT_COMPRESS_PROFILE, JCP_FASTEST);
-        cinfo->optimize_coding = TRUE;
-    }
-    if (arithmetic){
-        cinfo->arith_code = TRUE;
-        cinfo->optimize_coding = FALSE;
-    }
-    if (for_real && cinfo->num_scans != 0 && progressive) { /* process -progressive */
-        jpeg_simple_progression(cinfo);
-    }
-  return;
-}
-
 int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Infile, const char * Outfile)
 {
+
     struct jpeg_decompress_struct srcinfo;
     struct jpeg_compress_struct dstinfo;
     struct jpeg_error_mgr jsrcerr, jdsterr;
@@ -85,18 +68,9 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
     /* Initialize the JPEG compression object with default error handling. */
     dstinfo.err = jpeg_std_error(&jdsterr);
     jpeg_create_compress(&dstinfo);
-
-    /* Scan command line to find file names.
-       It is convenient to use just one switch-parsing routine, but the switch
-       values read here are mostly ignored; we will rescan the switches after
-       opening the input file.  Also note that most of the switches affect the
-       destination JPEG object, so we parse into that and then copy over what
-       needs to affects the source too.
-     */
-
-    parse_switches(&dstinfo, progressive, arithmetic, false);
-    jsrcerr.trace_level = jdsterr.trace_level;
-    srcinfo.mem->max_memory_to_use = dstinfo.mem->max_memory_to_use;
+    if (!progressive){
+        jpeg_c_set_int_param(&dstinfo, JINT_COMPRESS_PROFILE, JCP_FASTEST);
+    }
 
     /* Open the input file. */
     if ((fp = fopen(Infile, "rb")) == NULL) {
@@ -117,6 +91,8 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
         }
         insize += (unsigned long)nbytes;
     } while (nbytes == INPUT_BUF_SIZE);
+    fclose(fp);
+
     jpeg_mem_src(&srcinfo, inbuffer, insize);
 
     /* Enable saving of extra markers that we want to copy */
@@ -134,34 +110,31 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
      */
 
     /* Read source file as DCT coefficients */
-    jvirt_barray_ptr * src_coef_arrays = jpeg_read_coefficients(&srcinfo);
+    jvirt_barray_ptr * coef_arrays = jpeg_read_coefficients(&srcinfo);
 
     /* Initialize destination compression parameters from source values */
     jpeg_copy_critical_parameters(&srcinfo, &dstinfo);
 
-    /* Adjust destination parameters if required by transform options;
-     also find out which set of coefficient arrays will hold the output.
-    */
-    jvirt_barray_ptr * dst_coef_arrays = src_coef_arrays;
-    
-    fclose(fp);
-
     /* Adjust default compression parameters by re-parsing the options */
-    parse_switches(&dstinfo, progressive, arithmetic, true);
+    dstinfo.optimize_coding = !progressive && !arithmetic;
+    if (dstinfo.num_scans && progressive) {
+        jpeg_simple_progression(&dstinfo);
+    }
+    dstinfo.arith_code = arithmetic;
 
     /* Specify data destination for compression */
     jpeg_mem_dest(&dstinfo, &outbuffer, &outsize);
 
     /* Start compressor (note no image data is actually written here) */
-    jpeg_write_coefficients(&dstinfo, dst_coef_arrays);
+    jpeg_write_coefficients(&dstinfo, coef_arrays);
 
     /* Copy to the output file any extra markers that we want to preserve */
     jcopy_markers_execute(&srcinfo, &dstinfo);
 
     /* Finish compression and release memory */
     jpeg_finish_compress(&dstinfo);
-    
-    unsigned char *buffer = outbuffer;
+    free(inbuffer);
+
     int x = 0;
 
     if (insize < outsize || (progressive && insize == outsize)){
@@ -173,21 +146,20 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
         /* Open the output file. */
         if ((fp = fopen(Outfile, "wb")) == NULL) {
             fprintf(stderr, "%s: can't open %s for writing\n", progname, Outfile);
-            free(inbuffer);
+            free(outbuffer);
             return 2;
         }
 
         /* Write new file. */
-        size_t nbytes2 = JFWRITE(fp, buffer, outsize);
-        if (nbytes2 < outsize && ferror(fp)) {
+        if (JFWRITE(fp, outbuffer, outsize) < outsize && ferror(fp)) {
             fprintf(stderr, "%s: can't write to %s\n", progname, Outfile);
         }
     }
+
     jpeg_destroy_compress(&dstinfo);
     jpeg_finish_decompress(&srcinfo);
     jpeg_destroy_decompress(&srcinfo);
     fclose(fp);
-    free(inbuffer);
     free(outbuffer);
     return x;
 }
