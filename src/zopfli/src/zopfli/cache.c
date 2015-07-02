@@ -42,6 +42,7 @@ void ZopfliCleanCache(ZopfliLongestMatchCache* lmc) {
   free(lmc->length);
   free(lmc->dist);
   free(lmc->sublen);
+  free(lmc);
 }
 
 void ZopfliSublenToCache(const unsigned short* sublen,

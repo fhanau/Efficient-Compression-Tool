@@ -616,7 +616,6 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
 
 #ifdef ZOPFLI_LONGEST_MATCH_CACHE
   ZopfliCleanCache(s.lmc);
-  free(s.lmc);
 #endif
   ZopfliCleanLZ77Store(&store);
 }
