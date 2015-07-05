@@ -37,12 +37,10 @@ void ZopfliCleanLZ77Store(ZopfliLZ77Store* store) {
   free(store->dists);
 }
 
-void ZopfliCopyLZ77Store(
-    const ZopfliLZ77Store* source, ZopfliLZ77Store* dest) {
+void ZopfliCopyLZ77Store(const ZopfliLZ77Store* source, ZopfliLZ77Store* dest) {
   size_t i;
   ZopfliCleanLZ77Store(dest);
-  dest->litlens =
-      (unsigned short*)malloc(sizeof(*dest->litlens) * source->size);
+  dest->litlens = (unsigned short*)malloc(sizeof(*dest->litlens) * source->size);
   dest->dists = (unsigned short*)malloc(sizeof(*dest->dists) * source->size);
 
   if (!dest->litlens || !dest->dists) exit(-1); /* Allocation failed. */
@@ -100,10 +98,10 @@ static const unsigned char* GetMatch(const unsigned char* scan,
             scan += 8;
             match += 8;
         }
-    } else if (sizeof(unsigned int) == 4) {
-        /* 4 checks at once per array bounds check (unsigned int is 32-bit). */
+    } else if (sizeof(unsigned) == 4) {
+        /* 4 checks at once per array bounds check (unsigned is 32-bit). */
         while (scan < safe_end
-               && *((unsigned int*)scan) == *((unsigned int*)match)) {
+               && *((unsigned*)scan) == *((unsigned*)match)) {
             scan += 4;
             match += 4;
         }
@@ -144,11 +142,11 @@ static int TryGetFromLongestMatchCache(ZopfliBlockState* s,
   unsigned char limit_ok_for_cache = cache_available &&
       (*limit == ZOPFLI_MAX_MATCH || s->lmc->length[lmcpos] <= *limit ||
       (sublen && ZopfliMaxCachedSublen(s->lmc,
-          lmcpos, s->lmc->length[lmcpos]) >= *limit));
+          lmcpos) >= *limit));
 
   if (s->lmc && limit_ok_for_cache && cache_available) {
     if (!sublen || s->lmc->length[lmcpos]
-        <= ZopfliMaxCachedSublen(s->lmc, lmcpos, s->lmc->length[lmcpos])) {
+        <= ZopfliMaxCachedSublen(s->lmc, lmcpos)) {
       *length = s->lmc->length[lmcpos];
       if (*length > *limit) *length = *limit;
       if (sublen) {
@@ -367,7 +365,6 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
         /* Add previous to output. */
         leng = prev_length;
         dist = prev_match;
-        lengthscore = prevlengthscore;
         /* Add to output. */
 #ifndef NDEBUG
         ZopfliVerifyLenDist(in, inend, i - 1, dist, leng);

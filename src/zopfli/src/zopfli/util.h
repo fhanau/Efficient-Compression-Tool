@@ -114,19 +114,19 @@ Returns the symbol in the range [257-285] (inclusive)
 int ZopfliGetLengthSymbol(int l);
 
 /* Gets the amount of extra bits for the given length, cfr. the DEFLATE spec. */
-int ZopfliGetLengthExtraBits(int l);
+unsigned ZopfliGetLengthExtraBits(unsigned l);
 
 /* Gets value of the extra bits for the given length, cfr. the DEFLATE spec. */
-int ZopfliGetLengthExtraBitsValue(int l);
+unsigned ZopfliGetLengthExtraBitsValue(unsigned l);
 
 /* Gets the symbol for the given dist, cfr. the DEFLATE spec. */
 int ZopfliGetDistSymbol(int dist);
 
 /* Gets the amount of extra bits for the given dist, cfr. the DEFLATE spec. */
-int ZopfliGetDistExtraBits(int dist);
+unsigned ZopfliGetDistExtraBits(unsigned dist);
 
 /* Gets value of the extra bits for the given dist, cfr. the DEFLATE spec. */
-int ZopfliGetDistExtraBitsValue(int dist);
+unsigned ZopfliGetDistExtraBitsValue(unsigned dist);
 
 /*
 Appends value to dynamically allocated memory, doubling its allocation size

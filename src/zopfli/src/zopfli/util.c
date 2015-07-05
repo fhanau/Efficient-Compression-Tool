@@ -25,7 +25,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <stdio.h>
 #include <stdlib.h>
 
-int ZopfliGetDistExtraBits(int dist) {
+unsigned ZopfliGetDistExtraBits(unsigned dist) {
 #ifdef __GNUC__
   if (dist < 5) return 0;
   return (31 ^ __builtin_clz(dist - 1)) - 1; /* log2(dist - 1) - 1 */
@@ -47,7 +47,7 @@ int ZopfliGetDistExtraBits(int dist) {
 #endif
 }
 
-int ZopfliGetDistExtraBitsValue(int dist) {
+unsigned ZopfliGetDistExtraBitsValue(unsigned dist) {
 #ifdef __GNUC__
   if (dist < 5) {
     return 0;
@@ -122,8 +122,8 @@ int ZopfliGetDistSymbol(int dist) {
 #endif
 }
 
-int ZopfliGetLengthExtraBits(int l) {
-  static const int table[259] = {
+unsigned ZopfliGetLengthExtraBits(unsigned l) {
+  static const unsigned table[259] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
     2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
     3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -144,8 +144,8 @@ int ZopfliGetLengthExtraBits(int l) {
   return table[l];
 }
 
-int ZopfliGetLengthExtraBitsValue(int l) {
-  static const int table[259] = {
+unsigned ZopfliGetLengthExtraBitsValue(unsigned l) {
+  static const unsigned table[259] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 2, 3, 0,
     1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5,
     6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6,

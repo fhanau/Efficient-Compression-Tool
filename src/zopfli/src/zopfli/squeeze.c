@@ -64,18 +64,16 @@ static void AddWeighedStatFreqs(const SymbolStats* stats1, double w1,
                                 SymbolStats* result) {
   size_t i;
   for (i = 0; i < 288; i++) {
-    result->litlens[i] =
-        (size_t) (stats1->litlens[i] * w1 + stats2->litlens[i] * w2);
+    result->litlens[i] = (size_t) (stats1->litlens[i] * w1 + stats2->litlens[i] * w2);
   }
   for (i = 0; i < 32; i++) {
-    result->dists[i] =
-        (size_t) (stats1->dists[i] * w1 + stats2->dists[i] * w2);
+    result->dists[i] = (size_t) (stats1->dists[i] * w1 + stats2->dists[i] * w2);
   }
   result->litlens[256] = 1;  /* End symbol. */
 }
 
 typedef struct RanState {
-  unsigned int m_w, m_z;
+  unsigned m_w, m_z;
 } RanState;
 
 static void InitRanState(RanState* state) {
@@ -84,15 +82,14 @@ static void InitRanState(RanState* state) {
 }
 
 /* Get random number: "Multiply-With-Carry" generator of G. Marsaglia */
-static unsigned int Ran(RanState* state) {
+static unsigned Ran(RanState* state) {
   state->m_z = 36969 * (state->m_z & 65535) + (state->m_z >> 16);
   state->m_w = 18000 * (state->m_w & 65535) + (state->m_w >> 16);
   return (state->m_z << 16) + state->m_w;  /* 32-bit result. */
 }
 
 static void RandomizeFreqs(RanState* state, size_t* freqs, int n) {
-  int i;
-  for (i = 0; i < n; i++) {
+  for (int i = 0; i < n; i++) {
     if ((Ran(state) >> 4) % 3 == 0) freqs[i] = freqs[Ran(state) % n];
   }
 }
@@ -214,8 +211,7 @@ static void GetBestLengths(ZopfliBlockState *s,
   size_t blocksize = inend - instart;
   unsigned short leng;
   unsigned short sublen[259];
-  size_t windowstart = instart > ZOPFLI_WINDOW_SIZE
-      ? instart - ZOPFLI_WINDOW_SIZE : 0;
+  size_t windowstart = instart > ZOPFLI_WINDOW_SIZE ? instart - ZOPFLI_WINDOW_SIZE : 0;
   ZopfliHash hash;
   ZopfliHash* h = &hash;
 
@@ -285,7 +281,6 @@ static void GetBestLengths(ZopfliBlockState *s,
 
   ZopfliCleanHash(h);
   free(costs);
-  return;
 }
 
 /*
@@ -323,8 +318,6 @@ static void FollowPath(ZopfliBlockState* s,
   size_t windowstart = instart > ZOPFLI_WINDOW_SIZE
       ? instart - ZOPFLI_WINDOW_SIZE : 0;
 
-  size_t total_length_test = 0;
-
   ZopfliHash hash;
   ZopfliHash* h = &hash;
 
@@ -339,8 +332,6 @@ static void FollowPath(ZopfliBlockState* s,
   pos = instart;
   for (i = 0; i < pathsize; i++) {
     unsigned short length = path[i];
-    unsigned short dummy_length;
-    unsigned short dist;
     assert(pos < inend);
 
     ZopfliUpdateHash(in, pos, inend, h);
@@ -349,6 +340,8 @@ static void FollowPath(ZopfliBlockState* s,
     if (length >= ZOPFLI_MIN_MATCH) {
       /* Get the distance by recalculating longest match. The found length
       should match the length from the path. */
+      unsigned short dummy_length;
+      unsigned short dist;
       ZopfliFindLongestMatch(s, h, in, pos, inend, length, 0,
                              &dist, &dummy_length);
       assert(!(dummy_length != length && length > 2 && dummy_length > 2));
@@ -356,11 +349,9 @@ static void FollowPath(ZopfliBlockState* s,
         ZopfliVerifyLenDist(in, inend, pos, dist, length);
 #endif
       ZopfliStoreLitLenDist(length, dist, store);
-      total_length_test += length;
     } else {
       length = 1;
       ZopfliStoreLitLenDist(in[pos], 0, store);
-      total_length_test++;
     }
 
 

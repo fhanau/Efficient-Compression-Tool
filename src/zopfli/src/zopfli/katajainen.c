@@ -105,14 +105,12 @@ final: Whether this is the last time this function is called. If it is then it
 */
 static void BoundaryPM(Node* (*lists)[2], int maxbits,
     Node* leaves, int numsymbols, NodePool* pool, int index, char final) {
-  Node* newchain;
-  Node* oldchain;
   int lastcount = lists[index][1]->count;  /* Count of last chain of list. */
 
   if (index == 0 && lastcount >= numsymbols) return;
 
-  newchain = GetFreeNode(lists, maxbits, pool);
-  oldchain = lists[index][1];
+  Node* newchain = GetFreeNode(lists, maxbits, pool);
+  Node* oldchain = lists[index][1];
 
   /* These are set up before the recursive calls below, so that there is a list
   pointing to the new node, to let the garbage collection know it's in use. */
@@ -145,12 +143,11 @@ weights.
 */
 static void InitLists(
     NodePool* pool, const Node* leaves, int maxbits, Node* (*lists)[2]) {
-  int i;
   Node* node0 = GetFreeNode(0, maxbits, pool);
   Node* node1 = GetFreeNode(0, maxbits, pool);
   InitNode(leaves[0].weight, 1, 0, node0);
   InitNode(leaves[1].weight, 2, 0, node1);
-  for (i = 0; i < maxbits; i++) {
+  for (int i = 0; i < maxbits; i++) {
     lists[i][0] = node0;
     lists[i][1] = node1;
   }
@@ -162,10 +159,8 @@ last chain of the last list contains the amount of active leaves in each list.
 chain: Chain to extract the bit length from (last chain from last list).
 */
 static void ExtractBitLengths(Node* chain, Node* leaves, unsigned* bitlengths) {
-  Node* node;
-  for (node = chain; node; node = node->tail) {
-    int i;
-    for (i = 0; i < node->count; i++) {
+  for (Node* node = chain; node; node = node->tail) {
+    for (int i = 0; i < node->count; i++) {
       bitlengths[leaves[i].count]++;
     }
   }
@@ -180,14 +175,11 @@ static int LeafComparator(const void* a, const void* b) {
 
 int ZopfliLengthLimitedCodeLengths(
     const size_t* frequencies, int n, int maxbits, unsigned* bitlengths) {
-  NodePool pool;
   int i;
   int numsymbols = 0;  /* Amount of symbols with frequency > 0. */
-  int numBoundaryPMRuns;
 
   /* Array of lists of chains. Each list requires only two lookahead chains at
   a time, so each list is a array of two Node*'s. */
-  Node* (*lists)[2];
 
   /* One leaf per symbol. Only numsymbols leaves will be used. */
   Node* leaves = (Node*)malloc(n * sizeof(*leaves));
@@ -225,6 +217,7 @@ int ZopfliLengthLimitedCodeLengths(
   qsort(leaves, numsymbols, sizeof(Node), LeafComparator);
 
   /* Initialize node memory pool. */
+  NodePool pool;
   pool.size = 2 * maxbits * (maxbits + 1);
   pool.nodes = (Node*)malloc(pool.size * sizeof(*pool.nodes));
   pool.next = pool.nodes;
@@ -232,15 +225,14 @@ int ZopfliLengthLimitedCodeLengths(
     pool.nodes[i].inuse = 0;
   }
 
-  lists = (Node* (*)[2])malloc(maxbits * sizeof(*lists));
+  Node* (*lists)[2] = (Node* (*)[2])malloc(maxbits * sizeof(*lists));
   InitLists(&pool, leaves, maxbits, lists);
 
   /* In the last list, 2 * numsymbols - 2 active chains need to be created. Two
   are already created in the initialization. Each BoundaryPM run creates one. */
-  numBoundaryPMRuns = 2 * numsymbols - 4;
+  int numBoundaryPMRuns = 2 * numsymbols - 4;
   for (i = 0; i < numBoundaryPMRuns; i++) {
-    char final = i == numBoundaryPMRuns - 1;
-    BoundaryPM(lists, maxbits, leaves, numsymbols, &pool, maxbits - 1, final);
+    BoundaryPM(lists, maxbits, leaves, numsymbols, &pool, maxbits - 1, i == numBoundaryPMRuns - 1);
   }
 
   ExtractBitLengths(lists[maxbits - 1][1], leaves, bitlengths);

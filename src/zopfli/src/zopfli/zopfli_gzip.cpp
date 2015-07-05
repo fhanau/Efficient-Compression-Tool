@@ -34,7 +34,7 @@ Compresses the data according to the gzip specification.
 static void ZopfliGzipCompress(const ZopfliOptions* options,
                         const unsigned char* in, size_t insize,
                         unsigned char** out, size_t* outsize) {
-  unsigned long crcvalue = lodepng_crc32(in, insize);
+  unsigned crcvalue = lodepng_crc32(in, insize);
   unsigned char bp = 0;
 
   ZOPFLI_APPEND_DATA(31, out, outsize);  /* ID1 */
@@ -83,11 +83,7 @@ static void ZopfliCompress(const ZopfliOptions* options, ZopfliFormat output_typ
  */
 static void LoadFile(const char* filename,
                      unsigned char** out, size_t* outsize) {
-  FILE* file;
-
-  *out = 0;
-  *outsize = 0;
-  file = fopen(filename, "rb");
+  FILE* file = fopen(filename, "rb");
   if (!file) return;
 
   fseek(file , 0 , SEEK_END);
@@ -118,7 +114,7 @@ static void LoadFile(const char* filename,
 static void SaveFile(const char* filename,
                      const unsigned char* in, size_t insize) {
   FILE* file = fopen(filename, "wb" );
-  if (file == NULL){
+  if (!file){
     printf ("Can't write to file");
   }
   else {
@@ -157,7 +153,6 @@ int ZopfliGzip(const char* filename, const char* outname, int mode) {
   //ZopfliFormat output_type = ZOPFLI_FORMAT_GZIP;
   //output_type = ZOPFLI_FORMAT_ZLIB;
   //output_type = ZOPFLI_FORMAT_DEFLATE;
-  //options.blocksplittinglast = 1;
 
   ZopfliInitOptions(&options, mode);
   //Append ".gz" ".zlib" ".deflate"

@@ -29,7 +29,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #define HASH_MASK 32767
 
 void ZopfliInitHash(ZopfliHash* h) {
-  size_t i;
+  unsigned short i;
 
   h->val = 0;
   h->head = (int*)malloc(sizeof(*h->head) * 65536);
@@ -86,9 +86,6 @@ static void UpdateHashValue(ZopfliHash* h, unsigned char c) {
 void ZopfliUpdateHash(const unsigned char* array, size_t pos, size_t end,
                 ZopfliHash* h) {
   unsigned short hpos = pos & ZOPFLI_WINDOW_MASK;
-#ifdef ZOPFLI_HASH_SAME
-  size_t amount = 0;
-#endif
 
   UpdateHashValue(h, pos + ZOPFLI_MIN_MATCH <= end ?
       array[pos + ZOPFLI_MIN_MATCH - 1] : 0);
@@ -100,6 +97,7 @@ void ZopfliUpdateHash(const unsigned char* array, size_t pos, size_t end,
   h->head[h->val] = hpos;
 
 #ifdef ZOPFLI_HASH_SAME
+  unsigned short amount = 0;
   /* Update "same". */
   if (h->same[(pos - 1) & ZOPFLI_WINDOW_MASK] > 1) {
     amount = h->same[(pos - 1) & ZOPFLI_WINDOW_MASK] - 1;

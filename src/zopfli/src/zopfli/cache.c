@@ -27,11 +27,12 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 
 #ifdef ZOPFLI_LONGEST_MATCH_CACHE
 
+#define CacheBytes ZOPFLI_CACHE_LENGTH * 3
+
 void ZopfliInitCache(size_t blocksize, ZopfliLongestMatchCache* lmc) {
   lmc->length = (unsigned short*)malloc(sizeof(unsigned short) * blocksize);
   lmc->dist = (unsigned short*)calloc(blocksize, sizeof(unsigned short));
   /* Rather large amount of memory. */
-#define CacheBytes ZOPFLI_CACHE_LENGTH * 3
   lmc->sublen = (unsigned char*)calloc(CacheBytes * blocksize, 1);
   /* length > 0 and dist 0 is invalid combination, which indicates on purpose
     that this cache value is not filled in yet. */
@@ -45,52 +46,46 @@ void ZopfliCleanCache(ZopfliLongestMatchCache* lmc) {
   free(lmc);
 }
 
+
 void ZopfliSublenToCache(const unsigned short* sublen,
-                         size_t pos, size_t length,
+                         size_t pos, unsigned short length,
                          ZopfliLongestMatchCache* lmc) {
-  size_t i;
-  size_t j = 0;
-  unsigned bestlength = 0;
-  unsigned char* cache;
 
 #if ZOPFLI_CACHE_LENGTH == 0
   return;
 #endif
-
-  cache = &lmc->sublen[ZOPFLI_CACHE_LENGTH * pos * 3];
   if (length < 3) return;
-  for (i = 3; i <= length; i++) {
+
+  unsigned char* cache = &lmc->sublen[CacheBytes * pos];
+  size_t j = 0;
+  for (unsigned short i = 3; i <= length; i++) {
     if (i == length || sublen[i] != sublen[i + 1]) {
       cache[j * 3] = i - 3;
       cache[j * 3 + 1] = sublen[i] % 256;
       cache[j * 3 + 2] = (sublen[i] >> 8) % 256;
-      bestlength = i;
       j++;
       if (j >= ZOPFLI_CACHE_LENGTH) break;
     }
   }
   if (j < ZOPFLI_CACHE_LENGTH) {
-    assert(bestlength == length);
-    cache[(ZOPFLI_CACHE_LENGTH - 1) * 3] = bestlength - 3;
-  } else {
-    assert(bestlength <= length);
+    cache[CacheBytes - 9] = length - 3;
   }
-  assert(bestlength == ZopfliMaxCachedSublen(lmc, pos, length));
 }
 
 void ZopfliCacheToSublen(const ZopfliLongestMatchCache* lmc,
                          size_t pos, size_t length,
                          unsigned short* sublen) {
-    size_t i, j;
-    unsigned maxlength = ZopfliMaxCachedSublen(lmc, pos, length);
-    unsigned prevlength = 0;
-    unsigned char* cache;
 #if ZOPFLI_CACHE_LENGTH == 0
-    return;
+  return;
 #endif
-    if (length < 3) return;
-    cache = &lmc->sublen[ZOPFLI_CACHE_LENGTH * pos * 3];
-    for (j = 0; j < ZOPFLI_CACHE_LENGTH; j++) {
+  if (length < 3) return;
+
+    size_t i;
+    unsigned maxlength = ZopfliMaxCachedSublen(lmc, pos);
+    unsigned prevlength = 0;
+
+    unsigned char* cache = &lmc->sublen[CacheBytes * pos];
+    for (unsigned char j = 0; j < ZOPFLI_CACHE_LENGTH; j++) {
         unsigned lengthtwo = cache[j * 3] + 3;
         unsigned dist = cache[j * 3 + 1] + 256 * cache[j * 3 + 2];
         for (i = prevlength; i <= lengthtwo; i++) {
@@ -104,16 +99,13 @@ void ZopfliCacheToSublen(const ZopfliLongestMatchCache* lmc,
 /*
 Returns the length up to which could be stored in the cache.
 */
-unsigned ZopfliMaxCachedSublen(const ZopfliLongestMatchCache* lmc,
-                               size_t pos, size_t length) {
-  unsigned char* cache;
+unsigned ZopfliMaxCachedSublen(const ZopfliLongestMatchCache* lmc, size_t pos) {
 #if ZOPFLI_CACHE_LENGTH == 0
   return 0;
 #endif
-  cache = &lmc->sublen[ZOPFLI_CACHE_LENGTH * pos * 3];
-  (void)length;
+  unsigned char* cache = &lmc->sublen[CacheBytes * pos];
   if (cache[1] == 0 && cache[2] == 0) return 0;  /* No sublen cached. */
-  return cache[(ZOPFLI_CACHE_LENGTH - 1) * 3] + 3;
+  return cache[CacheBytes - 3] + 3;
 }
 
 #endif  /* ZOPFLI_LONGEST_MATCH_CACHE */
