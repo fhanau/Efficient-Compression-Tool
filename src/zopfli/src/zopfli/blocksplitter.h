@@ -48,9 +48,8 @@ splitpoints: dynamic array to put the resulting split point coordinates into.
 npoints: pointer to amount of splitpoints, for the dynamic array. The amount of
   blocks is the amount of splitpoitns + 1.
 */
-void ZopfliBlockSplit(const ZopfliOptions* options,
-                      const unsigned char* in, size_t instart, size_t inend,
-                      size_t maxblocks, size_t** splitpoints, size_t* npoints);
+void ZopfliBlockSplit(const ZopfliOptions* options, const unsigned char* in, size_t instart,
+                      size_t inend, size_t** splitpoints, size_t* npoints);
 
 
 #endif  /* ZOPFLI_BLOCKSPLITTER_H_ */

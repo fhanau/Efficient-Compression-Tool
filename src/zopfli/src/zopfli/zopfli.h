@@ -42,25 +42,10 @@ typedef struct ZopfliOptions {
   int numiterations;
 
   /*
-  If true, splits the data in multiple deflate blocks with optimal choice
-  for the block boundaries. Block splitting gives better compression. Default:
-  true (1).
-  */
-  int blocksplitting;
-
-  /*
-  If true, chooses the optimal block split points only after doing the iterative
-  LZ77 compression. If false, chooses the block split points first, then does
-  iterative LZ77 on each individual block. Depending on the file, either first
-  or last gives the best compression. Default: false (0).
-  */
-  int blocksplittinglast;
-
-  /*
   Maximum amount of blocks to split into (0 for unlimited, but this can give
   extreme results that hurt compression on some files). Default value: 15.
   */
-  int blocksplittingmax;
+  unsigned blocksplittingmax;
 
   /*
   Limit the max hash chain hits for this hash value. This has an effect only
@@ -89,6 +74,11 @@ typedef struct ZopfliOptions {
   /* Use cheap splitpoint search above this value. */
   unsigned cheapsearch;
 
+  /* Number of parralel block split point searches*/
+  unsigned num;
+
+  /* Use extended cheap splitpoint search*/
+  unsigned searchext;
 } ZopfliOptions;
 
 /* Initializes options with default values. */
