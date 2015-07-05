@@ -205,8 +205,7 @@ static size_t EncodeTree(const unsigned* ll_lengths,
       count--;
     }
   }
-
-  ZopfliCalculateBitLengths(clcounts, 19, 7, clcl);
+  ZopfliLengthLimitedCodeLengths(clcounts, 19, 7, clcl);
   if (!size_only) ZopfliLengthsToSymbols(clcl, 19, 7, clsymbols);
 
   hclen = 15;
@@ -480,8 +479,8 @@ static void GetDynamicLengths(const unsigned short* litlens,
   ZopfliLZ77Counts(litlens, dists, lstart, lend, ll_counts, d_counts);
   OptimizeHuffmanForRle(288, ll_counts);
   OptimizeHuffmanForRle(32, d_counts);
-  ZopfliCalculateBitLengths(ll_counts, 288, 15, ll_lengths);
-  ZopfliCalculateBitLengths(d_counts, 32, 15, d_lengths);
+  ZopfliLengthLimitedCodeLengths(ll_counts, 288, 15, ll_lengths);
+  ZopfliLengthLimitedCodeLengths(d_counts, 32, 15, d_lengths);
   PatchDistanceCodesForBuggyDecoders(d_lengths);
 }
 

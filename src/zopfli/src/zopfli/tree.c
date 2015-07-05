@@ -23,10 +23,8 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 
 #include <assert.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 
-#include "katajainen.h"
 #include "util.h"
 
 void ZopfliLengthsToSymbols(const unsigned* lengths, size_t n, unsigned maxbits,
@@ -87,11 +85,4 @@ void ZopfliCalculateEntropy(const size_t* count, size_t n, double* bitlengths) {
     if (bitlengths[i] < 0 && bitlengths[i] > -1e-5) bitlengths[i] = 0;
     assert(bitlengths[i] >= 0);
   }
-}
-
-void ZopfliCalculateBitLengths(const size_t* count, size_t n, int maxbits,
-                               unsigned* bitlengths) {
-  int error = ZopfliLengthLimitedCodeLengths(count, n, maxbits, bitlengths);
-  (void) error;
-  assert(!error);
 }
