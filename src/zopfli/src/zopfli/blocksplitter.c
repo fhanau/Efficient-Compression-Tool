@@ -171,7 +171,7 @@ static int FindLargestSplittableBlock(
   return found;
 }
 
-void ZopfliBlockSplitLZ77(const unsigned short* litlens,
+static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
                           const unsigned short* dists,
                           size_t llsize, size_t maxblocks,
                           size_t** splitpoints, size_t* npoints, unsigned long maxsplitting, unsigned cheapsearch) {

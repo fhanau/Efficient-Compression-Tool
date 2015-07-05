@@ -645,52 +645,6 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
 }
 
 /*
-Does squeeze strategy where first the best possible lz77 is done, and then based
-on that data, block splitting is done.
-Parameters: see description of the ZopfliDeflate function.
-*/
-/*static void DeflateSplittingLast(const ZopfliOptions* options, int final,
-                                 const unsigned char* in,
-                                 size_t instart, size_t inend,
-                                 unsigned char* bp,
-                                 unsigned char** out, size_t* outsize) {
-  size_t i;
-  ZopfliBlockState s;
-  ZopfliLZ77Store store;
-  size_t* splitpoints = 0;
-  size_t npoints = 0;
-  ZopfliInitLZ77Store(&store);
-
-  s.options = options;
-  s.blockstart = instart;
-  s.blockend = inend;
-#ifdef ZOPFLI_LONGEST_MATCH_CACHE
-  s.lmc = (ZopfliLongestMatchCache*)malloc(sizeof(ZopfliLongestMatchCache));
-  ZopfliInitCache(inend - instart, s.lmc);
-#endif
-
-    ZopfliLZ77Optimal(&s, in, instart, inend, &store);
-    ZopfliBlockSplitLZ77(store.litlens, store.dists, store.size,
-                         options->blocksplittingmax, &splitpoints, &npoints);
-
-  for (i = 0; i <= npoints; i++) {
-    size_t start = i == 0 ? 0 : splitpoints[i - 1];
-    size_t end = i == npoints ? store.size : splitpoints[i];
-    AddLZ77Block(2, i == npoints && final,
-                 store.litlens, store.dists, start, end, 0,
-                 bp, out, outsize);
-  }
-
-#ifdef ZOPFLI_LONGEST_MATCH_CACHE
-  ZopfliCleanCache(s.lmc);
-  free(s.lmc);
-#endif
-
-  ZopfliCleanLZ77Store(&store);
-  free(splitpoints);
-}*/
-
-/*
 Deflate a part, to allow ZopfliDeflate() to use multiple master blocks if
 needed.
 It is possible to call this function multiple times in a row, shifting
@@ -708,11 +662,7 @@ static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
         DeflateDynamicBlock(options, final, in, instart, inend, bp, out, outsize);
     }
     else {
-    /*if (options->blocksplittinglast) {
-      DeflateSplittingLast(options, final, in, instart, inend, bp, out, outsize);
-    } else {*/
-     DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize);
-    /*}*/
+        DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize);
     }
 }
 
