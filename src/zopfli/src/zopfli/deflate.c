@@ -383,7 +383,6 @@ more efficiently. length containts the size of the histogram.
 static void OptimizeHuffmanForRle(int length, size_t* counts) {
   int i, k, stride;
   size_t symbol, sum, limit;
-  int* good_for_rle;
 
   /* 1) We don't want to touch the trailing zeros. We may break the
   rules of the format by adding more data in the distance codes. */
@@ -398,8 +397,7 @@ static void OptimizeHuffmanForRle(int length, size_t* counts) {
   }
   /* 2) Let's mark all population counts that already can be encoded
   with an rle code.*/
-  good_for_rle = (int*)malloc(length * sizeof(int));
-  for (i = 0; i < length; ++i) good_for_rle[i] = 0;
+  int* good_for_rle = (int*)calloc(length, sizeof(int));
 
   /* Let's not spoil any of the existing good rle codes.
   Mark any seq of 0's that is longer than 5 as a good_for_rle.

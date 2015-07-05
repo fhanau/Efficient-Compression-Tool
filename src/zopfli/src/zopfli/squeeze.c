@@ -224,7 +224,7 @@ static void GetBestLengths(ZopfliBlockState *s,
   float* costs = (float*)malloc(sizeof(float) * (blocksize + 1));
   if (!costs) exit(-1); /* Allocation failed. */
   costs[0] = 0;  /* Because it's the start. */
-  for (i = 1; i < blocksize + 1; i++) costs[i] = ZOPFLI_LARGE_FLOAT;
+  memset(costs + 1, 127, sizeof(float) * blocksize);
 
   ZopfliInitHash(h);
   ZopfliWarmupHash(in, windowstart, h);
