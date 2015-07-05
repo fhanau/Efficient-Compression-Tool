@@ -196,12 +196,11 @@ static void StoreInLongestMatchCache(ZopfliBlockState* s,
 #endif
 
 void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
-    const unsigned char* array,
-    size_t pos, size_t size, size_t limit,
-    unsigned short* sublen, unsigned short* distance, unsigned short* length) {
+                            const unsigned char* array,
+                            size_t pos, size_t size, size_t limit,
+                            unsigned short* sublen, unsigned short* distance, unsigned short* length) {
 #ifdef ZOPFLI_LONGEST_MATCH_CACHE
   if (TryGetFromLongestMatchCache(s, pos, &limit, sublen, distance, length)) {
-    assert(pos + *length <= size);
     return;
   }
 #endif
@@ -212,10 +211,7 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
     *distance = 0;
     return;
   }
-  int chain_counter = s->options->chain_length;   /*For quitting early. */
-#ifndef NDEBUG
-  int* hhashval = h->hashval;
-#endif
+  unsigned short chain_counter = s->options->chain_length;   /*For quitting early. */
 
   if (pos + limit > size) {
     limit = size - pos;
@@ -223,13 +219,11 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
   const unsigned char* arrayend = &array[pos] + limit;
   const unsigned char* arrayend_safe = arrayend - 8;
   unsigned short hpos = pos & ZOPFLI_WINDOW_MASK, p, pp;
-  int hval = h->val;
   unsigned short* hprev = h->prev;
   int* hhead = h->head;
-  pp = hhead[hval];  /* During the whole loop, p == hprev[pp]. */
+  pp = hpos;  /* During the whole loop, p == hprev[pp]. */
   p = hprev[pp];
 
-  assert(pp == hpos);
   unsigned dist = p < pp ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp); /* Not unsigned short on purpose. */
 
   unsigned short bestlength = 1;
@@ -239,13 +233,7 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
   /* Go through all distances. */
   while (dist < ZOPFLI_WINDOW_SIZE) {
     unsigned short currentlength = 0;
-
-    assert(p == hprev[pp]);
-    assert(hhashval[p] == hval);
-
     if (dist > 0) {
-      assert(pos < size);
-      assert(dist <= pos);
       scan = &array[pos];
       match = &array[pos - dist];
 
@@ -280,7 +268,6 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
       }
     }
 
-
 #ifdef ZOPFLI_HASH_SAME_HASH
     /* Switch to the other hash once this will be more efficient. */
     if (hhead != h->head2 && bestlength >= h->same[hpos] &&
@@ -288,10 +275,6 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
       /* Now use the hash that encodes the length and first byte. */
       hhead = h->head2;
       hprev = h->prev2;
-#ifndef NDEBUG
-      hhashval = h->hashval2;
-      hval = h->val2;
-#endif
     }
 #endif
 
@@ -301,7 +284,7 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
 
     dist += p < pp ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp);
     chain_counter--;
-    if (chain_counter <= 0) break;
+    if (!chain_counter) break;
   }
 
 #ifdef ZOPFLI_LONGEST_MATCH_CACHE

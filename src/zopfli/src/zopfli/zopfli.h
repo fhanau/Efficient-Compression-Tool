@@ -54,7 +54,7 @@ typedef struct ZopfliOptions {
   ZOPFLI_WINDOW_SIZE, while zlib uses 4096 even for best level), but makes it
   faster on some specific files.
   */
-  int chain_length;
+  unsigned short chain_length;
 
   /* When to reduce length in ZopfliLZ77Greedy. */
   unsigned lengthscoresearch;
