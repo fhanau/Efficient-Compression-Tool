@@ -90,8 +90,33 @@ safe_end is a few (8) bytes before end, for comparing multiple bytes at once.
 */
 static const unsigned char* GetMatch(const unsigned char* scan,
                                      const unsigned char* match,
-                                     const unsigned char* end,
-                                     const unsigned char* safe_end) {
+                                     const unsigned char* end
+#ifndef __GNUC__
+, const unsigned char* safe_end
+#endif
+) {
+#ifdef __GNUC__
+
+    /* Optimized Function based on cloudflare's zlib fork. Using AVX for 32 Checks at once may be even faster but currently there is no ctz function for vectors so the old approach would be neccesary again. */
+  do {
+    unsigned long sv = *(unsigned long*)(void*)scan;
+    unsigned long mv = *(unsigned long*)(void*)match;
+    unsigned long xor = sv ^ mv;
+    if (xor) {
+      scan += __builtin_ctzl(xor) / 8;
+      break;
+    } else {
+      scan += 8;
+      match += 8;
+    }
+  } while (scan < end);
+
+  if (unlikely(scan > end))
+    scan = end;
+  return scan;
+
+#else
+
     if (sizeof(size_t) == 8) {
         /* 8 checks at once per array bounds check (size_t is 64-bit). */
         while (scan < safe_end && *((size_t*)scan) == *((size_t*)match)) {
@@ -119,6 +144,7 @@ static const unsigned char* GetMatch(const unsigned char* scan,
         scan++; match++;
     }
     return scan;
+#endif
 }
 
 #ifdef ZOPFLI_LONGEST_MATCH_CACHE
@@ -251,7 +277,6 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
           match += same;
         }
 #endif
-        scan = GetMatch(scan, match, arrayend, arrayend_safe);
         currentlength = scan - &array[pos];  /* The found length. */
       }
 
@@ -260,6 +285,11 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
           unsigned short j;
           for (j = bestlength + 1; j <= currentlength; j++) {
             sublen[j] = dist;
+        scan = GetMatch(scan, match, arrayend
+#ifndef __GNUC__
+                        , arrayend_safe
+#endif
+                        );
           }
         }
         bestdist = dist;
