@@ -224,9 +224,7 @@ static void GetBestLengths(ZopfliBlockState *s,
 
   ZopfliInitHash(h);
   ZopfliWarmupHash(in, windowstart, h);
-  for (i = windowstart; i < instart; i++) {
-    ZopfliUpdateHash(in, i, inend, h);
-  }
+  LoopedUpdateHash(in, windowstart, inend, h, instart - windowstart);
 
   length_array[0] = 0;
   unsigned short k;
@@ -248,13 +246,14 @@ static void GetBestLengths(ZopfliBlockState *s,
       /* Set the length to reach each one to ZOPFLI_MAX_MATCH, and the cost to
       the cost corresponding to that length. Doing this, we skip
       ZOPFLI_MAX_MATCH values to avoid calling ZopfliFindLongestMatch. */
+      i++;
+      LoopedUpdateHash(in, i, inend, h, ZOPFLI_MAX_MATCH);
       for (k = 0; k < ZOPFLI_MAX_MATCH; k++) {
         costs[j + ZOPFLI_MAX_MATCH] = costs[j] + symbolcost;
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH;
-        i++;
         j++;
-        ZopfliUpdateHash(in, i, inend, h);
       }
+      i += (ZOPFLI_MAX_MATCH - 1);
     }
 #endif
     unsigned short dist;
@@ -270,6 +269,7 @@ static void GetBestLengths(ZopfliBlockState *s,
 
     /* Lengths. */
     size_t limit = leng <= inend - i ? leng : inend - i;
+    unsigned limit = leng <= inend - i ? leng : inend - i;
     for (k = 3; k <= limit; k++) {
       newCost = costs[j] + litlentable[k] + disttable[sublen[k]];
       if (newCost < costs[j + k]) {
@@ -314,7 +314,7 @@ static void FollowPath(ZopfliBlockState* s,
                        const unsigned char* in, size_t instart, size_t inend,
                        unsigned short* path, size_t pathsize,
                        ZopfliLZ77Store* store) {
-  size_t i, j, pos = 0;
+  size_t i;
   size_t windowstart = instart > ZOPFLI_WINDOW_SIZE
       ? instart - ZOPFLI_WINDOW_SIZE : 0;
 
@@ -325,11 +325,8 @@ static void FollowPath(ZopfliBlockState* s,
 
   ZopfliInitHash(h);
   ZopfliWarmupHash(in, windowstart, h);
-  for (i = windowstart; i < instart; i++) {
-    ZopfliUpdateHash(in, i, inend, h);
-  }
-
-  pos = instart;
+  LoopedUpdateHash(in, windowstart, inend, h, instart - windowstart);
+  size_t pos = instart;
   for (i = 0; i < pathsize; i++) {
     unsigned short length = path[i];
     assert(pos < inend);
@@ -349,16 +346,17 @@ static void FollowPath(ZopfliBlockState* s,
         ZopfliVerifyLenDist(in, inend, pos, dist, length);
 #endif
       ZopfliStoreLitLenDist(length, dist, store);
+
+      for (size_t j = 1; j < length; j++) {
+        ZopfliUpdateHash(in, pos + j, inend, h);
+      }
+
     } else {
       length = 1;
       ZopfliStoreLitLenDist(in[pos], 0, store);
     }
 
-
     assert(pos + length <= inend);
-    for (j = 1; j < length; j++) {
-      ZopfliUpdateHash(in, pos + j, inend, h);
-    }
 
     pos += length;
   }

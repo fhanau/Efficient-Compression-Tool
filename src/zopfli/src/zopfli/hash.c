@@ -87,8 +87,7 @@ void ZopfliUpdateHash(const unsigned char* array, size_t pos, size_t end,
                 ZopfliHash* h) {
   unsigned short hpos = pos & ZOPFLI_WINDOW_MASK;
 
-  UpdateHashValue(h, pos + ZOPFLI_MIN_MATCH <= end ?
-      array[pos + ZOPFLI_MIN_MATCH - 1] : 0);
+  h->val = pos + ZOPFLI_MIN_MATCH <= end ? ((h->val << HASH_SHIFT) ^ array[pos + ZOPFLI_MIN_MATCH - 1]) & HASH_MASK : 0;
   h->hashval[hpos] = h->val;
   if (h->head[h->val] != -1 && h->hashval[h->head[h->val]] == h->val) {
     h->prev[hpos] = h->head[h->val];
@@ -120,7 +119,58 @@ void ZopfliUpdateHash(const unsigned char* array, size_t pos, size_t end,
 #endif
 }
 
+void LoopedUpdateHash(const unsigned char* array, size_t pos, size_t end,
+                      ZopfliHash* h, unsigned n){
+  if (end - pos > 65536){
+    end = pos + 65536;
+  }
+  unsigned short hposs[n];
+//  int hhash[n];
+  unsigned i;
+  for (i = 0; i < n; i++, pos++){
+    hposs[i] = pos & ZOPFLI_WINDOW_MASK;//Could also just ++ after 1st, overflow is ok
+  }
+  pos -= n;
+
+
+
+  for (i = 0; i < n; i++, pos++){
+
+    h->val = pos + ZOPFLI_MIN_MATCH <= end ? ((h->val << HASH_SHIFT) ^ array[pos + ZOPFLI_MIN_MATCH - 1]) & HASH_MASK : 0;
+    h->hashval[hposs[i]] = h->val;
+    if (h->head[h->val] != -1 && h->hashval[h->head[h->val]] == h->val) {
+      h->prev[hposs[i]] = h->head[h->val];
+    }
+    else h->prev[hposs[i]] = hposs[i];
+    h->head[h->val] = hposs[i];
+
+#ifdef ZOPFLI_HASH_SAME
+    unsigned short amount = 0;
+    /* Update "same". */
+    if (h->same[(pos - 1) & ZOPFLI_WINDOW_MASK] > 1) {
+      amount = h->same[(pos - 1) & ZOPFLI_WINDOW_MASK] - 1;
+    }
+
+    while (pos + amount + 1 < end &&
+           array[pos] == array[pos + amount + 1]) {
+      amount++;
+    }
+    h->same[hposs[i]] = amount;
+
+#ifdef ZOPFLI_HASH_SAME_HASH
+    h->val2 = ((h->same[hposs[i]] - ZOPFLI_MIN_MATCH) & 255) ^ h->val;
+    h->hashval2[hposs[i]] = h->val2;
+    if (h->head2[h->val2] != -1 && h->hashval2[h->head2[h->val2]] == h->val2) {
+      h->prev2[hposs[i]] = h->head2[h->val2];
+    }
+    else h->prev2[hposs[i]] = hposs[i];
+    h->head2[h->val2] = hposs[i];
+#endif
+#endif
+  }
+}
+
 void ZopfliWarmupHash(const unsigned char* array, size_t pos, ZopfliHash* h) {
-  UpdateHashValue(h, array[pos + 0]);
+  UpdateHashValue(h, array[pos]);
   UpdateHashValue(h, array[pos + 1]);
 }

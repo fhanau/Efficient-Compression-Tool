@@ -61,6 +61,9 @@ to this must be made for consecutive bytes.
 void ZopfliUpdateHash(const unsigned char* array, size_t pos, size_t end,
                       ZopfliHash* h);
 
+void LoopedUpdateHash(const unsigned char* array, size_t pos, size_t end,
+                      ZopfliHash* h, unsigned iter);
+
 /*
 Prepopulates hash:
 Fills in the initial values in the hash, before ZopfliUpdateHash can be used
