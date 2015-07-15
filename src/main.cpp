@@ -55,25 +55,25 @@ static void Usage() {
 }
 
 static void ECT_ReportSavings(){
-    if (processedfiles!= 0){
+    if (processedfiles){
     int bk = 0;
     int k = 0;
-    double smul=savings;
-    double bmul=bytes;
-    while (smul > 1024){smul /= 1024; k++;}
-    while (bmul > 1024){bmul /= 1024; bk++;}
+    double smul = savings;
+    double bmul = bytes;
+    while (smul > 1024) {smul /= 1024; k++;}
+    while (bmul > 1024) {bmul /= 1024; bk++;}
     char *counter;
-    if (k == 1){counter = (char *)"K";}
-    else if (k == 2){counter = (char *)"M";}
-    else if (k == 3){counter = (char *)"G";}
+    if (k == 1) {counter = (char *)"K";}
+    else if (k == 2) {counter = (char *)"M";}
+    else if (k == 3) {counter = (char *)"G";}
     else {counter = (char *)"";}
     char *counter2;
-    if (bk == 1){counter2=(char *)"K";}
+    if (bk == 1){counter2 = (char *)"K";}
     else if (bk == 2){counter2 = (char *)"M";}
     else if (bk == 3){counter2 = (char *)"G";}
     else {counter2 = (char *)"";}
     printf("Processed %lu file%s\n"
-           "Saved ", processedfiles, processedfiles>1 ? "s":"");
+           "Saved ", processedfiles, processedfiles > 1 ? "s":"");
     if (k == 0){printf("%0.0f", smul);}
     else{printf("%0.2f", smul);}
     printf("%sB out of ", counter);
@@ -115,7 +115,7 @@ static int ECTGzip(const char * Infile, const int Mode){
 static void OptimizePNG(const char * Infile, const ECTOptions& Options){
     int x = 1;
     long long size = filesize(Infile);
-    if(Options.Mode==5){
+    if(Options.Mode == 5){
         x = Zopflipng(Options.strip, Infile, Options.Strict, 2, 0);
     }
     //Disabled as using this causes libpng warnings
@@ -130,7 +130,7 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
         if (Options.Mode == 5){
             Zopflipng(Options.strip, Infile, Options.Strict, 5, filter);}
         else {
-            x=Zopflipng(Options.strip, Infile, Options.Strict, Options.Mode, filter);}
+            x = Zopflipng(Options.strip, Infile, Options.Strict, Options.Mode, filter);}
     }
     else {
         if (filesize(Infile) <= size){
@@ -161,14 +161,14 @@ static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
     std::string Ext = Infile;
     std::string x = Ext.substr(Ext.find_last_of(".") + 1);
 
-    if ((Options.PNG_ACTIVE && (x == "PNG" || x == "png")) || (Options.JPEG_ACTIVE && (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"))  || Options.Gzip){
+    if ((Options.PNG_ACTIVE && (x == "PNG" || x == "png")) || (Options.JPEG_ACTIVE && (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg")) || Options.Gzip){
         long long size = filesize(Infile);
         int statcompressedfile = 0;
         if (size<100000000) {
             if (x == "PNG" || x == "png"){
                 OptimizePNG(Infile, Options);
             }
-            else if (x== "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"){
+            else if (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"){
                 OptimizeJPEG(Infile, Options);
             }
             else if (Options.Gzip){
@@ -203,7 +203,7 @@ int main(int argc, const char * argv[]) {
     Options.Gzip = false;
     Options.SavingsCounter = true;
     Options.Strict = false;
-    if (argc>=2){
+    if (argc >= 2){
         for (int i = 1; i < argc-1; i++) {
             if (strncmp(argv[i], "-strip", 2) == 0){Options.strip = true;}
             else if (strncmp(argv[i], "-progressive", 2) == 0) {Options.Progressive = true;}
@@ -231,12 +231,13 @@ int main(int argc, const char * argv[]) {
         else if (boost::filesystem::is_directory(argv[argc-1])){
             if(Options.Recurse){boost::filesystem::recursive_directory_iterator a(argv[argc-1]), b;
                 std::vector<boost::filesystem::path> paths(a, b);
-                for(unsigned long i = 0; i<paths.size(); i++){PerFileWrapper(paths[i].c_str(), Options);}
+                for(unsigned i = 0; i < paths.size(); i++){PerFileWrapper(paths[i].c_str(), Options);}
             }
             else{
                 boost::filesystem::directory_iterator a(argv[argc-1]), b;
                 std::vector<boost::filesystem::path> paths(a, b);
-                for(unsigned long i = 0; i<paths.size(); i++){PerFileWrapper(paths[i].c_str(), Options);}
+                for(unsigned i = 0; i < paths.size(); i++){
+                    PerFileWrapper(paths[i].c_str(), Options);}
             }
         }
 #else
