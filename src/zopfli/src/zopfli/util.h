@@ -132,8 +132,13 @@ unsigned ZopfliGetDistExtraBits(unsigned dist);
 /* Gets value of the extra bits for the given dist, cfr. the DEFLATE spec. */
 unsigned ZopfliGetDistExtraBitsValue(unsigned dist);
 
+#ifdef __GNUC__
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
+#else
+#define likely(x)      x
+#define unlikely(x)    x
+#endif
 
 /*
 Appends value to dynamically allocated memory, doubling its allocation size
