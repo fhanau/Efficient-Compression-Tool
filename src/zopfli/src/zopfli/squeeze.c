@@ -120,7 +120,7 @@ length_array: output array of size (inend - instart) which will receive the best
 static void GetBestLengths(ZopfliBlockState *s,
                              const unsigned char* in,
                              size_t instart, size_t inend,
-                             SymbolStats* costcontext, unsigned short* length_array) {
+                             SymbolStats* costcontext, unsigned short* length_array, unsigned char storeincache) {
   size_t i;
   double litlentable [259];
   double disttable [32768];
@@ -256,8 +256,7 @@ static void GetBestLengths(ZopfliBlockState *s,
       i += (ZOPFLI_MAX_MATCH - 1);
     }
 #endif
-    unsigned short dist;
-    ZopfliFindLongestMatch(s, h, in, i, inend, ZOPFLI_MAX_MATCH, sublen, &dist, &leng);
+    ZopfliFindLongestMatch2(s, h, in, i, inend, sublen, &leng, storeincache);
 
     /* Literal. */
     //Simplified costmodel(in[i], 0, costcontext) call
@@ -401,27 +400,20 @@ store: place to output the LZ77 data
 returns the cost that was, according to the costmodel, needed to get to the end.
     This is not the actual cost.
 */
-static void LZ77OptimalRun(ZopfliBlockState* s,
-    const unsigned char* in, size_t instart, size_t inend,
-    unsigned short** path, size_t* pathsize,
-    unsigned short* length_array, SymbolStats* costcontext,
-    ZopfliLZ77Store* store) {
-  GetBestLengths(s, in, instart, inend, costcontext, length_array);
-  free(*path);
-  *path = 0;
-  *pathsize = 0;
-  TraceBackwards(inend - instart, length_array, path, pathsize);
-  FollowPath(s, in, instart, inend, *path, *pathsize, store);
+static void LZ77OptimalRun(ZopfliBlockState* s, const unsigned char* in, size_t instart, size_t inend, unsigned short* length_array, SymbolStats* costcontext, ZopfliLZ77Store* store, unsigned char storeincache) {
+  GetBestLengths(s, in, instart, inend, costcontext, length_array, storeincache);
+  unsigned short* path = 0;
+  size_t pathsize = 0;
+  TraceBackwards(inend - instart, length_array, &path, &pathsize);
+  FollowPath(s, in, instart, inend, path, pathsize, store);
+  free(path);
 }
 
 void ZopfliLZ77Optimal(ZopfliBlockState *s,
                        const unsigned char* in, size_t instart, size_t inend,
                        ZopfliLZ77Store* store) {
   /* Dist to get to here with smallest cost. */
-  size_t blocksize = inend - instart;
-  unsigned short* length_array = (unsigned short*)malloc(sizeof(unsigned short) * (blocksize + 1));
-  unsigned short* path = 0;
-  size_t pathsize = 0;
+  unsigned short* length_array = (unsigned short*)malloc(sizeof(unsigned short) * (inend - instart + 1));
   ZopfliLZ77Store currentstore;
   SymbolStats stats, beststats, laststats;
   double cost;
@@ -449,9 +441,7 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
   for (int i = 1; i < s->options->numiterations+1; i++) {
     ZopfliCleanLZ77Store(&currentstore);
     ZopfliInitLZ77Store(&currentstore);
-    LZ77OptimalRun(s, in, instart, inend, &path, &pathsize,
-                   length_array, &stats,
-                   &currentstore);
+    LZ77OptimalRun(s, in, instart, inend, length_array, &stats, &currentstore, i != s->options->numiterations);
     cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists,
                                     0, currentstore.size, 2);
     if (cost < bestcost) {
@@ -480,7 +470,6 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
   }
 
   free(length_array);
-  free(path);
   ZopfliCleanLZ77Store(&currentstore);
 }
 
@@ -490,11 +479,7 @@ void ZopfliLZ77OptimalFixed(ZopfliBlockState *s,
                             ZopfliLZ77Store* store)
 {
   /* Dist to get to here with smallest cost. */
-  size_t blocksize = inend - instart;
-  unsigned short* length_array = (unsigned short*)malloc(sizeof(unsigned short) * (blocksize + 1));
-  unsigned short* path = 0;
-  size_t pathsize = 0;
-
+  unsigned short* length_array = (unsigned short*)malloc(sizeof(unsigned short) * (inend - instart + 1));
   if (!length_array) exit(-1); /* Allocation failed. */
 
   s->blockstart = instart;
@@ -502,9 +487,7 @@ void ZopfliLZ77OptimalFixed(ZopfliBlockState *s,
 
   /* Shortest path for fixed tree This one should give the shortest possible
   result for fixed tree, no repeated runs are needed since the tree is known. */
-  LZ77OptimalRun(s, in, instart, inend, &path, &pathsize,
-                 length_array, 0, store);
+  LZ77OptimalRun(s, in, instart, inend, length_array, 0, store, 0);
 
   free(length_array);
-  free(path);
 }

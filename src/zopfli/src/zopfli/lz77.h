@@ -93,9 +93,12 @@ sublen: output array of 259 elements, or null. Has, for each length, the
     are used, the first 3 are ignored (the shortest length is 3. It is purely
     for convenience that the array is made 3 longer).
 */
+  void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
+                               const unsigned char* array,
+                               size_t pos, size_t size, unsigned short* sublen, unsigned short* length, unsigned char storeincache);
 void ZopfliFindLongestMatch(
     ZopfliBlockState *s, const ZopfliHash* h, const unsigned char* array,
-    size_t pos, size_t size, size_t limit,
+    size_t pos, size_t size, unsigned short limit,
     unsigned short* sublen, unsigned short* distance, unsigned short* length);
 
 /*
