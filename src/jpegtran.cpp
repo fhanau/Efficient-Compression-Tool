@@ -117,10 +117,14 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
 
     /* Adjust default compression parameters by re-parsing the options */
     dstinfo.optimize_coding = !progressive && !arithmetic;
+    dstinfo.arith_code = arithmetic;
     if (dstinfo.num_scans && progressive) {
         jpeg_simple_progression(&dstinfo);
     }
-    dstinfo.arith_code = arithmetic;
+    else{
+        dstinfo.num_scans = 0;
+        dstinfo.scan_info = NULL;
+    }
 
     /* Specify data destination for compression */
     jpeg_mem_dest(&dstinfo, &outbuffer, &outsize);
