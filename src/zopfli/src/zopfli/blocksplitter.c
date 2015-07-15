@@ -48,7 +48,6 @@ static double SplitCost(size_t i, SplitCostContext* c) {
   return ZopfliCalculateBlockSize(c->litlens, c->dists, c->start, i, 2) +
   ZopfliCalculateBlockSize(c->litlens, c->dists, i, c->end, 2);
 }
-}
 
 /*
 Finds minimum of function f(i) where is is of type size_t, f(i) is of type
@@ -80,7 +79,6 @@ static size_t FindMinimum(SplitCostContext* context,
     double best;
     double lastbest = ZOPFLI_LARGE_FLOAT;
     size_t pos = start;
-
     for (;;) {
       if (end - start <= options->num) break;
 
