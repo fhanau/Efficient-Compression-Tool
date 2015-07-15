@@ -106,7 +106,7 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
         for (size_t i = 0; i < w * h; i++) {
             // if alpha is 0, alter the RGB values to 0.
             if (image[i * 4 + 3] == 0) {
-                image[i * 4 + 0] = 0;
+                image[i * 4] = 0;
                 image[i * 4 + 1] = 0;
                 image[i * 4 + 2] = 0;
             }
@@ -140,7 +140,7 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
                 // Use RGB value of first encountered transparent pixel. This can be
                 // used as a valid color key, or in case of palette ensures a color
                 // existing in the input image palette is used.
-                r = image[i * 4 + 0];
+                r = image[i * 4];
                 g = image[i * 4 + 1];
                 b = image[i * 4 + 2];
                 break;
@@ -155,7 +155,7 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
                 b = 0;
             }
             if (image[i * 4 + 3] == 0) {
-                image[i * 4 + 0] = r;
+                image[i * 4] = r;
                 image[i * 4 + 1] = g;
                 image[i * 4 + 2] = b;
             }
@@ -163,7 +163,7 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
                 if (!key && !palette){
                     // Use the last encountered RGB value if no key or palette is used: that
                     // way more values can be 0 thanks to the PNG filter types.
-                    r = image[i * 4 + 0];
+                    r = image[i * 4];
                     g = image[i * 4 + 1];
                     b = image[i * 4 + 2];
                 }
@@ -179,7 +179,7 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
             unsigned char* palette_in = inputstate->info_png.color.palette;
             for (size_t i = 0; i < inputstate->info_png.color.palettesize; i++) {
                 if (count.count(ColorIndex(&palette_in[i * 4])) != 0) {
-                    palette_out.push_back(palette_in[i * 4 + 0]);
+                    palette_out.push_back(palette_in[i * 4]);
                     palette_out.push_back(palette_in[i * 4 + 1]);
                     palette_out.push_back(palette_in[i * 4 + 2]);
                     palette_out.push_back(palette_in[i * 4 + 3]);
@@ -195,8 +195,7 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
 
 // Tries to optimize given a single PNG filter strategy.
 // Returns 0 if ok, other value for error
-static unsigned TryOptimize(
-                            const std::vector<unsigned char>& image, unsigned w, unsigned h, const lodepng::State& inputstate, bool bit16,
+static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsigned h, bool bit16,
                             const ZopfliPNGOptions* png_options, std::vector<unsigned char>* out, int best_filter/*, int Mode, const char * Infile*/) {
     lodepng::State state;
     state.encoder.zlibsettings.custom_deflate = CustomPNGDeflate;
@@ -204,12 +203,6 @@ static unsigned TryOptimize(
     state.encoder.filter_palette_zero = 0;
     state.encoder.add_id = false;
     state.encoder.text_compression = 0;
-    if (inputstate.info_png.color.colortype == LCT_PALETTE) {
-        // Make it preserve the original palette order
-        lodepng_color_mode_copy(&state.info_raw, &inputstate.info_png.color);
-        state.info_raw.colortype = LCT_RGBA;
-        state.info_raw.bitdepth = 8;
-    }
     if (bit16) {
         state.info_raw.bitdepth = 16;
     }
@@ -246,7 +239,7 @@ static unsigned TryOptimize(
     // For very small output, also try without palette, it may be smaller thanks
     // to no palette storage overhead.
     unsigned long testboth = out->size();
-    if (!error && testboth < 3328) {
+    if (!error && testboth < 3328 && w * h < 45000) {
         lodepng::State teststate;
         std::vector<unsigned char> temp;
         lodepng::decode(temp, w, h, teststate, *out);
@@ -268,7 +261,7 @@ static unsigned TryOptimize(
             bool grey = true;
             unsigned has_alpha=lodepng_has_palette_alpha(&color);
             for (size_t i = 0; i < color.palettesize; i++) {
-                if (color.palette[i * 4 + 0] != color.palette[i * 4 + 2]
+                if (color.palette[i * 4] != color.palette[i * 4 + 2]
                     || color.palette[i * 4 + 1] != color.palette[i * 4 + 2]) {
                     grey = false;
                     break;
@@ -283,7 +276,9 @@ static unsigned TryOptimize(
             else{state.info_png.color.colortype = LCT_RGB;}
             }
             error = lodepng::encode(out2, image, w, h, state);
-            if (out2.size() < out->size()) out->swap(out2);
+            if (out2.size() < out->size()){
+                out->swap(out2);
+            }
 
         }
     }
@@ -324,7 +319,7 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
         }
     }
     std::vector<unsigned char> temp;
-    error = TryOptimize(image, w, h, inputstate, bit16, &png_options, &temp, best_filter/*, Mode, Infile*/);
+    error = TryOptimize(image, w, h, bit16, &png_options, &temp, best_filter/*, Mode, Infile*/);
     if (!error) {
         (*resultpng).swap(temp);  // Store best result so far in the output.
     }
