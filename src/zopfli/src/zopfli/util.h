@@ -115,7 +115,7 @@ varies from file to file.
 Gets the symbol for the given length, cfr. the DEFLATE spec.
 Returns the symbol in the range [257-285] (inclusive)
 */
-int ZopfliGetLengthSymbol(int l);
+unsigned ZopfliGetLengthSymbol(unsigned l);
 
 /* Gets the amount of extra bits for the given length, cfr. the DEFLATE spec. */
 unsigned ZopfliGetLengthExtraBits(unsigned l);

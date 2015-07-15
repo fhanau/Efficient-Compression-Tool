@@ -108,7 +108,6 @@ static size_t EncodeTree(const unsigned* ll_lengths,
                          int use_16, int use_17, int use_18,
                          unsigned char* bp,
                          unsigned char** out, size_t* outsize) {
-  unsigned lld_total;  /* Total amount of literal, length, distance codes. */
   /* Runlength encoded version of lengths of litlen and dist trees. */
   unsigned* rle = 0;
   unsigned* rle_bits = 0;  /* Extra bits for rle values 16, 17 and 18. */
@@ -116,8 +115,6 @@ static size_t EncodeTree(const unsigned* ll_lengths,
   size_t rle_bits_size = 0;  /* Should have same value as rle_size. */
   unsigned hlit = 29;  /* 286 - 257 */
   unsigned hdist = 29;  /* 32 - 1, but gzip does not like hdist > 29.*/
-  unsigned hclen;
-  unsigned hlit2;
   size_t i, j;
   size_t clcounts[19];
   unsigned clcl[19];  /* Code length code lengths. */
@@ -134,9 +131,9 @@ static size_t EncodeTree(const unsigned* ll_lengths,
   /* Trim zeros. */
   while (hlit > 0 && ll_lengths[257 + hlit - 1] == 0) hlit--;
   while (hdist > 0 && d_lengths[1 + hdist - 1] == 0) hdist--;
-  hlit2 = hlit + 257;
+  unsigned hlit2 = hlit + 257;
 
-  lld_total = hlit2 + hdist + 1;
+  unsigned lld_total = hlit2 + hdist + 1; /* Total amount of literal, length, distance codes. */
 
   for (i = 0; i < lld_total; i++) {
     /* This is an encoding of a huffman tree, so now the length is a symbol */
@@ -208,7 +205,7 @@ static size_t EncodeTree(const unsigned* ll_lengths,
   ZopfliLengthLimitedCodeLengths(clcounts, 19, 7, clcl);
   if (!size_only) ZopfliLengthsToSymbols(clcl, 19, 7, clsymbols);
 
-  hclen = 15;
+  unsigned hclen = 15;
   /* Trim zeros. */
   while (hclen > 0 && clcounts[order[hclen + 4 - 1]] == 0) hclen--;
 
@@ -352,7 +349,8 @@ static size_t CalculateBlockSymbolSize(const unsigned* ll_lengths,
                                        const unsigned short* litlens,
                                        const unsigned short* dists,
                                        size_t lstart, size_t lend) {
-  size_t result = 0;
+
+  size_t result = ll_lengths[256]; /*end symbol*/
   for (size_t i = lstart; i < lend; i++) {
     if (dists[i] == 0) {
       result += ll_lengths[litlens[i]];
@@ -363,7 +361,6 @@ static size_t CalculateBlockSymbolSize(const unsigned* ll_lengths,
       result += ZopfliGetDistExtraBits(dists[i]);
     }
   }
-  result += ll_lengths[256]; /*end symbol*/
   return result;
 }
 

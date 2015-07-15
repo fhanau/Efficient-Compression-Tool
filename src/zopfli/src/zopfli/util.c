@@ -165,8 +165,8 @@ unsigned ZopfliGetLengthExtraBitsValue(unsigned l) {
 /*
 Returns symbol in range [257-285] (inclusive).
 */
-int ZopfliGetLengthSymbol(int l) {
-  static const int table[259] = {
+unsigned ZopfliGetLengthSymbol(unsigned l) {
+  static const unsigned table[259] = {
     0, 0, 0, 257, 258, 259, 260, 261, 262, 263, 264,
     265, 265, 266, 266, 267, 267, 268, 268,
     269, 269, 269, 269, 270, 270, 270, 270,
@@ -237,5 +237,4 @@ void ZopfliInitOptions(ZopfliOptions* options, int mode) {
   options->blocksplittingmax = mode > 2 ? 0 : 15;
   options->trystatic = mode > 3 ? 2000 : 800;
   options->noblocksplit = 1400;
-  /* TODO: Add FindMinimum 9.*/
 }

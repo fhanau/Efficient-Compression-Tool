@@ -699,7 +699,7 @@ static png_uint_32 opng_reduce_to_palette(png_structp png_ptr, png_infop info_pt
    png_color palette[256];
    png_byte trans_alpha[256];
    int num_trans, index;
-   unsigned int gray, red, green, blue, alpha;
+   unsigned gray, red, green, blue, alpha;
    unsigned prev_red, prev_green, prev_blue, prev_alpha;
    png_uint_32 j;
    png_get_IHDR(png_ptr, info_ptr, &width, &height, &src_bit_depth,
