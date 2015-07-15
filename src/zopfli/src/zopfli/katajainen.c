@@ -26,6 +26,7 @@ Jyrki Katajainen, Alistair Moffat, Andrew Turpin".
 /*Modified by Felix Hanau*/
 
 #include "katajainen.h"
+#include "util.h"
 #include <stdlib.h>
 
 typedef struct Node Node;
@@ -67,7 +68,7 @@ pool: Memory pool to get free node from.
 */
 static Node* GetFreeNode(Node* (*lists)[2], int maxbits, NodePool* pool) {
   for (;;) {
-    if (pool->next >= &pool->nodes[pool->size]) {
+    if (unlikely(pool->next >= &pool->nodes[pool->size])) {
       /* Garbage collection. */
       int i;
       for (i = 0; i < pool->size; i++) {

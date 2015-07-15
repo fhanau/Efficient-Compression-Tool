@@ -54,22 +54,20 @@ void ZopfliSublenToCache(const unsigned short* sublen,
 #if ZOPFLI_CACHE_LENGTH == 0
   return;
 #endif
-  if (length < 3) return;
 
   unsigned char* cache = &lmc->sublen[CacheBytes * pos];
-  size_t j = 0;
+  unsigned char j = 0;
+
   for (unsigned short i = 3; i <= length; i++) {
     if (i == length || sublen[i] != sublen[i + 1]) {
-      cache[j * 3] = i - 3;
-      cache[j * 3 + 1] = sublen[i] % 256;
-      cache[j * 3 + 2] = (sublen[i] >> 8) % 256;
-      j++;
-      if (j >= ZOPFLI_CACHE_LENGTH) break;
+      cache[j] = i - 3;
+      cache[++j] = sublen[i] % 256;
+      cache[++j] = (sublen[i] >> 8) % 256;
+      if (++j >= CacheBytes) break;
     }
   }
-  if (j < ZOPFLI_CACHE_LENGTH) {
+  if (j < CacheBytes)
     cache[CacheBytes - 9] = length - 3;
-  }
 }
 
 void ZopfliCacheToSublen(const ZopfliLongestMatchCache* lmc,

@@ -125,7 +125,7 @@ static void GetBestLengths(ZopfliBlockState *s,
   double litlentable [259];
   double disttable [32768];
   if (costcontext){  /* Dynamic Block */
-    for (i = 0; i < 259; i++){
+    for (i = 3; i < 259; i++){
       litlentable[i] = costcontext->ll_symbols[ZopfliGetLengthSymbol(i)] + ZopfliGetLengthExtraBits(i);
     }
     for (i = 0; i < 513; i++){
@@ -181,7 +181,7 @@ static void GetBestLengths(ZopfliBlockState *s,
     }
   }
   else {
-    for (i = 0; i < 259; i++){
+    for (i = 3; i < 259; i++){
       litlentable[i] = 12 + (i > 114) + ZopfliGetLengthExtraBits(i);
     }
     for (i = 0; i < 513; i++){
@@ -268,7 +268,6 @@ static void GetBestLengths(ZopfliBlockState *s,
     }
 
     /* Lengths. */
-    size_t limit = leng <= inend - i ? leng : inend - i;
     unsigned limit = leng <= inend - i ? leng : inend - i;
     for (k = 3; k <= limit; k++) {
       newCost = costs[j] + litlentable[k] + disttable[sublen[k]];
