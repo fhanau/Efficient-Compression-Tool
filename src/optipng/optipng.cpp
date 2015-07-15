@@ -281,7 +281,7 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
 
         if (options->optim_level == 1){
             fstream = fopen(Infile, "wb");
-            opng_write_file(session, fstream, optimal_filter == 5, 9, false);
+            opng_write_file(session, fstream, optimal_filter == 5, 1, false);
             fclose(fstream);
         }
     }
