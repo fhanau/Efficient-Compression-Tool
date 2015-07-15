@@ -28,6 +28,9 @@ Utilities for creating and using Huffman trees.
 
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
 Converts a series of Huffman tree bitlengths, to the bit values of the symbols.
@@ -43,5 +46,9 @@ values are fractional, they cannot be used to encode the tree specified by
 DEFLATE.
 */
 void ZopfliCalculateEntropy(const size_t* count, size_t n, double* bitlengths);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  /* ZOPFLI_TREE_H_ */

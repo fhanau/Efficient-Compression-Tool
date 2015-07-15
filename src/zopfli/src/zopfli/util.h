@@ -27,6 +27,10 @@ basic deflate specification values and generic program options.
 #ifndef ZOPFLI_UTIL_H_
 #define ZOPFLI_UTIL_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdlib.h>
 
 /* Minimum and maximum length that can be encoded in deflate. */
@@ -165,5 +169,8 @@ equal than *size.
 }
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif  /* ZOPFLI_UTIL_H_ */
