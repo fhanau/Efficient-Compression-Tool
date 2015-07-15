@@ -252,8 +252,8 @@ static void StoreInLongestMatchCache(ZopfliBlockState* s,
 
 void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
                             const unsigned char* array,
-                            unsigned short* sublen, unsigned short* distance, unsigned short* length) {
                             size_t pos, size_t size, unsigned short limit,
+                            unsigned short* sublen, unsigned short* distance, unsigned short* length) {
 #ifdef ZOPFLI_LONGEST_MATCH_CACHE
   if (TryGetFromLongestMatchCache(s, pos, &limit, sublen, distance, length)) {
     return;
