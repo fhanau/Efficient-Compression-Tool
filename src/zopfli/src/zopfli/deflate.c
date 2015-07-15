@@ -29,6 +29,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "lz77.h"
 #include "squeeze.h"
 #include "tree.h"
+#include "katajainen.h"
 
 /*
 bp = bitpointer, always in range [0, 7].
