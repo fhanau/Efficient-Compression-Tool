@@ -29,17 +29,12 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #define HASH_MASK 32767
 
 void ZopfliInitHash(ZopfliHash* h) {
-  unsigned short i;
-
   h->val = 0;
   h->head = (int*)malloc(sizeof(*h->head) * 65536);
   h->prev = (unsigned short*)malloc(sizeof(*h->prev) * ZOPFLI_WINDOW_SIZE);
   h->hashval = (int*)malloc(sizeof(*h->hashval) * ZOPFLI_WINDOW_SIZE);
   memset(h->hashval, -1, sizeof(*h->hashval) * ZOPFLI_WINDOW_SIZE);
   memset(h->head, -1, sizeof(*h->head) * 65536);
-  for (i = 0; i < ZOPFLI_WINDOW_SIZE; i++) {
-    h->prev[i] = i;  /* If prev[j] == j, then prev[j] is uninitialized. */
-  }
 
 #ifdef ZOPFLI_HASH_SAME
   h->same = (unsigned short*)calloc(ZOPFLI_WINDOW_SIZE, sizeof(*h->same));
@@ -50,9 +45,6 @@ void ZopfliInitHash(ZopfliHash* h) {
   h->head2 = (int*)malloc(sizeof(*h->head2) * 65536);
   h->prev2 = (unsigned short*)malloc(sizeof(*h->prev2) * ZOPFLI_WINDOW_SIZE);
   h->hashval2 = (int*)malloc(sizeof(*h->hashval2) * ZOPFLI_WINDOW_SIZE);
-  for (i = 0; i < ZOPFLI_WINDOW_SIZE; i++) {
-    h->prev2[i] = i;
-  }
   memset(h->hashval2, -1, sizeof(*h->hashval2) * ZOPFLI_WINDOW_SIZE);
   memset(h->head2, -1, sizeof(*h->head2) * 65536);
 #endif

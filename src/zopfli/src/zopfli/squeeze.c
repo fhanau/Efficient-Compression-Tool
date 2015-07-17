@@ -226,7 +226,6 @@ static void GetBestLengths(ZopfliBlockState *s,
   ZopfliWarmupHash(in, windowstart, h);
   LoopedUpdateHash(in, windowstart, inend, h, instart - windowstart);
 
-  length_array[0] = 0;
   unsigned short k;
 
   for (i = instart; i < inend; i++) {
