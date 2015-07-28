@@ -96,10 +96,10 @@ sublen: output array of 259 elements, or null. Has, for each length, the
   void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
                                const unsigned char* array,
                                size_t pos, size_t size, unsigned short* sublen, unsigned short* length, unsigned char storeincache);
-void ZopfliFindLongestMatch(
-    ZopfliBlockState *s, const ZopfliHash* h, const unsigned char* array,
-    size_t pos, size_t size, unsigned short limit,
-    unsigned short* sublen, unsigned short* distance, unsigned short* length);
+    void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
+                                const unsigned char* array,
+                                size_t pos, size_t size, unsigned short limit,
+                                unsigned short* sublen, unsigned short* distance, unsigned short* length, unsigned char try2);
 
 /*
 Verifies if length and dist are indeed valid, only used for assertion.

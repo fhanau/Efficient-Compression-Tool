@@ -70,14 +70,10 @@ void ZopfliSublenToCache(const unsigned short* sublen,
     cache[CacheBytes - 9] = length - 3;
 }
 
-void ZopfliCacheToSublen(const ZopfliLongestMatchCache* lmc,
-                         size_t pos, size_t length,
-                         unsigned short* sublen) {
+void ZopfliCacheToSublen(const ZopfliLongestMatchCache* lmc, size_t pos, unsigned short* sublen) {
 #if ZOPFLI_CACHE_LENGTH == 0
   return;
 #endif
-  if (length < 3) return;
-
     size_t i;
     unsigned maxlength = ZopfliMaxCachedSublen(lmc, pos);
     unsigned prevlength = 0;
