@@ -20,13 +20,13 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "deflate.h"
 #include "zlib_container.h"
 #include "util.h"
-#include "../zopflipng/lodepng/lodepng.h"
+#include "../../../zlib/zlib.h"
 
 void ZopfliZlibCompress(const ZopfliOptions* options,
                         const unsigned char* in, size_t insize,
                         unsigned char** out, size_t* outsize) {
   unsigned char bitpointer = 0;
-  unsigned checksum = adler32(in, (unsigned)insize);
+  unsigned checksum = adler32(1, in, (unsigned)insize);
   unsigned cmf = 120;  /* CM 8, CINFO 7. See zlib spec.*/
   unsigned flevel = 0;
   unsigned fdict = 0;

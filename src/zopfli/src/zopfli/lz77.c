@@ -480,8 +480,8 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
     ZopfliUpdateHash(in, i, inend, h);
 
     ZopfliFindLongestMatch(s, h, in, i, inend, ZOPFLI_MAX_MATCH, dummysublen,
-    lengthscore = dist > s->options->lengthscoresearch ? leng - 1 : leng;
                            &dist, &leng, 0);
+    lengthscore = dist > s->options->lengthscoresearch ? leng - 1 : leng;
 
 #ifdef ZOPFLI_LAZY_MATCHING
     /* Lazy matching. */

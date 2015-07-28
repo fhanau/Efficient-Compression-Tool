@@ -25,8 +25,8 @@
 #include <string>
 
 #include "lodepng/lodepng_util.h"
-#include "../zopfli/deflate.h"
-#include "../../../main.h"
+#include "zopfli/src/zopfli/deflate.h"
+#include "main.h"
 #include "lodepng/lodepng.h"
 
 struct ZopfliPNGOptions {

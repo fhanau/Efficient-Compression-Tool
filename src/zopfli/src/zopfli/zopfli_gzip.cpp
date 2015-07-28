@@ -17,14 +17,13 @@ Author: lode.vandevenne@gmail.com (Lode Vandevenne)
 Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 */
 
-#include <stdio.h>
+#include <cstdio>
 
 #include "util.h"
 #include "zopfli.h"
-#include "../zopflipng/lodepng/lodepng.h"
+#include "../../../zlib/zlib.h"
 #include "deflate.h"
 #include "zopfli.h"
-#include "deflate.h"
 #include "zlib_container.h"
 #include "../../../main.h"
 
@@ -34,7 +33,7 @@ Compresses the data according to the gzip specification.
 static void ZopfliGzipCompress(const ZopfliOptions* options,
                         const unsigned char* in, size_t insize,
                         unsigned char** out, size_t* outsize) {
-  unsigned crcvalue = lodepng_crc32(in, insize);
+  unsigned crcvalue = crc32(0, in, insize);
   unsigned char bp = 0;
 
   ZOPFLI_APPEND_DATA(31, out, outsize);  /* ID1 */

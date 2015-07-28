@@ -4,8 +4,8 @@ CFLAGS = -Ofast -DNDEBUG -std=gnu11
 CXXFLAGS= -Ofast -DNDEBUG -std=gnu++11
 
 OBJECTS = blocksplitter.o cache.o codec.o deflate.o hash.o image.o katajainen.o lz77.o opngreduc.o squeeze.o trans.o tree.o util.o
-CXXSRC = support.cpp zopfli/src/zopflipng/zopflipng.cpp zopfli/src/zopfli/zopfli_gzip.cpp\
-zopfli/src/zopflipng/lodepng/lodepng.cpp zopfli/src/zopflipng/lodepng/lodepng_util.cpp optipng/optipng.cpp jpegtran.cpp gztools.cpp
+CXXSRC = support.cpp zopflipng.cpp zopfli/src/zopfli/zopfli_gzip.cpp\
+lodepng/lodepng.cpp lodepng/lodepng_util.cpp optipng/optipng.cpp jpegtran.cpp gztools.cpp
 
 .PHONY: zlib libpng mozjpeg deps all
 all:

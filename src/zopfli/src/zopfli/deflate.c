@@ -489,7 +489,7 @@ static void GetDynamicLengths(const unsigned short* litlens,
 
 double ZopfliCalculateBlockSize(const unsigned short* litlens,
                                 const unsigned short* dists,
-                                size_t lstart, size_t lend, int btype) {
+                                size_t lstart, size_t lend, int btype, unsigned char hq) {
   unsigned ll_lengths[288];
   unsigned d_lengths[32];
 
