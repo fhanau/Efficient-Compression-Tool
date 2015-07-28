@@ -384,35 +384,40 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
   const unsigned char* scan;
   const unsigned char* match;
   /* Go through all distances. */
+  if (dist == 0){
+    pp = p;
+    p = hprev[p];
+
+    dist += p < pp ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp);
+    chain_counter--;
+  }
   while (dist < ZOPFLI_WINDOW_SIZE) {
-    if (likely(dist > 0)) {
-      scan = new;
-      match = scan - dist;
-      /* Testing the byte at position bestlength first, goes slightly faster. */
-      if (bestlength >= size2
-          || *(scan + bestlength) == *(match + bestlength)) {
+    scan = new;
+    match = scan - dist;
+
+    if (unlikely(bestlength >= size2
+                  || *(scan + bestlength) == *(match + bestlength))) {
 #ifdef ZOPFLI_HASH_SAME
-          unsigned short same1 = h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
-          unsigned short same = same0 < same1 ? same0 : same1;
-          scan += same;
-          match += same;
-        }
       if (same0 > 2) {//TUNE THE TWO!!!
+        unsigned short same1 = h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
+        unsigned short same = same0 < same1 ? same0 : same1;
+        scan += same;
+        match += same;
+      }
 #endif
-          scan = GetMatch(scan, match, arrayend
+      scan = GetMatch(scan, match, arrayend
 #ifndef __GNUC__
-                          , arrayend_safe
+                      , arrayend_safe
 #endif
-                          );
-          unsigned short currentlength = scan - new;
-        if (unlikely(currentlength > bestlength)) {
-            for (unsigned short j = bestlength + 1; j <= currentlength; j++) {
-              sublen[j] = dist;
-            }
-          bestdist = dist;
-          bestlength = currentlength;
-          if (currentlength >= limit) break;
+                      );
+      unsigned short currentlength = scan - new;
+      if (unlikely(currentlength > bestlength)) {
+        for (unsigned short j = bestlength + 1; j <= currentlength; j++) {
+          sublen[j] = dist;
         }
+        bestdist = dist;
+        bestlength = currentlength;
+        if (currentlength >= limit) break;
       }
     }
 
