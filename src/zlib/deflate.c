@@ -104,11 +104,6 @@ local  void check_match OF((deflate_state *s, IPos start, IPos match,
 #define NIL 0
 /* Tail of hash chains */
 
-#ifndef TOO_FAR
-#  define TOO_FAR 32767
-#endif
-/* Matches of length 3 are discarded if their distance exceeds TOO_FAR */
-
 /* Values for max_lazy_match, good_match and max_chain_length, depending on
  * the desired pack level (0..9). The values given below have been tuned to
  * exclude worst case performance for pathological files. Better values may be
@@ -1854,12 +1849,7 @@ local block_state deflate_slow(s, flush)
             s->match_length = longest_match (s, hash_head);
             /* longest_match() sets match_start */
 
-            if (s->match_length <= 5 && (s->strategy == Z_FILTERED
-#if TOO_FAR <= 32767
-                || (s->match_length == MIN_MATCH &&
-                    s->strstart - s->match_start > TOO_FAR)
-#endif
-                )) {
+            if (s->match_length <= 5 && s->strategy == Z_FILTERED) {
 
                 /* If prev_match is also MIN_MATCH, match_start is garbage
                  * but we will ignore the current match anyway.
