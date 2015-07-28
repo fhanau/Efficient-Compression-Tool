@@ -300,7 +300,7 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
 
 #ifdef ZOPFLI_HASH_SAME
         unsigned short same0 = h->same[hpos];
-        if (same0 > 2 && *scan == *match) {
+        if (same0 > 2) {
           unsigned short same1 = h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
           unsigned short same = same0 < same1 ? same0 : same1;
           if (same > limit) same = limit;
@@ -387,7 +387,10 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
   unsigned dist = p < pp ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp); /* Not unsigned short on purpose. */
 
   unsigned short same0 = h->same[hpos];
-  if (same0 > limit) same0 = limit;
+    if (same0 >= limit) {
+        same0 = limit;
+        hash2 = 1;
+    }
 
   unsigned short bestlength = 1;
   
@@ -406,12 +409,12 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
       if (bestlength >= size2
           || *(scan + bestlength) == *(match + bestlength)) {
 #ifdef ZOPFLI_HASH_SAME
-        if (same0 > 2 && *scan == *match) {//TUNE THE TWO!!!
           unsigned short same1 = h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
           unsigned short same = same0 < same1 ? same0 : same1;
           scan += same;
           match += same;
         }
+      if (same0 > 2) {//TUNE THE TWO!!!
 #endif
           scan = GetMatch(scan, match, arrayend
 #ifndef __GNUC__
