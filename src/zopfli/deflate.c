@@ -630,9 +630,8 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
                                   unsigned char** out, size_t* outsize) {
   size_t* splitpoints = 0;
   size_t npoints = 0;
-
+  ZopfliBlockSplit(options, in, instart, inend, &splitpoints, &npoints);
   for (size_t i = 0; i <= npoints; i++) {
-    ZopfliBlockSplit(options, in, instart, inend, &splitpoints, &npoints);
     size_t start = i == 0 ? instart : splitpoints[i - 1];
     size_t end = i == npoints ? inend : splitpoints[i];
     DeflateDynamicBlock(options, i == npoints && final, in, start, end,
