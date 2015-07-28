@@ -655,7 +655,7 @@ static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
                        const unsigned char* in, size_t instart, size_t inend,
                        unsigned char* bp, unsigned char** out,
                        size_t* outsize) {
-    /* Blocksplitting likely wont improve compression on small images */
+    /* Blocksplitting likely wont improve compression on small files */
     if ((inend - instart) < options->noblocksplit){
         DeflateDynamicBlock(options, final, in, instart, inend, bp, out, outsize);
     }
