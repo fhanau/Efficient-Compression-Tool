@@ -45,8 +45,8 @@ typedef struct SplitCostContext {
  of the data.
  */
 static double SplitCost(size_t i, SplitCostContext* c) {
-  return ZopfliCalculateBlockSize(c->litlens, c->dists, c->start, i, 2) +
-  ZopfliCalculateBlockSize(c->litlens, c->dists, i, c->end, 2);
+  return ZopfliCalculateBlockSize(c->litlens, c->dists, c->start, i, 2, 0) +
+  ZopfliCalculateBlockSize(c->litlens, c->dists, i, c->end, 2, 0);
 }
 
 /*
@@ -192,9 +192,9 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
     assert(llpos > lstart);
     assert(llpos < lend);
 
-    splitcost = ZopfliCalculateBlockSize(litlens, dists, lstart, llpos, 2) +
-        ZopfliCalculateBlockSize(litlens, dists, llpos, lend, 2);
-    origcost = ZopfliCalculateBlockSize(litlens, dists, lstart, lend, 2);
+    splitcost = ZopfliCalculateBlockSize(litlens, dists, lstart, llpos, 2, 0) +
+        ZopfliCalculateBlockSize(litlens, dists, llpos, lend, 2, 0);
+    origcost = ZopfliCalculateBlockSize(litlens, dists, lstart, lend, 2, 0);
 
     if (splitcost > origcost || llpos == lstart + 1 || llpos == lend) {
       done[lstart] = 1;

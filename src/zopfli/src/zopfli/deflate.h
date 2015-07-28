@@ -65,7 +65,7 @@ lend: end of block (not inclusive)
 */
 double ZopfliCalculateBlockSize(const unsigned short* litlens,
                                 const unsigned short* dists,
-                                size_t lstart, size_t lend, int btype);
+                                size_t lstart, size_t lend, int btype, unsigned char hq);
 
 #ifdef __cplusplus
 }  // extern "C"

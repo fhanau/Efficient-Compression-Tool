@@ -273,18 +273,23 @@ static void AddDynamicTree(const unsigned* ll_lengths,
 Gives the exact size of the tree, in bits, as it will be encoded in DEFLATE.
 */
 static size_t CalculateTreeSize(const unsigned* ll_lengths,
-                                const unsigned* d_lengths) {
+                                const unsigned* d_lengths, unsigned char hq) {
   size_t result = 0;
   int i;
 
-  for(i = 0; i < 8; i++) {
-    size_t size = EncodeTree(ll_lengths, d_lengths,
-                             i & 1, i & 2, i & 4,
-                             0, 0, 0);
-    if (result == 0 || size < result) result = size;
-  }
-
-  return result;
+    if (hq){
+        for(i = 0; i < 8; i++) {
+            size_t size = EncodeTree(ll_lengths, d_lengths,
+                                     i & 1, i & 2, i & 4,
+                                     0, 0, 0);
+            if (result == 0 || size < result) result = size;
+        }
+        
+        return result;
+    }
+    else {
+        return EncodeTree(ll_lengths, d_lengths,1, 1, 1, 0, 0, 0);
+    }
 }
 
 /*
@@ -496,8 +501,8 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
     GetFixedTree(ll_lengths, d_lengths);
   } else {
     GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths);
-    result += CalculateTreeSize(ll_lengths, d_lengths);
   }
+    result += CalculateTreeSize(ll_lengths, d_lengths, hq);
 
   result += CalculateBlockSymbolSize(
       ll_lengths, d_lengths, litlens, dists, lstart, lend);
@@ -588,14 +593,11 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
   /* For small block, encoding with fixed tree can be smaller. For large block,
   don't bother doing this expensive test, dynamic tree will be better.*/
   if (blocksize > options->skipdynamic && store.size < options->trystatic){
-    double dyncost, fixedcost;
     ZopfliLZ77Store fixedstore;
     ZopfliInitLZ77Store(&fixedstore);
     ZopfliLZ77OptimalFixed(&s, in, instart, inend, &fixedstore);
-    dyncost = ZopfliCalculateBlockSize(store.litlens, store.dists,
-        0, store.size, 2);
-    fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists,
-        0, fixedstore.size, 1);
+    double dyncost = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, 1);
+    double fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, 1);
     if (fixedcost <= dyncost) {
       btype = 1;
       ZopfliCleanLZ77Store(&store);

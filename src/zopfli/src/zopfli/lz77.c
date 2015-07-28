@@ -156,8 +156,6 @@ information from the cache.
 */
 static int TryGetFromLongestMatchCache(ZopfliBlockState* s,
     size_t pos, unsigned short* limit,
-  /* Not sure whether faster as this is bad for FollowPath's ZopfliFindLongestMatch. */
-  return 0;
     unsigned short* distance, unsigned short* length) {
   /* The LMC cache starts at the beginning of the block rather than the
      beginning of the whole array. */
