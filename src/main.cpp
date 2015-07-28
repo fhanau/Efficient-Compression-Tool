@@ -6,6 +6,10 @@
 #include "main.h"
 #include "support.h"
 
+#ifdef MP3_SUPPORTED
+#include <id3/tag.h>
+#endif
+
 static unsigned long processedfiles;
 static long long bytes;
 static long long savings;
@@ -157,6 +161,41 @@ static void OptimizeJPEG(const char * Infile, const ECTOptions& Options){
     }
 }
 
+#ifdef MP3_SUPPORTED
+static void OptimizeMP3(const char * Infile, const ECTOptions& Options){
+    ID3_Tag orig (Infile);
+    unsigned start = orig.Size();
+    ID3_Frame* picFrame = orig.Find(ID3FID_PICTURE);
+    if (picFrame)
+    {
+        ID3_Field* mime = picFrame->GetField(ID3FN_MIMETYPE);
+        if (mime){
+            char mimetxt[20];
+            mime->Get(mimetxt, 19);
+            printf("%s", mimetxt);
+            ID3_Field* pic = picFrame->GetField(ID3FN_DATA);
+            bool ispng = memcmp(mimetxt, "image/png", 9) == 0 || memcmp(mimetxt, "PNG", 3) == 0;
+            if (pic && (memcmp(mimetxt, "image/jpeg", 10) == 0 || ispng)){
+                pic->ToFile("out.jpg");
+                if (ispng){
+                    OptimizePNG("out.jpg", Options);
+                }
+                else{
+                    OptimizeJPEG("out.jpg", Options);
+                }
+                pic->FromFile("out.jpg");
+                unlink("out.jpg");
+                orig.SetPadding(false);
+                //orig.SetCompression(true);
+                if (orig.Size() < start){
+                    orig.Update();
+                }
+            }
+        }
+    }
+}
+#endif
+
 static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
     std::string Ext = Infile;
     std::string x = Ext.substr(Ext.find_last_of(".") + 1);
@@ -187,6 +226,11 @@ static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
         }
         else{printf("File too big\n");}
     }
+#ifdef MP3_SUPPORTED
+    else if(x == "mp3"){
+        OptimizeMP3(Infile, Options);
+    }
+#endif
 }
 
 int main(int argc, const char * argv[]) {
