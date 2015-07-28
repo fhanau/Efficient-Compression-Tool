@@ -21,11 +21,11 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 
 #include "util.h"
 #include "zopfli.h"
-#include "../../../zlib/zlib.h"
+#include "../zlib/zlib.h"
 #include "deflate.h"
 #include "zopfli.h"
 #include "zlib_container.h"
-#include "../../../main.h"
+#include "../main.h"
 
 /*
 Compresses the data according to the gzip specification.

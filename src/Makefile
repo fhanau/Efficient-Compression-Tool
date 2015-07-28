@@ -4,14 +4,13 @@ CFLAGS = -Ofast -DNDEBUG -std=gnu11
 CXXFLAGS= -Ofast -DNDEBUG -std=gnu++11
 
 OBJECTS = blocksplitter.o cache.o codec.o deflate.o hash.o image.o katajainen.o lz77.o opngreduc.o squeeze.o trans.o tree.o util.o
-CXXSRC = support.cpp zopflipng.cpp zopfli/src/zopfli/zopfli_gzip.cpp\
+CXXSRC = support.cpp zopflipng.cpp zopfli/zopfli_gzip.cpp\
 lodepng/lodepng.cpp lodepng/lodepng_util.cpp optipng/optipng.cpp jpegtran.cpp gztools.cpp
 
 .PHONY: zlib libpng mozjpeg deps all
 all:
-	$(CC) -c $(CFLAGS) optipng/codec.c optipng/image.c optipng/trans.c zopfli/src/zopfli/zlib_container.c \
-	zopfli/src/zopfli/util.c zopfli/src/zopfli/deflate.c zopfli/src/zopfli/squeeze.c zopfli/src/zopfli/lz77.c zopfli/src/zopfli/katajainen.c \
-	zopfli/src/zopfli/blocksplitter.c zopfli/src/zopfli/tree.c zopfli/src/zopfli/cache.c zopfli/src/zopfli/hash.c optipng/opngreduc/opngreduc.c
+	$(CC) -c $(CFLAGS) optipng/codec.c optipng/image.c optipng/trans.c zopfli/zlib_container.c zopfli//util.c zopfli/deflate.c zopfli/squeeze.c zopfli/lz77.c zopfli/katajainen.c \
+	zopfli/blocksplitter.c zopfli/tree.c zopfli/cache.c zopfli/hash.c optipng/opngreduc/opngreduc.c
 	$(CXX) $(CXXFLAGS) main.cpp $(OBJECTS) $(CXXSRC) mozjpeg/.libs/libjpeg.a libpng/libpng.a zlib/libz.a -o ../ECT
 clean:
 	rm -f *.o zlib/*.o zlib/*.a libpng*.o libpng*.a

@@ -20,7 +20,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "deflate.h"
 #include "zlib_container.h"
 #include "util.h"
-#include "../../../zlib/zlib.h"
+#include "../zlib/zlib.h"
 
 void ZopfliZlibCompress(const ZopfliOptions* options,
                         const unsigned char* in, size_t insize,
