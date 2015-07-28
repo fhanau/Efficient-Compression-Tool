@@ -36,8 +36,8 @@ typedef struct SymbolStats {
   /* The 32 unique dist symbols, not the 32768 possible dists. */
   size_t dists[32];
 
-  double ll_symbols[288];  /* Length of each lit/len symbol in bits. */
-  double d_symbols[32];  /* Length of each dist symbol in bits. */
+  float ll_symbols[288];  /* Length of each lit/len symbol in bits. */
+  float d_symbols[32];  /* Length of each dist symbol in bits. */
 } SymbolStats;
 
 /* Sets everything to 0. */
@@ -59,8 +59,8 @@ static void CopyStats(SymbolStats* source, SymbolStats* dest) {
 }
 
 /* Adds the bit lengths. */
-static void AddWeighedStatFreqs(const SymbolStats* stats1, double w1,
-                                const SymbolStats* stats2, double w2,
+static void AddWeighedStatFreqs(const SymbolStats* stats1, float w1,
+                                const SymbolStats* stats2, float w2,
                                 SymbolStats* result) {
   size_t i;
   for (i = 0; i < 288; i++) {
@@ -122,8 +122,8 @@ static void GetBestLengths(ZopfliBlockState *s,
                              size_t instart, size_t inend,
                              SymbolStats* costcontext, unsigned short* length_array, unsigned char storeincache) {
   size_t i;
-  double litlentable [259];
-  double disttable [32768];
+  float litlentable [259];
+  float disttable [32768];
   if (costcontext){  /* Dynamic Block */
     for (i = 3; i < 259; i++){
       litlentable[i] = costcontext->ll_symbols[ZopfliGetLengthSymbol(i)] + ZopfliGetLengthExtraBits(i);
@@ -226,8 +226,6 @@ static void GetBestLengths(ZopfliBlockState *s,
   ZopfliWarmupHash(in, windowstart, h);
   LoopedUpdateHash(in, windowstart, inend, h, instart - windowstart);
 
-  unsigned short k;
-
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
     ZopfliUpdateHash(in, i, inend, h);
@@ -247,7 +245,7 @@ static void GetBestLengths(ZopfliBlockState *s,
       ZOPFLI_MAX_MATCH values to avoid calling ZopfliFindLongestMatch. */
       i++;
       LoopedUpdateHash(in, i, inend, h, ZOPFLI_MAX_MATCH);
-      for (k = 0; k < ZOPFLI_MAX_MATCH; k++) {
+      for (unsigned short k = 0; k < ZOPFLI_MAX_MATCH; k++) {
         costs[j + ZOPFLI_MAX_MATCH] = costs[j] + symbolcost;
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH;
         j++;
@@ -258,16 +256,13 @@ static void GetBestLengths(ZopfliBlockState *s,
     ZopfliFindLongestMatch2(s, h, in, i, inend, sublen, &leng, storeincache);
 
     /* Literal. */
-    //Simplified costmodel(in[i], 0, costcontext) call
-    double newCost = costs[j] + (costcontext == 0 ? 8 + (in[i] > 143) : costcontext->ll_symbols[in[i]]);
-    if (newCost < costs[j + 1]) {
+    float newCost = costs[j] + (costcontext == 0 ? 8 + (in[i] > 143) : costcontext->ll_symbols[in[i]]);
+    if (newCost < costs[j + 1]) {//Can we unlikely
       costs[j + 1] = newCost;
       length_array[j + 1] = 1;
     }
 
-    /* Lengths. */
-    unsigned limit = leng <= inend - i ? leng : inend - i;
-    for (k = 3; k <= limit; k++) {
+    for (unsigned short k = 3; k <= leng; k++) {
       newCost = costs[j] + litlentable[k] + disttable[sublen[k]];
       if (newCost < costs[j + k]) {
         costs[j + k] = newCost;
