@@ -132,51 +132,51 @@ static void GetBestLengths(ZopfliBlockState *s,
       disttable[i] = costcontext->d_symbols[ZopfliGetDistSymbol(i)] + ZopfliGetDistExtraBits(i);
     }
     double counter = costcontext->d_symbols[18] + 8;
-    for (i = 513; i < 769; i++){
+    for (; i < 769; i++){
       disttable[i] = counter;
     }
     counter = costcontext->d_symbols[19] + 8;
-    for (i = 769; i < 1025; i++){
+    for (; i < 1025; i++){
       disttable[i] = counter;
     }
     counter = costcontext->d_symbols[20] + 9;
-    for (i = 1025; i < 1537; i++){
+    for (; i < 1537; i++){
       disttable[i] = counter;
     }
     counter = costcontext->d_symbols[21] + 9;
-    for (i = 1537; i < 2049; i++){
+    for (; i < 2049; i++){
       disttable[i] = counter;
     }
     counter = costcontext->d_symbols[22] + 10;
-    for (i = 2049; i < 3073; i++){
+    for (; i < 3073; i++){
       disttable[i] = counter;
     }
     counter = costcontext->d_symbols[23] + 10;
-    for (i = 3073; i < 4097; i++){
+    for (; i < 4097; i++){
       disttable[i] = counter;
     }
     counter = costcontext->d_symbols[24] + 11;
-    for (i = 4097; i < 6145; i++){
+    for (; i < 6145; i++){
       disttable[i] = counter;
     }
     counter = costcontext->d_symbols[25] + 11;
-    for (i = 6145; i < 8193; i++){
+    for (; i < 8193; i++){
       disttable[i] = counter;
     }
     counter = costcontext->d_symbols[26] + 12;
-    for (i = 8193; i < 12289; i++){
+    for (; i < 12289; i++){
       disttable[i] = counter;
     }
     counter = costcontext->d_symbols[27] + 12;
-    for (i = 12289; i < 16385; i++){
+    for (; i < 16385; i++){
       disttable[i] = counter;
     }
     counter = costcontext->d_symbols[28] + 13;
-    for (i = 16385; i < 24577; i++){
+    for (; i < 24577; i++){
       disttable[i] = counter;
     }
     counter = costcontext->d_symbols[29] + 13;
-    for (i = 24577; i < 32768; i++){
+    for (; i < 32768; i++){
       disttable[i] = counter;
     }
   }
@@ -187,22 +187,22 @@ static void GetBestLengths(ZopfliBlockState *s,
     for (i = 0; i < 513; i++){
       disttable[i] = ZopfliGetDistExtraBits(i);
     }
-    for (i = 513; i < 1025; i++){
+    for (; i < 1025; i++){
       disttable[i] = 8;
     }
-    for (i = 1025; i < 2049; i++){
+    for (; i < 2049; i++){
       disttable[i] = 9;
     }
-    for (i = 2049; i < 4097; i++){
+    for (; i < 4097; i++){
       disttable[i] = 10;
     }
-    for (i = 4097; i < 8193; i++){
+    for (; i < 8193; i++){
       disttable[i] = 11;
     }
-    for (i = 8193; i < 16385; i++){
+    for (; i < 16385; i++){
       disttable[i] = 12;
     }
-    for (i = 16385; i < 32768; i++){
+    for (; i < 32768; i++){
       disttable[i] = 13;
     }
   }
