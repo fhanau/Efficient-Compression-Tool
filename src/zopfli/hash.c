@@ -117,17 +117,15 @@ void LoopedUpdateHash(const unsigned char* array, size_t pos, size_t end,
     end = pos + 65536;
   }
   unsigned short hposs[n];
-//  int hhash[n];
   unsigned i;
   for (i = 0; i < n; i++, pos++){
-    hposs[i] = pos & ZOPFLI_WINDOW_MASK;//Could also just ++ after 1st, overflow is ok
+    hposs[i] = pos & ZOPFLI_WINDOW_MASK;
   }
   pos -= n;
 
 
 
   for (i = 0; i < n; i++, pos++){
-
     h->val = pos + ZOPFLI_MIN_MATCH <= end ? ((h->val << HASH_SHIFT) ^ array[pos + ZOPFLI_MIN_MATCH - 1]) & HASH_MASK : 0;
     h->hashval[hposs[i]] = h->val;
     if (h->head[h->val] != -1 && h->hashval[h->head[h->val]] == h->val) {

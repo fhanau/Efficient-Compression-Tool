@@ -92,7 +92,7 @@ enum
     OPNG_HAS_MULTIPLE_IMAGES   = 0x0010,
     OPNG_HAS_SNIPPED_IMAGES    = 0x0020,
     OPNG_HAS_STRIPPED_METADATA = 0x0040,
-    OPNG_HAS_ERRORS            = 0x0100,
+    OPNG_HAS_ERRORS            = 0x0100
 };
 
 /*

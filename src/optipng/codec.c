@@ -26,21 +26,21 @@
  * See cexcept.h for more info
  */
 define_exception_type(const char *);
-struct exception_context the_exception_context[1];
+static struct exception_context the_exception_context[1];
 
 /*
  * The chunk signatures recognized and handled by this codec.
  */
-const png_byte opng_sig_tRNS[4] = { 0x74, 0x52, 0x4e, 0x53 };
-const png_byte opng_sig_IDAT[4] = { 0x49, 0x44, 0x41, 0x54 };
-const png_byte opng_sig_IEND[4] = { 0x49, 0x45, 0x4e, 0x44 };
-const png_byte opng_sig_bKGD[4] = { 0x62, 0x4b, 0x47, 0x44 };
-const png_byte opng_sig_hIST[4] = { 0x68, 0x49, 0x53, 0x54 };
-const png_byte opng_sig_sBIT[4] = { 0x73, 0x42, 0x49, 0x54 };
-const png_byte opng_sig_dSIG[4] = { 0x64, 0x53, 0x49, 0x47 };
-const png_byte opng_sig_acTL[4] = { 0x61, 0x63, 0x54, 0x4c };
-const png_byte opng_sig_fcTL[4] = { 0x66, 0x63, 0x54, 0x4c };
-const png_byte opng_sig_fdAT[4] = { 0x66, 0x64, 0x41, 0x54 };
+static const png_byte opng_sig_tRNS[4] = { 0x74, 0x52, 0x4e, 0x53 };
+static const png_byte opng_sig_IDAT[4] = { 0x49, 0x44, 0x41, 0x54 };
+static const png_byte opng_sig_IEND[4] = { 0x49, 0x45, 0x4e, 0x44 };
+static const png_byte opng_sig_bKGD[4] = { 0x62, 0x4b, 0x47, 0x44 };
+static const png_byte opng_sig_hIST[4] = { 0x68, 0x49, 0x53, 0x54 };
+static const png_byte opng_sig_sBIT[4] = { 0x73, 0x42, 0x49, 0x54 };
+static const png_byte opng_sig_dSIG[4] = { 0x64, 0x53, 0x49, 0x47 };
+static const png_byte opng_sig_acTL[4] = { 0x61, 0x63, 0x54, 0x4c };
+static const png_byte opng_sig_fcTL[4] = { 0x66, 0x63, 0x54, 0x4c };
+static const png_byte opng_sig_fdAT[4] = { 0x66, 0x64, 0x41, 0x54 };
 
 /*
  * Tests whether the given chunk is an image chunk.
