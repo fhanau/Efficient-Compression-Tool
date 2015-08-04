@@ -398,6 +398,8 @@ typedef enum LodePNGFilterStrategy
   /*Use the filter type that gives smallest Shannon entropy for this scanline. Depending
   on the image, this is better or worse than minsum.*/
   LFS_ENTROPY,
+  /*Brute-force-search PNG filters by compressing each filter for each scanline.*/
+  LFS_BRUTE_FORCE,
   /*use predefined_filters buffer: you specify the filter type for each scanline*/
   LFS_PREDEFINED
 } LodePNGFilterStrategy;
@@ -457,6 +459,9 @@ typedef struct LodePNGEncoderSettings
   /*encode text chunks as zTXt chunks instead of tEXt chunks, and use compression in iTXt chunks*/
   unsigned text_compression;
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
+
+    /* chain_length for LFS_BRUTE_FORCE*/
+    unsigned short chain_length;
 } LodePNGEncoderSettings;
 
 void lodepng_encoder_settings_init(LodePNGEncoderSettings* settings);

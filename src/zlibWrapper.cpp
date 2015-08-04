@@ -16,7 +16,7 @@
 #define BUFFER_SIZE 8000000
 
 //Based on zlib's compress2().
-int zlibcompress (unsigned char **dest, size_t *destLen, const unsigned char * source, size_t sourceLen, int level)
+int zlibcompress (unsigned char **dest, size_t *destLen, const unsigned char * source, size_t sourceLen, int level, unsigned short chain_length)
 {
     z_stream stream;
     stream.next_in = (z_const unsigned char *)source;
@@ -29,7 +29,7 @@ int zlibcompress (unsigned char **dest, size_t *destLen, const unsigned char * s
     int err = deflateInit2(&stream, level, Z_DEFLATED, -15, 8, Z_FILTERED);
     if (err != Z_OK) return err;
 
-    deflateTune(&stream, 256, 258, 258, 400);
+    deflateTune(&stream, 256, 258, 258, chain_length);
     unsigned char *buf = (unsigned char *)malloc(deflateBound(&stream, sourceLen));
     stream.next_out = buf;
 

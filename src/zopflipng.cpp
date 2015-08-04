@@ -201,6 +201,10 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
     state.encoder.zlibsettings.custom_deflate = CustomPNGDeflate;
     state.encoder.zlibsettings.custom_context = png_options;
     state.encoder.filter_palette_zero = 0;
+
+    ZopfliOptions dummyoptions;
+    ZopfliInitOptions(&dummyoptions, png_options->Mode);
+    state.encoder.chain_length = dummyoptions.chain_length;
     state.encoder.add_id = false;
     state.encoder.text_compression = 0;
     if (bit16) {
@@ -210,7 +214,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
     if (best_filter == 0)
     {state.encoder.filter_strategy = LFS_ZERO;}
     else if (best_filter== 5)
-    {state.encoder.filter_strategy = LFS_ENTROPY;}
+    {state.encoder.filter_strategy = LFS_BRUTE_FORCE;}
 
     //Palette sorting (Should be in seperate function). This is an untested experiment and likely wont improve compression.
     /*if (state.info_png.color.colortype == LCT_PALETTE){
