@@ -355,16 +355,33 @@ static size_t CalculateBlockSymbolSize(const unsigned* ll_lengths,
                                        const unsigned short* litlens,
                                        const unsigned short* dists,
                                        size_t lstart, size_t lend) {
-
+  size_t i;
   size_t result = ll_lengths[256]; /*end symbol*/
-  for (size_t i = lstart; i < lend; i++) {
-    if (dists[i] == 0) {
-      result += ll_lengths[litlens[i]];
-    } else {
-      result += ll_lengths[ZopfliGetLengthSymbol(litlens[i])];
-      result += d_lengths[ZopfliGetDistSymbol(dists[i])];
-      result += ZopfliGetLengthExtraBits(litlens[i]);
-      result += ZopfliGetDistExtraBits(dists[i]);
+  if (lend - lstart < 800){
+    for (i = lstart; i < lend; i++) {
+      if (dists[i] == 0) {
+        result += ll_lengths[litlens[i]];
+      } else {
+        result += ll_lengths[ZopfliGetLengthSymbol(litlens[i])];
+        result += d_lengths[ZopfliGetDistSymbol(dists[i])];
+        result += ZopfliGetLengthExtraBits(litlens[i]);
+        result += ZopfliGetDistExtraBits(dists[i]);
+      }
+    }
+  }
+  else {
+    unsigned short ll_table[259];
+    for (i = 0; i < 259; i++){
+      ll_table[i] = ll_lengths[ZopfliGetLengthSymbol(i)] + ZopfliGetLengthExtraBits(i);
+    }
+    for (i = lstart; i < lend; i++) {
+      if (dists[i] == 0) {
+        result += ll_lengths[litlens[i]];
+      } else {
+        result += ll_table[litlens[i]];
+        result += d_lengths[ZopfliGetDistSymbol(dists[i])];
+        result += ZopfliGetDistExtraBits(dists[i]);
+      }
     }
   }
   return result;
