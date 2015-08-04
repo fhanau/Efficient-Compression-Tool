@@ -131,7 +131,7 @@ static void GetBestLengths(ZopfliBlockState *s,
     for (i = 0; i < 513; i++){
       disttable[i] = costcontext->d_symbols[ZopfliGetDistSymbol(i)] + ZopfliGetDistExtraBits(i);
     }
-    double counter = costcontext->d_symbols[18] + 8;
+    float counter = costcontext->d_symbols[18] + 8;
     for (; i < 769; i++){
       disttable[i] = counter;
     }
@@ -239,7 +239,7 @@ static void GetBestLengths(ZopfliBlockState *s,
         && h->same[(i - ZOPFLI_MAX_MATCH) & ZOPFLI_WINDOW_MASK]
             > ZOPFLI_MAX_MATCH) {
       //Simplified costmodel(ZOPFLI_MAX_MATCH, 1, costcontext) call
-      double symbolcost = costcontext == NULL ? 13 : costcontext->ll_symbols[285] + costcontext->d_symbols[16];
+      float symbolcost = costcontext == NULL ? 13 : costcontext->ll_symbols[285] + costcontext->d_symbols[16];
       /* Set the length to reach each one to ZOPFLI_MAX_MATCH, and the cost to
       the cost corresponding to that length. Doing this, we skip
       ZOPFLI_MAX_MATCH values to avoid calling ZopfliFindLongestMatch. */
