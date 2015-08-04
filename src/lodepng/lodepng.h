@@ -395,8 +395,6 @@ typedef enum LodePNGFilterStrategy
 {
   /*every filter at zero*/
   LFS_ZERO,
-  /*Use filter that gives minumum sum, as described in the official PNG filter heuristic.*/
-  LFS_MINSUM,
   /*Use the filter type that gives smallest Shannon entropy for this scanline. Depending
   on the image, this is better or worse than minsum.*/
   LFS_ENTROPY,
@@ -439,12 +437,10 @@ typedef struct LodePNGEncoderSettings
   unsigned auto_convert; /*automatically choose output PNG color type. Default: true*/
 
   /*If true, follows the official PNG heuristic: if the PNG uses a palette or lower than
-  8 bit depth, set all filters to zero. Otherwise use the filter_strategy. Note that to
-  completely follow the official PNG heuristic, filter_palette_zero must be true and
-  filter_strategy must be LFS_MINSUM*/
+  8 bit depth, set all filters to zero.*/
   unsigned filter_palette_zero;
   /*Which filter strategy to use when not using zeroes due to filter_palette_zero.
-  Set filter_palette_zero to 0 to ensure always using your chosen strategy. Default: LFS_MINSUM*/
+  Set filter_palette_zero to 0 to ensure always using your chosen strategy. Default: LFS_ENTROPY*/
   LodePNGFilterStrategy filter_strategy;
   /*used if filter_strategy is LFS_PREDEFINED. In that case, this must point to a buffer with
   the same length as the amount of scanlines in the image, and each value must <= 5. You
