@@ -450,7 +450,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
 
 void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
                       size_t instart, size_t inend,
-                      ZopfliLZ77Store* store) {
+                      ZopfliLZ77Store* store, unsigned char blocksplitting) {
   size_t i = 0, j;
   unsigned short leng;
   unsigned short dist;

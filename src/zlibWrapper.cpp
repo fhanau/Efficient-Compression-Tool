@@ -29,6 +29,7 @@ int zlibcompress (unsigned char **dest, size_t *destLen, const unsigned char * s
     int err = deflateInit2(&stream, level, Z_DEFLATED, -15, 8, Z_FILTERED);
     if (err != Z_OK) return err;
 
+    deflateTune(&stream, 256, 258, 258, 400);
     unsigned char *buf = (unsigned char *)malloc(deflateBound(&stream, sourceLen));
     stream.next_out = buf;
 
