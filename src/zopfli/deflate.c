@@ -338,15 +338,6 @@ static void AddLZ77Data(const unsigned short* litlens,
   assert(expected_data_size == 0 || testlength == expected_data_size);
 }
 
-static void GetFixedTree(unsigned* ll_lengths, unsigned* d_lengths) {
-  size_t i;
-  for (i = 0; i < 144; i++) ll_lengths[i] = 8;
-  for (i = 144; i < 256; i++) ll_lengths[i] = 9;
-  for (i = 256; i < 280; i++) ll_lengths[i] = 7;
-  for (i = 280; i < 288; i++) ll_lengths[i] = 8;
-  for (i = 0; i < 32; i++) d_lengths[i] = 5;
-}
-
 /*
 Calculates size of the part after the header and tree of an LZ77 block, in bits.
 */
@@ -508,23 +499,37 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
                                 const unsigned short* dists,
                                 size_t lstart, size_t lend, int btype, unsigned char hq) {
   unsigned ll_lengths[288];
-  unsigned d_lengths[32];
-
   double result = 3; /* bfinal and btype bits */
 
-  assert(btype == 1 || btype == 2); /* This is not for uncompressed blocks. */
-
   if(btype == 1) {
-    GetFixedTree(ll_lengths, d_lengths);
+    size_t i;
+    for (i = 0; i < 144; i++) ll_lengths[i] = 8;
+    for (i = 144; i < 256; i++) ll_lengths[i] = 9;
+    for (i = 256; i < 280; i++) ll_lengths[i] = 7;
+    for (i = 280; i < 288; i++) ll_lengths[i] = 8;
+    result += ll_lengths[256];
+    for (i = lstart; i < lend; i++) {
+      if (dists[i] == 0) {
+        result += ll_lengths[litlens[i]];
+      }
+      else {
+        result += (13 - (litlens[i] > 2 && litlens[i] < 115));
+        //litlens[i] 0-2 8 3-114 7 else 8
+        result += ZopfliGetLengthExtraBits(litlens[i]);
+        result += ZopfliGetDistExtraBits(dists[i]);
+      }
+    }
+    return result;
+
+
   } else {
+    unsigned d_lengths[32];
     GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths);
-  }
     result += CalculateTreeSize(ll_lengths, d_lengths, hq);
+    result += CalculateBlockSymbolSize(ll_lengths, d_lengths, litlens, dists, lstart, lend);
 
-  result += CalculateBlockSymbolSize(
-      ll_lengths, d_lengths, litlens, dists, lstart, lend);
-
-  return result;
+    return result;
+  }
 }
 
 /*
@@ -559,11 +564,15 @@ static void AddLZ77Block(int btype, int final,
     AddBit(btype & 1, bp, out, outsize);
     AddBit((btype & 2) >> 1, bp, out, outsize);
     if (btype == 1) {
-        /* Fixed block. */
-        GetFixedTree(ll_lengths, d_lengths);
+      /* Fixed block. */
+      size_t i;
+      for (i = 0; i < 144; i++) ll_lengths[i] = 8;
+      for (i = 144; i < 256; i++) ll_lengths[i] = 9;
+      for (i = 256; i < 280; i++) ll_lengths[i] = 7;
+      for (i = 280; i < 288; i++) ll_lengths[i] = 8;
+      for (i = 0; i < 32; i++) d_lengths[i] = 5;
     } else {
         /* Dynamic block. */
-        assert(btype == 2);
         GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths);
         AddDynamicTree(ll_lengths, d_lengths, bp, out, outsize);
     }
