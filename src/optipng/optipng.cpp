@@ -115,7 +115,7 @@ void opng_printf(
 #endif
 
 // Reads an image from an image file stream. Reduces the image if possible.
-static int opng_read_file(struct opng_session *session, FILE *stream, bool force_palette_if_possible, bool force_no_palette)
+static int opng_read_file(struct opng_session *session, FILE *stream, bool force_no_palette)
 {
     struct opng_codec_context context;
     struct opng_image *image = &session->image;
@@ -130,7 +130,7 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
     const struct opng_options *options = session->options;
     // Choose the applicable image reductions.
     int reductions = OPNG_REDUCE_ALL;
-    if (options->nz || stats->flags & OPNG_HAS_DIGITAL_SIGNATURE || stats->flags & OPNG_HAS_MULTIPLE_IMAGES || force_no_palette)
+    if (options->nz || stats->flags & OPNG_HAS_DIGITAL_SIGNATURE || stats->flags & OPNG_HAS_MULTIPLE_IMAGES)
     {
         // Do not reduce files with PNG datastreams under -nz, signed files or files with APNG chunks.
         reductions = OPNG_REDUCE_NONE;
@@ -145,7 +145,7 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
     }
     // Try to reduce the image.
     if (reductions != OPNG_REDUCE_NONE){
-        reductions = opng_decode_reduce_image(&context, reductions, force_palette_if_possible);
+        reductions = opng_decode_reduce_image(&context, reductions);
     }
     if (reductions < 0)
     {
@@ -180,7 +180,7 @@ static int opng_copy_file(struct opng_session *session, FILE *in_stream, FILE *o
     return opng_copy_png(&context, in_stream, session->Infile, out_stream, session->Outfile);
 }
 
-static int opng_optimize_impl(struct opng_session *session, const char *Infile, bool force_palette_if_possible, bool force_no_palette)
+static int opng_optimize_impl(struct opng_session *session, const char *Infile, bool force_no_palette)
 {
     FILE * fstream = fopen(Infile, "rb");
     if (fstream == NULL)
@@ -188,7 +188,7 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
         opng_error(Infile, "Can't open file");
         return -1;
     }
-    int result = opng_read_file(session, fstream, force_palette_if_possible, force_no_palette);
+    int result = opng_read_file(session, fstream, force_no_palette);
     fclose(fstream);
     if (result < 0)
         return result;
@@ -224,12 +224,12 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
         return -1;
     }
     // Check the backup file.
-    if ((!force_no_palette && exists(((std::string)Infile).append(".bak").c_str()) > 0) || (!options->nz && (exists(((std::string)Infile).append(".bak2").c_str()) > 0)))
+    if (exists(((std::string)Infile).append(".bak").c_str()) > 0 || (!options->nz && (exists(((std::string)Infile).append(".bak2").c_str()) > 0)))
     {   opng_error(Infile, "Can't back up the output file");
         return -1;
     }
     // Todo: check backup write perms
-    if (!force_no_palette && options->optim_level < 2) {
+    if (options->optim_level < 2) {
     rename(Infile, (((std::string)Infile).append(".bak")).c_str());
     }
     int optimal_filter = -1;
@@ -288,7 +288,7 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
     return optimal_filter;
 }
 
-static int opng_optimize_file(opng_optimizer *optimizer, const char *Infile, bool force_palette_if_possible, bool force_no_palette)
+static int opng_optimize_file(opng_optimizer *optimizer, const char *Infile, bool force_no_palette)
 {
     struct opng_session session;
     const struct opng_options * options = &optimizer->options;
@@ -296,14 +296,14 @@ static int opng_optimize_file(opng_optimizer *optimizer, const char *Infile, boo
     session.options = options;
     session.transformer = optimizer->transformer;
     opng_init_image(&session.image);
-    int optimal_filter = opng_optimize_impl(&session, Infile, force_palette_if_possible, force_no_palette);
+    int optimal_filter = opng_optimize_impl(&session, Infile, force_no_palette);
     opng_clear_image(&session.image);
     return optimal_filter;
 }
 
 static struct opng_options options;
 
-int Optipng(int level, const char * Infile, bool force_palette_if_possible, bool force_no_palette)
+int Optipng(int level, const char * Infile, bool force_no_palette)
 {
     memset(&options, 0, sizeof(options));
     opng_optimizer *the_optimizer = opng_create_optimizer();
@@ -323,7 +323,7 @@ int Optipng(int level, const char * Infile, bool force_palette_if_possible, bool
     }
     the_optimizer->options = options;
     the_optimizer->transformer = opng_seal_transformer(the_transformer);
-    int val = opng_optimize_file(the_optimizer, Infile, force_palette_if_possible, force_no_palette);
+    int val = opng_optimize_file(the_optimizer, Infile, force_no_palette);
     free(the_optimizer);
     opng_destroy_transformer(the_transformer);
     return val;

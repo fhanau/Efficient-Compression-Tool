@@ -689,7 +689,7 @@ opng_reduce_palette_bits(png_structp png_ptr, png_infop info_ptr,
  * The parameter reductions indicates the intended reductions.
  * The function returns the successful reductions.
  */
-static png_uint_32 opng_reduce_to_palette(png_structp png_ptr, png_infop info_ptr, png_uint_32 reductions, bool force_palette_if_possible)
+static png_uint_32 opng_reduce_to_palette(png_structp png_ptr, png_infop info_ptr, png_uint_32 reductions)
 {
    png_row_info row_info;
    png_bytep sample_ptr;
@@ -812,7 +812,7 @@ static png_uint_32 opng_reduce_to_palette(png_structp png_ptr, png_infop info_pt
        /* 5/3 times sizeof(PLTE) + sizeof(tRNS) as:
           1. Palette is uncompressed additional IDAT data is
           2. Headers */
-    if (num_palette >= 0 && !force_palette_if_possible)
+    if (num_palette >= 0)
     {
         int dest_bit_depth;
         OPNG_ASSERT(num_palette > 0 && num_palette <= 256);
@@ -1163,7 +1163,7 @@ static png_uint_32 opng_reduce_palette(png_structp png_ptr, png_infop info_ptr, 
  * The parameter reductions indicates the intended reductions.
  * The function returns the successful reductions.
  */
-png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, png_uint_32 reductions, bool force_palette_if_possible)
+png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, png_uint_32 reductions)
 {
    if (!opng_validate_image(png_ptr, info_ptr))
    {
@@ -1194,7 +1194,7 @@ png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, pn
         (reductions & OPNG_REDUCE_RGB_TO_PALETTE)))
    {
       if (!(result & OPNG_REDUCE_PALETTE_TO_GRAY))
-         result |= opng_reduce_to_palette(png_ptr, info_ptr, reductions, force_palette_if_possible);
+         result |= opng_reduce_to_palette(png_ptr, info_ptr, reductions);
    }
 
    return result;

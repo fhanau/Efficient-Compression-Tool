@@ -35,7 +35,7 @@ struct ECTOptions{
 #endif
 };
 
-int Optipng(int filter, const char * Infile, bool force_palette_if_possible, bool force_no_palette /*, int second_filter, int filterdiff/*/);
 int Zopflipng(bool strip, const char * Infile, bool strict, int Mode, int filter);
+int Optipng(int filter, const char * Infile, bool force_no_palette);
 int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Infile, const char * Outfile);
 int ZopfliGzip(const char* filename, const char* outname, int mode);

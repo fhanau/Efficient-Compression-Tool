@@ -364,7 +364,7 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
     context->stream = stream;
     context->fname = fname;
     if (force_no_palette) {
-    png_set_palette_to_rgb(context->libpng_ptr);
+        png_set_palette_to_rgb(context->libpng_ptr);
     }
 
     Try
@@ -395,13 +395,13 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
 /*
  * Attempts to reduce the imported image.
  */
-int opng_decode_reduce_image(struct opng_codec_context *context, int reductions, bool force_palette_if_possible)
+int opng_decode_reduce_image(struct opng_codec_context *context, int reductions)
 {
     const char * volatile err_msg;  /* volatile is required by cexcept */
 
     Try
     {
-        png_uint_32 result = opng_reduce_image(context->libpng_ptr, context->info_ptr, (png_uint_32)reductions, force_palette_if_possible);
+        png_uint_32 result = opng_reduce_image(context->libpng_ptr, context->info_ptr, (png_uint_32)reductions);
         if (result != OPNG_REDUCE_NONE)
         {
             /* Write over the old image object. */

@@ -113,7 +113,7 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
  * or -1 on error.
  * No error is normally expected to occur; if it does, it indicates a defect.
  */
-int opng_decode_reduce_image(struct opng_codec_context *context, int reductions, bool force_palette_if_possible);
+int opng_decode_reduce_image(struct opng_codec_context *context, int reductions);
 
 /*
  * Stops the decoder.

@@ -123,9 +123,8 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
         x = Zopflipng(Options.strip, Infile, Options.Strict, 2, 0);
     }
     //Disabled as using this causes libpng warnings
-    //if (Options.mode>2)
-    //int filter = Optipng(Options.Mode, Infile, Options.Mode!=1, false);
-    int filter = Optipng(Options.Mode, Infile, false, false);
+    //int filter = Optipng(Options.Mode, Infile, true);
+    int filter = Optipng(Options.Mode, Infile, false);
 
     if (filter == -1){
         return;
@@ -147,7 +146,7 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
     }
 
     if(Options.strip && x){
-        Optipng(0, Infile, false, false);
+        Optipng(0, Infile, false);
     }
 }
 
