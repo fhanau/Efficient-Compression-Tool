@@ -33,9 +33,10 @@ struct ECTOptions{
 #ifdef BOOST_SUPPORTED
     bool Recurse;
 #endif
+    int DeflateMultithreading;
 };
 
-int Zopflipng(bool strip, const char * Infile, bool strict, int Mode, int filter);
 int Optipng(int filter, const char * Infile, bool force_no_palette);
+int Zopflipng(bool strip, const char * Infile, bool strict, int Mode, int filter, int multithreading);
 int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Infile, const char * Outfile);
-int ZopfliGzip(const char* filename, const char* outname, int mode);
+int ZopfliGzip(const char* filename, const char* outname, int mode, int multithreading);

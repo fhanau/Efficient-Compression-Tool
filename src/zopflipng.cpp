@@ -32,6 +32,8 @@
 struct ZopfliPNGOptions {
     ZopfliPNGOptions();
 
+    int Mode;
+
     // Allow altering hidden colors of fully transparent pixels
     bool lossy_transparent;
 
@@ -40,8 +42,10 @@ struct ZopfliPNGOptions {
 
     // remove PNG chunks
     bool strip;
-    
-    int Mode;
+
+    //Use per block multithreading
+    int multithreading;
+
 };
 
 ZopfliPNGOptions::ZopfliPNGOptions()
@@ -57,7 +61,7 @@ static unsigned CustomPNGDeflate(unsigned char** out, size_t* outsize, const uns
     const ZopfliPNGOptions* png_options = static_cast<const ZopfliPNGOptions*>(settings->custom_context);
     unsigned char bp = 0;
     ZopfliOptions options;
-    ZopfliInitOptions(&options, png_options->Mode);
+    ZopfliInitOptions(&options, png_options->Mode, png_options->multithreading);
     ZopfliDeflate(&options, 1, in, insize, &bp, out, outsize);
     return 0;
 }
@@ -203,7 +207,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
     state.encoder.filter_palette_zero = 0;
 
     ZopfliOptions dummyoptions;
-    ZopfliInitOptions(&dummyoptions, png_options->Mode);
+    ZopfliInitOptions(&dummyoptions, png_options->Mode, 0);
     state.encoder.chain_length = dummyoptions.chain_length;
     state.encoder.add_id = false;
     state.encoder.text_compression = 0;
@@ -323,9 +327,10 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
     return error;
 }
 
-int Zopflipng(bool strip, const char * Infile, bool strict, int Mode, int filter) {
+int Zopflipng(bool strip, const char * Infile, bool strict, int Mode, int filter, int multithreading) {
     ZopfliPNGOptions png_options;
     png_options.Mode = Mode;
+    png_options.multithreading = multithreading;
     if (strict){png_options.lossy_transparent = false;}
     png_options.strip = strip;
     std::vector<unsigned char> origpng;

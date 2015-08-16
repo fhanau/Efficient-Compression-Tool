@@ -24,6 +24,8 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <thread>
+#include <vector>
 
 #include "blocksplitter.h"
 #include "lz77.h"
@@ -632,14 +634,14 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
       ZopfliCleanLZ77Store(&fixedstore);
     }
   }
+#ifdef ZOPFLI_LONGEST_MATCH_CACHE
+    ZopfliCleanCache(s.lmc);
+#endif
 
   AddLZ77Block(btype, final,
                store.litlens, store.dists, 0, store.size,
                blocksize, bp, out, outsize);
 
-#ifdef ZOPFLI_LONGEST_MATCH_CACHE
-  ZopfliCleanCache(s.lmc);
-#endif
   ZopfliCleanLZ77Store(&store);
 }
 

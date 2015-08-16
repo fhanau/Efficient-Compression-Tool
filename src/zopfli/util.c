@@ -203,7 +203,7 @@ unsigned ZopfliGetLengthSymbol(unsigned l) {
   return table[l];
 }
 
-void ZopfliInitOptions(ZopfliOptions* options, int mode) {
+void ZopfliInitOptions(ZopfliOptions* options, int mode, int multithreading) {
   if (mode < 3) {
     options->numiterations = 1;
     options->chain_length = 400;
@@ -237,4 +237,5 @@ void ZopfliInitOptions(ZopfliOptions* options, int mode) {
   options->blocksplittingmax = mode > 2 ? 0 : 15;
   options->trystatic = mode > 3 ? 2000 : 800;
   options->noblocksplit = 1400;
+  options->multithreading = multithreading;
 }

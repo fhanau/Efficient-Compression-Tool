@@ -51,6 +51,8 @@ static void Usage() {
             " --disable-jpg  Disable JPEG optimization\n"
 #endif
             " --strict       Enable strict losslessness\n"
+            " --mt-deflate   Use per block multithreading in Deflate\n"
+            " --mt-deflate=i Use per block multithreading in Deflate, use i threads\n"
             //" --arithmetic   Use arithmetic encoding for JPEGs, incompatible with most software\n"
 #ifdef __DATE__
             ,__DATE__
