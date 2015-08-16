@@ -622,9 +622,6 @@ unsigned lodepng_zlib_compress(unsigned char** out, size_t* outsize,
 #endif /*LODEPNG_COMPILE_ENCODER*/
 #endif /*LODEPNG_COMPILE_ZLIB*/
 
-/*Return the adler32 of the bytes data[0..len-1]*/
-unsigned adler32(const unsigned char* data, unsigned len);
-
 #ifdef LODEPNG_COMPILE_CPP
 //The LodePNG C++ wrapper uses std::vectors instead of manually allocated memory buffers.
 namespace lodepng

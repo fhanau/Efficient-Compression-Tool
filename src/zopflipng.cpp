@@ -196,7 +196,7 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
 // Tries to optimize given a single PNG filter strategy.
 // Returns 0 if ok, other value for error
 static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsigned h, bool bit16,
-                            const ZopfliPNGOptions* png_options, std::vector<unsigned char>* out, int best_filter/*, int Mode, const char * Infile*/) {
+                            const ZopfliPNGOptions* png_options, std::vector<unsigned char>* out, int best_filter) {
     lodepng::State state;
     state.encoder.zlibsettings.custom_deflate = CustomPNGDeflate;
     state.encoder.zlibsettings.custom_context = png_options;
@@ -248,18 +248,8 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
         std::vector<unsigned char> temp;
         lodepng::decode(temp, w, h, teststate, *out);
         LodePNGColorMode& color = teststate.info_png.color;
-        //Todo: Also continue
         if (color.colortype == LCT_PALETTE && (testboth < 2048 || color.palettesize>192) && (testboth < 1024 || color.palettesize>64) && (testboth < 512 || color.palettesize>40) && (testboth < 300 || color.palettesize>9))
         {
-            //This improves compression, but produces libpng warnings
-            /*if (Mode>2) {
-             best_filter = Optipng(Mode, Infile, false, true);
-             if (best_filter == 0)
-             {state.encoder.filter_strategy = LFS_ZERO;}
-             else 
-             {state.encoder.filter_strategy = LFS_ENTROPY;}
-             }*/
-
             std::vector<unsigned char> out2;
             state.encoder.auto_convert = 0;
             bool grey = true;
@@ -293,10 +283,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
     return 0;
 }
 
-static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter
-/*, int Mode, const char * Infile*/) {
-
-
+static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter) {
     std::vector<unsigned char> image;
     unsigned w, h;
     lodepng::State inputstate;
@@ -323,7 +310,7 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
         }
     }
     std::vector<unsigned char> temp;
-    error = TryOptimize(image, w, h, bit16, &png_options, &temp, best_filter/*, Mode, Infile*/);
+    error = TryOptimize(image, w, h, bit16, &png_options, &temp, best_filter);
     if (!error) {
         (*resultpng).swap(temp);  // Store best result so far in the output.
     }
@@ -344,7 +331,7 @@ int Zopflipng(bool strip, const char * Infile, bool strict, int Mode, int filter
     std::vector<unsigned char> origpng;
     lodepng::load_file(origpng, Infile);
     std::vector<unsigned char> resultpng;
-    if (ZopfliPNGOptimize(origpng, png_options, &resultpng, filter/*, Mode, Infile*/)) {return -1;}
+    if (ZopfliPNGOptimize(origpng, png_options, &resultpng, filter)) {return -1;}
     if (resultpng.size() >= origpng.size()) {return 1;}
     lodepng::save_file(resultpng, Infile);
     return 0;

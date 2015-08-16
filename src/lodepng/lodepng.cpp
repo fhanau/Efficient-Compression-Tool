@@ -976,7 +976,7 @@ static unsigned deflate(unsigned char** out, size_t* outsize,
 #endif /*LODEPNG_COMPILE_DECODER*/
 
 /*Return the adler32 of the bytes data[0..len-1]*/
-unsigned adler32(const unsigned char* data, unsigned len)
+static unsigned adler32(const unsigned char* data, unsigned len)
 {
   return adler32(1, data, len);
 }
@@ -1758,7 +1758,6 @@ static void color_tree_cleanup(ColorTree* tree)
     }
   }
 }
-
 
 /*returns -1 if color not present, its index otherwise*/
 static int color_tree_get(ColorTree* tree, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
@@ -3808,7 +3807,6 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       {
         unsigned testsize = attempt[type].size;
         filterScanline(attempt[type].data, &in[y * linebytes], prevline, linebytes, bytewidth, type);
-        size[type] = 0;
         dummy = 0;
         zlibcompress(&dummy, &size[type], attempt[type].data, testsize, 3, settings->chain_length);
         lodepng_free(dummy);

@@ -12,8 +12,9 @@
 
 long long filesize (const char * Infile) {
     struct stat stats;
-    //Todo: 
-    if (stat(Infile, &stats) != 0){}
+    if (stat(Infile, &stats) != 0){
+        return -1;
+    }
     return stats.st_size;
 }
 
