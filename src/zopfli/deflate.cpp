@@ -635,7 +635,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
     }
   }
 #ifdef ZOPFLI_LONGEST_MATCH_CACHE
-    ZopfliCleanCache(s.lmc);
+  ZopfliCleanCache(s.lmc);
 #endif
 
   AddLZ77Block(btype, final,
@@ -643,6 +643,58 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
                blocksize, bp, out, outsize);
 
   ZopfliCleanLZ77Store(&store);
+}
+
+struct BlockData {
+  int btype;
+  ZopfliLZ77Store store;
+  int blocksize; //inend - instart
+};
+
+static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned char* in,
+                                 size_t instart, size_t inend, BlockData* store) {
+  ZopfliBlockState s;
+  size_t blocksize = inend - instart;
+  store->btype = 2;
+
+  ZopfliInitLZ77Store(&store->store);
+
+  s.options = options;
+  s.blockstart = instart;
+  s.blockend = inend;
+#ifdef ZOPFLI_LONGEST_MATCH_CACHE
+  s.lmc = (ZopfliLongestMatchCache*)malloc(sizeof(ZopfliLongestMatchCache));
+  ZopfliInitCache(blocksize, s.lmc);
+#endif
+  if (blocksize <= options->skipdynamic){
+    store->btype = 1;
+    ZopfliLZ77OptimalFixed(&s, in, instart, inend, &store->store);
+  }
+  else{
+    ZopfliLZ77Optimal(&s, in, instart, inend, &store->store);
+  }
+
+  /* For small block, encoding with fixed tree can be smaller. For large block,
+   don't bother doing this expensive test, dynamic tree will be better.*/
+  if (blocksize > options->skipdynamic && store->store.size < options->trystatic){
+    double dyncost, fixedcost;
+    ZopfliLZ77Store fixedstore;
+    ZopfliInitLZ77Store(&fixedstore);
+    ZopfliLZ77OptimalFixed(&s, in, instart, inend, &fixedstore);
+    dyncost = ZopfliCalculateBlockSize(store->store.litlens, store->store.dists, 0, store->store.size, 2, 1);
+    fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, 1);
+    if (fixedcost <= dyncost) {
+      store->btype = 1;
+      ZopfliCleanLZ77Store(&store->store);
+      store->store = fixedstore;
+    } else {
+      ZopfliCleanLZ77Store(&fixedstore);
+    }
+  }
+
+#ifdef ZOPFLI_LONGEST_MATCH_CACHE
+  ZopfliCleanCache(s.lmc);
+#endif
 }
 
 /*
@@ -669,6 +721,46 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
   free(splitpoints);
 }
 
+static void DeflateSplittingFirst2(const ZopfliOptions* options,
+                                  int final,
+                                  const unsigned char* in,
+                                  size_t instart, size_t inend,
+                                  unsigned char* bp,
+                                  unsigned char** out, size_t* outsize, int threads) {
+  std::vector<std::thread> multi (threads);
+  size_t* splitpoints = 0;
+  size_t npoints = 0;
+  ZopfliBlockSplit(options, in, instart, inend , &splitpoints, &npoints);
+  std::vector<BlockData> d (npoints + 1);
+  size_t i;
+
+  for (i = 0; i <= npoints; i++) {
+    size_t start = i == 0 ? instart : splitpoints[i - 1];
+    size_t end = i == npoints ? inend : splitpoints[i];
+    d[i].blocksize = end - start;
+    multi[i % threads] = std::thread(DeflateDynamicBlock2,options, in, start, end, &d[i]);
+
+    if (i % threads == threads - 1){
+      for (size_t j = 0; j < threads; j++){
+        multi[j].join();
+      }
+    }
+    else if (i == npoints){
+      for (size_t k = 0; k <= (i % threads); k++){
+        multi[k].join();
+      }
+    }
+  }
+  for (i = 0; i <= npoints; i++) {
+    AddLZ77Block(d[i].btype, i == npoints && final,
+                 d[i].store.litlens, d[i].store.dists, 0, d[i].store.size,
+                 d[i].blocksize, bp, out, outsize);
+    ZopfliCleanLZ77Store(&d[i].store);
+  }
+
+  free(splitpoints);
+}
+
 /*
 Deflate a part, to allow ZopfliDeflate() to use multiple master blocks if
 needed.
@@ -682,13 +774,16 @@ static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
                        const unsigned char* in, size_t instart, size_t inend,
                        unsigned char* bp, unsigned char** out,
                        size_t* outsize) {
-    /* Blocksplitting likely wont improve compression on small files */
-    if ((inend - instart) < options->noblocksplit){
-        DeflateDynamicBlock(options, final, in, instart, inend, bp, out, outsize);
-    }
-    else {
-        DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize);
-    }
+  /* Blocksplitting likely wont improve compression on small files */
+  if (inend - instart < options->noblocksplit){
+    DeflateDynamicBlock(options, final, in, instart, inend, bp, out, outsize);
+  }
+  else if (options->multithreading > 1){
+    DeflateSplittingFirst2(options, final, in, instart, inend, bp, out, outsize, options->multithreading);
+  }
+  else {
+    DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize);
+  }
 }
 
 void ZopfliDeflate(const ZopfliOptions* options, int final,

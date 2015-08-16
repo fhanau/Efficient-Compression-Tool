@@ -5,6 +5,7 @@
 
 #include "main.h"
 #include "support.h"
+#include <thread>
 
 #ifdef MP3_SUPPORTED
 #include <id3/tag.h>
@@ -89,12 +90,12 @@ static void ECT_ReportSavings(){
     else {printf("No compatible files found\n");}
 }
 
-static int ECTGzip(const char * Infile, const int Mode){
+static int ECTGzip(const char * Infile, const int Mode, unsigned char multithreading){
     if (!IsGzip(Infile)){
         if (exists(((std::string)Infile).append(".gz").c_str())){
             return 2;
         }
-        ZopfliGzip(Infile, NULL, Mode);
+        ZopfliGzip(Infile, NULL, Mode, multithreading);
         return 1;
     }
     else {
@@ -105,7 +106,7 @@ static int ECTGzip(const char * Infile, const int Mode){
             return 2;
         }
         ungz(Infile, ((std::string)Infile).append(".ungz").c_str());
-        ZopfliGzip(((std::string)Infile).append(".ungz").c_str(), NULL, Mode);
+        ZopfliGzip(((std::string)Infile).append(".ungz").c_str(), NULL, Mode, multithreading);
         if (filesize(((std::string)Infile).append(".ungz.gz").c_str()) < filesize(Infile)){
             unlink(Infile);
             rename(((std::string)Infile).append(".ungz.gz").c_str(), Infile);
@@ -122,7 +123,7 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
     int x = 1;
     long long size = filesize(Infile);
     if(Options.Mode == 5){
-        x = Zopflipng(Options.strip, Infile, Options.Strict, 2, 0);
+        x = Zopflipng(Options.strip, Infile, Options.Strict, 2, 0, Options.DeflateMultithreading);
     }
     //Disabled as using this causes libpng warnings
     //int filter = Optipng(Options.Mode, Infile, true);
@@ -133,9 +134,9 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
     }
     if (Options.Mode != 1){
         if (Options.Mode == 5){
-            Zopflipng(Options.strip, Infile, Options.Strict, 5, filter);}
+            Zopflipng(Options.strip, Infile, Options.Strict, 5, filter, Options.DeflateMultithreading);}
         else {
-            x = Zopflipng(Options.strip, Infile, Options.Strict, Options.Mode, filter);}
+            x = Zopflipng(Options.strip, Infile, Options.Strict, Options.Mode, filter, Options.DeflateMultithreading);}
     }
     else {
         if (filesize(Infile) <= size){
@@ -212,7 +213,7 @@ static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
                 OptimizeJPEG(Infile, Options);
             }
             else if (Options.Gzip){
-                statcompressedfile = ECTGzip(Infile, Options.Mode);
+                statcompressedfile = ECTGzip(Infile, Options.Mode, Options.DeflateMultithreading);
             }
             if(Options.SavingsCounter){
                 processedfiles++;
@@ -248,6 +249,7 @@ int main(int argc, const char * argv[]) {
     Options.Gzip = false;
     Options.SavingsCounter = true;
     Options.Strict = false;
+    Options.DeflateMultithreading = 0;
     if (argc >= 2){
         for (int i = 1; i < argc-1; i++) {
             if (strncmp(argv[i], "-strip", 2) == 0){Options.strip = true;}
@@ -262,10 +264,18 @@ int main(int argc, const char * argv[]) {
             else if (strncmp(argv[i], "-quiet", 2) == 0) {Options.SavingsCounter = false;}
 #ifdef BOOST_SUPPORTED
             else if (strcmp(argv[i], "--disable-jpeg") == 0 || strcmp(argv[i], "--disable-jpg") == 0 ){Options.JPEG_ACTIVE = false;}
-            else if (strcmp(argv[i], "--disable-png") == 0 || strcmp(argv[i], "--disable-png") == 0 ){Options.PNG_ACTIVE = false;}
+            else if (strcmp(argv[i], "--disable-png") == 0){Options.PNG_ACTIVE = false;}
             else if (strncmp(argv[i], "-recurse", 2) == 0)  {Options.Recurse = 1;}
 #endif
             else if (strcmp(argv[i], "--strict") == 0) {Options.Strict = true;}
+            else if (strncmp(argv[i], "--mt-deflate", 12) == 0) {
+                if (strncmp(argv[i], "--mt-deflate=", 13) == 0){
+                    Options.DeflateMultithreading = atoi(argv[i] + 13);
+                }
+                else{
+                    Options.DeflateMultithreading = std::thread::hardware_concurrency();
+                }
+            }
             //else if (strcmp(argv[i], "--arithmetic") == 0) {Options.Arithmetic = true;}
             else {printf("Unknown flag: %s\n", argv[i]); return 0;}
         }
