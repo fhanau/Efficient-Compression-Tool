@@ -331,6 +331,7 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
 #ifdef ZOPFLI_LONGEST_MATCH_CACHE
   StoreInLongestMatchCache(s, pos, limit, sublen, bestdist, bestlength);
 #endif
+
   *distance = bestdist;
   *length = bestlength;
 }
@@ -376,7 +377,6 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
     }
 
   unsigned short bestlength = 1;
-  
   unsigned short bestdist = 0;
 
   const unsigned char* new = &array[pos];
@@ -462,13 +462,10 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
   ZopfliHash hash;
   ZopfliHash* h = &hash;
 
-#ifdef ZOPFLI_LAZY_MATCHING
-  /* Lazy matching. */
   unsigned prev_length = 0;
   unsigned prev_match = 0;
   int prevlengthscore;
   int match_available = 0;
-#endif
 
   if (instart == inend) return;
 
@@ -483,7 +480,6 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
                            &dist, &leng, 0);
     lengthscore = dist > s->options->lengthscoresearch ? leng - 1 : leng;
 
-#ifdef ZOPFLI_LAZY_MATCHING
     /* Lazy matching. */
     prevlengthscore = prev_match > s->options->lengthscoresearch ? prev_length - 1 : prev_length;
     if (match_available) {
@@ -519,7 +515,6 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
       continue;
     }
     /* End of lazy matching. */
-#endif
 
     /* Add to output. */
     if (lengthscore >= ZOPFLI_MIN_MATCH) {

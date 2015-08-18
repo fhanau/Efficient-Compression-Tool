@@ -105,13 +105,6 @@ the compression result.
 #define ZOPFLI_SHORTCUT_LONG_REPETITIONS
 
 /*
-Whether to use lazy matching in the greedy LZ77 implementation. This gives a
-better result of ZopfliLZ77Greedy, but the effect this has on the optimal LZ77
-varies from file to file.
-*/
-#define ZOPFLI_LAZY_MATCHING
-
-/*
 Gets the symbol for the given length, cfr. the DEFLATE spec.
 Returns the symbol in the range [257-285] (inclusive)
 */
