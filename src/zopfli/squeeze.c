@@ -462,12 +462,12 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
     }
     for (unsigned i = 0; i < 288; i++){
       if (!ll_symbols[i]){
-        ll_symbols[i] = 0;
+        stats.ll_symbols[i] = 0;
       }
     }
     for (unsigned i = 0; i < 32; i++){
       if (!d_symbols[i]){
-        d_symbols[i] = 0;
+        stats.d_symbols[i] = 0;
       }
     }
   }
