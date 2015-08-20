@@ -480,8 +480,55 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
                            &dist, &leng, 0);
     lengthscore = dist > s->options->lengthscoresearch ? leng - 1 : leng;
 
+    lengthscore = leng;
+    /*TODO: Tuned for M2. Other values(likely higher) will be better for higher modes*/
+    if (blocksplitting){
+      if (lengthscore == 3 && dist > 256){/*M3 1024+*/
+        --lengthscore;
+      }
+      else if (lengthscore == 4 && dist > 256){
+        --lengthscore;
+      }
+      else if (lengthscore == 5 && dist > 1024){
+        --lengthscore;
+      }
+      else if (lengthscore == 6 && dist > 16384){
+        --lengthscore;
+      }
+    }
+    else {
+      if (lengthscore == 3 && dist > 1024){
+        --lengthscore;
+      }
+    }
+
     /* Lazy matching. */
     prevlengthscore = prev_match > s->options->lengthscoresearch ? prev_length - 1 : prev_length;
+
+    prevlengthscore = prev_length;
+    if (blocksplitting){
+      if (prevlengthscore == 3 && prev_match > 64){
+        --prevlengthscore;
+      }
+      else if (prevlengthscore == 4 && prev_match > 2048){
+        --prevlengthscore;
+      }
+    }
+    else {
+      if (prevlengthscore == 3 && prev_match > 64){
+        --prevlengthscore;
+      }
+      else if (prevlengthscore == 4 && prev_match > 16){
+        --prevlengthscore;
+      }
+      else if (prevlengthscore == 5 && prev_match > 4096){
+        --prevlengthscore;
+      }
+      else if (prevlengthscore == 6 && prev_match > 16384){
+        --prevlengthscore;
+      }
+    }
+
     if (match_available) {
       match_available = 0;
       if (lengthscore > prevlengthscore + 1) {
