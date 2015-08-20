@@ -3751,8 +3751,8 @@ static void filterScanline(unsigned char* out, const unsigned char* scanline, co
   }
 }
 
-static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, unsigned h,
-                       const LodePNGColorMode* info, const LodePNGEncoderSettings* settings)
+static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsigned h,
+                       const LodePNGColorMode* info, LodePNGEncoderSettings* settings)
 {
   /*
   For PNG filter method 0
@@ -3802,6 +3802,83 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       for(type = 0; type != 5; ++type)
       {
         unsigned testsize = attempt[type].size;
+
+        //Based on Frederic Kaysers cryopng
+        if (info->colortype == LCT_RGBA && settings->clean_alpha){
+          unsigned char * line = &in[y * linebytes];
+          if (!y){
+            for (unsigned i = 0; i < linebytes / 4; i++){
+              if(line[i * 4 + 3] == 0){
+                line[i * 4] = 0;
+                line[i * 4 + 1] = 0;
+                line[i * 4 + 2] = 0;
+              }
+            }
+          }
+          if (type == 3 && !y){
+            unsigned char r = 0;
+            unsigned char g = 0;
+            unsigned char b = 0;
+            for (unsigned i = 0; i < linebytes / 4; i++){
+              if(in[i * 4 + 3] == 0){
+                r /= 2;
+                g /= 2;
+                b /= 2;
+                line[i * 4] = r;
+                line[i * 4 + 1] = g;
+                line[i * 4 + 2] = b;
+              }
+              else {
+                r = line[i * 4];
+                g = line[i * 4 + 1];
+                b = line[i * 4 + 2];
+              }
+            }
+          }
+          else if (type == 2 && y){
+            unsigned char * prevline2 = &in[(y - 1) * linebytes];
+            for (unsigned i = 0; i < linebytes / 4; i++){
+              if(line[i * 4 + 3] == 0){
+                line[i * 4] = prevline2[i * 4];
+                line[i * 4 + 1] = prevline2[i * 4 + 1];
+                line[i * 4 + 2] = prevline2[i * 4 + 2];
+              }
+            }
+          }
+          else if (type == 4 && y){
+            unsigned char r = 0;
+            unsigned char g = 0;
+            unsigned char b = 0;
+            unsigned char * prevline2 = &in[(y - 1) * linebytes];
+            for (unsigned i = 0; i < linebytes / 4; i++){
+              if(line[i * 4 + 3] == 0){
+                if (!i){
+                  r = prevline2[i * 4];
+                  g = prevline2[i * 4 + 1];
+                  b = prevline2[i * 4 + 2];
+                  line[i * 4] = r;
+                  line[i * 4 + 1] = g;
+                  line[i * 4 + 2] = b;
+                }
+                else{
+                  r = paethPredictor(r, prevline2[i * 4], prevline2[i * 4 - 4]);
+                  g = paethPredictor(g, prevline2[i * 4 + 1], prevline2[i * 4 - 3]);
+                  b = paethPredictor(b, prevline2[i * 4 + 2], prevline2[i * 4 - 2]);
+
+                  line[i * 4] = r;
+                  line[i * 4 + 1] = g;
+                  line[i * 4 + 2] = b;
+                }
+              }
+              else{
+                r = line[i * 4];
+                g = line[i * 4 + 1];
+                b = line[i * 4 + 2];
+              }
+            }
+          }
+        }
+
         filterScanline(attempt[type].data, &in[y * linebytes], prevline, linebytes, bytewidth, type);
         zlibcompress(&dummy, &size[type], attempt[type].data, testsize, 3, settings->chain_length);
         lodepng_free(dummy);
@@ -3966,9 +4043,9 @@ static void Adam7_interlace(unsigned char* out, const unsigned char* in, unsigne
 
 /*out must be buffer big enough to contain uncompressed IDAT chunk data, and in must contain the full image.
 return value is error**/
-static unsigned preProcessScanlines(unsigned char** out, size_t* outsize, const unsigned char* in,
+static unsigned preProcessScanlines(unsigned char** out, size_t* outsize, unsigned char* in,
                                     unsigned w, unsigned h,
-                                    const LodePNGInfo* info_png, const LodePNGEncoderSettings* settings)
+                                    const LodePNGInfo* info_png, LodePNGEncoderSettings* settings)
 {
   /*
   This function converts the pure 2D image with the PNG's colortype, into filtered-padded-interlaced data. Steps:
@@ -4094,7 +4171,7 @@ static unsigned addUnknownChunks(ucvector* out, unsigned char* data, size_t data
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
 
 unsigned lodepng_encode(unsigned char** out, size_t* outsize,
-                        const unsigned char* image, unsigned w, unsigned h,
+                        unsigned char* image, unsigned w, unsigned h,
                         LodePNGState* state)
 {
   LodePNGInfo info;
@@ -4270,6 +4347,7 @@ void lodepng_encoder_settings_init(LodePNGEncoderSettings* settings)
   lodepng_compress_settings_init(&settings->zlibsettings);
   settings->filter_strategy = LFS_ENTROPY;
   settings->auto_convert = 1;
+  settings->clean_alpha = 1;
   settings->force_palette = 0;
   settings->predefined_filters = 0;
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
@@ -4482,7 +4560,7 @@ unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h,
 #ifdef LODEPNG_COMPILE_ENCODER
 
 unsigned encode(std::vector<unsigned char>& out,
-                const unsigned char* in, unsigned w, unsigned h,
+                unsigned char* in, unsigned w, unsigned h,
                 State& state)
 {
   unsigned char* buffer;
@@ -4497,7 +4575,7 @@ unsigned encode(std::vector<unsigned char>& out,
 }
 
 unsigned encode(std::vector<unsigned char>& out,
-                const std::vector<unsigned char>& in, unsigned w, unsigned h,
+                std::vector<unsigned char>& in, unsigned w, unsigned h,
                 State& state)
 {
   if(lodepng_get_raw_size(w, h, &state.info_raw) > in.size()) return 84;

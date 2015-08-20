@@ -204,7 +204,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
     lodepng::State state;
     state.encoder.zlibsettings.custom_deflate = CustomPNGDeflate;
     state.encoder.zlibsettings.custom_context = png_options;
-    state.encoder.filter_palette_zero = 0;
+    state.encoder.clean_alpha = png_options->lossy_transparent;
 
     ZopfliOptions dummyoptions;
     ZopfliInitOptions(&dummyoptions, png_options->Mode, 0);
@@ -331,7 +331,7 @@ int Zopflipng(bool strip, const char * Infile, bool strict, int Mode, int filter
     ZopfliPNGOptions png_options;
     png_options.Mode = Mode;
     png_options.multithreading = multithreading;
-    if (strict){png_options.lossy_transparent = false;}
+    png_options.lossy_transparent = !strict;
     png_options.strip = strip;
     std::vector<unsigned char> origpng;
     lodepng::load_file(origpng, Infile);

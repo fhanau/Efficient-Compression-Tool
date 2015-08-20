@@ -438,7 +438,9 @@ typedef struct LodePNGEncoderSettings
 
   unsigned auto_convert; /*automatically choose output PNG color type. Default: true*/
 
-  /*Which filter strategy to use. Default: LFS_ENTROPY*/
+  unsigned clean_alpha;
+
+  /*Which filter strategy to use. Default: LFS_MINSUM*/
   LodePNGFilterStrategy filter_strategy;
   /*used if filter_strategy is LFS_PREDEFINED. In that case, this must point to a buffer with
   the same length as the amount of scanlines in the image, and each value must <= 5. You
@@ -645,7 +647,7 @@ unsigned encode(std::vector<unsigned char>& out,
                 const unsigned char* in, unsigned w, unsigned h,
                 State& state);
 unsigned encode(std::vector<unsigned char>& out,
-                const std::vector<unsigned char>& in, unsigned w, unsigned h,
+                std::vector<unsigned char>& in, unsigned w, unsigned h,
                 State& state);
 #endif /*LODEPNG_COMPILE_ENCODER*/
 
