@@ -438,16 +438,11 @@ typedef struct LodePNGEncoderSettings
 
   unsigned auto_convert; /*automatically choose output PNG color type. Default: true*/
 
-  /*If true, follows the official PNG heuristic: if the PNG uses a palette or lower than
-  8 bit depth, set all filters to zero.*/
-  unsigned filter_palette_zero;
-  /*Which filter strategy to use when not using zeroes due to filter_palette_zero.
-  Set filter_palette_zero to 0 to ensure always using your chosen strategy. Default: LFS_ENTROPY*/
+  /*Which filter strategy to use. Default: LFS_ENTROPY*/
   LodePNGFilterStrategy filter_strategy;
   /*used if filter_strategy is LFS_PREDEFINED. In that case, this must point to a buffer with
   the same length as the amount of scanlines in the image, and each value must <= 5. You
-  have to cleanup this buffer, LodePNG will never free it. Don't forget that filter_palette_zero
-  must be set to 0 to ensure this is also used on palette or low bitdepth images.*/
+  have to cleanup this buffer, LodePNG will never free it.*/
   const unsigned char* predefined_filters;
 
   /*force creating a PLTE chunk if colortype is 2 or 6 (= a suggested palette).

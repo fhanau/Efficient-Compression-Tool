@@ -33,10 +33,6 @@ void ZopfliLengthsToSymbols(const unsigned* lengths, size_t n, unsigned maxbits,
   size_t* next_code = (size_t*)malloc(sizeof(size_t) * (maxbits + 1));
   unsigned i;
 
-  for (i = 0; i < n; i++) {
-    symbols[i] = 0;
-  }
-
   /* 1) Count the number of codes for each code length. Let bl_count[N] be the
   number of codes of length N, N >= 1. */
   for (i = 0; i < n; i++) {
@@ -70,7 +66,7 @@ void ZopfliCalculateEntropy(const size_t* count, size_t n, float* bitlengths) {
   for (i = 0; i < n; ++i) {
     sum += count[i];
   }
-  double log2sum = sum == 0 ? log(n) : log2f(sum);
+  double log2sum = sum == 0 ? logf(n) : log2f(sum);
   for (i = 0; i < n; ++i) {
     /* When the count of the symbol is 0, but its cost is requested anyway, it
     means the symbol will appear at least once anyway, so give it the cost as if

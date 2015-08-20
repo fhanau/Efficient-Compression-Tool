@@ -3770,9 +3770,6 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
   unsigned error = 0;
   LodePNGFilterStrategy strategy = settings->filter_strategy;
 
-  if(settings->filter_palette_zero &&
-     (info->colortype == LCT_PALETTE || info->bitdepth < 8)) strategy = LFS_ZERO;
-
   if(bpp == 0) return 31; /*error: invalid color type*/
 
   if(strategy == LFS_ZERO)
@@ -3789,8 +3786,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
   else if(strategy == LFS_BRUTE_FORCE)
   {
     /*brute force filter chooser.
-     deflate the scanline after every filter attempt to see which one deflates best.
-     This is very slow and gives only slightly smaller, sometimes even larger, result*/
+     deflate the scanline after every filter attempt to see which one deflates best.*/
     size_t size[5];
     ucvector attempt[5]; /*five filtering attempts, one for each filter type*/
     size_t smallest = 0;
@@ -3807,7 +3803,6 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       {
         unsigned testsize = attempt[type].size;
         filterScanline(attempt[type].data, &in[y * linebytes], prevline, linebytes, bytewidth, type);
-        dummy = 0;
         zlibcompress(&dummy, &size[type], attempt[type].data, testsize, 3, settings->chain_length);
         lodepng_free(dummy);
         /*check if this is smallest size (or if type == 0 it's the first case so always store the values)*/
@@ -4273,7 +4268,6 @@ unsigned lodepng_encode(unsigned char** out, size_t* outsize,
 void lodepng_encoder_settings_init(LodePNGEncoderSettings* settings)
 {
   lodepng_compress_settings_init(&settings->zlibsettings);
-  settings->filter_palette_zero = 1;
   settings->filter_strategy = LFS_ENTROPY;
   settings->auto_convert = 1;
   settings->force_palette = 0;
