@@ -430,6 +430,48 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
   ZopfliLZ77Greedy(s, in, instart, inend, &currentstore, 0);
   GetStatistics(&currentstore, &stats);
 
+  /*TODO:Corrections for cost model inaccuracies. There is still much potential here
+   Enable this in Mode 3, too, though less aggressive*/
+  if (s->options->numiterations == 1){
+    for (unsigned i = 0; i < 256; i++){
+        stats.ll_symbols[i] -= 0.4;
+    }
+    if (inend - instart < 1000){
+      for (unsigned i = 0; i < 256; i++){
+        stats.ll_symbols[i] -= 0.2;
+      }
+    }
+    stats.ll_symbols[0] -= 1;
+    stats.d_symbols[0] -= 1.5;
+    stats.d_symbols[3] -= 1.4;
+    stats.ll_symbols[255] -= 0.5;
+    stats.ll_symbols[257] -= 1.2;
+    stats.ll_symbols[258] += 0.3;
+
+    for (unsigned i = 259; i < 272; i++){
+        ll_symbols[i] += 0.1;
+    }
+    stats.ll_symbols[272] += 1.2;
+    stats.ll_symbols[282] += 0.2;
+    stats.ll_symbols[283] += 0.2;
+    stats.ll_symbols[284] += 0.4;
+    if (inend - instart < 32768 && inend - instart > 100){
+      for (unsigned i = ZopfliGetDistSymbol(inend - instart) - 1; i < 32; i++){
+        stats.d_symbols[i] += 0.5;
+      }
+    }
+    for (unsigned i = 0; i < 288; i++){
+      if (!ll_symbols[i]){
+        ll_symbols[i] = 0;
+      }
+    }
+    for (unsigned i = 0; i < 32; i++){
+      if (!d_symbols[i]){
+        d_symbols[i] = 0;
+      }
+    }
+  }
+
   /* Repeat statistics with each time the cost model from the previous stat
   run. */
   for (int i = 1; i < s->options->numiterations+1; i++) {
