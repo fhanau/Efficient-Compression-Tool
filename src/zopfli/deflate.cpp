@@ -367,13 +367,33 @@ static size_t CalculateBlockSymbolSize(const unsigned* ll_lengths,
     for (i = 0; i < 259; i++){
       ll_table[i] = ll_lengths[ZopfliGetLengthSymbol(i)] + ZopfliGetLengthExtraBits(i);
     }
+    unsigned char d_table[32768];
+    for (i = 0; i < 129; i++){
+      d_table[i] = d_lengths[ZopfliGetDistSymbol(i)] + ZopfliGetDistExtraBits(i);
+    }
+    memset(d_table + 129, d_lengths[14] + 6, 64);
+    memset(d_table + 193, d_lengths[15] + 6, 64);
+    memset(d_table + 257, d_lengths[16] + 7, 128);
+    memset(d_table + 385, d_lengths[17] + 7, 128);
+    memset(d_table + 513, d_lengths[18] + 8, 256);
+    memset(d_table + 769, d_lengths[19] + 8, 256);
+    memset(d_table + 1025, d_lengths[20] + 9, 512);
+    memset(d_table + 1537, d_lengths[21] + 9, 512);
+    memset(d_table + 2049, d_lengths[22] + 10, 1024);
+    memset(d_table + 3073, d_lengths[23] + 10, 1024);
+    memset(d_table + 4097, d_lengths[24] + 11, 2048);
+    memset(d_table + 6145, d_lengths[25] + 11, 2048);
+    memset(d_table + 8193, d_lengths[26] + 12, 4096);
+    memset(d_table + 12289, d_lengths[27] + 12, 4096);
+    memset(d_table + 16385, d_lengths[28] + 13, 8192);
+    memset(d_table + 24577, d_lengths[29] + 13, 8191);
+
     for (i = lstart; i < lend; i++) {
       if (dists[i] == 0) {
         result += ll_lengths[litlens[i]];
       } else {
         result += ll_table[litlens[i]];
-        result += d_lengths[ZopfliGetDistSymbol(dists[i])];
-        result += ZopfliGetDistExtraBits(dists[i]);
+        result += d_table[dists[i]];
       }
     }
   }
