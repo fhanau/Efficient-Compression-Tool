@@ -2460,7 +2460,7 @@ unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out,
   n = prof.numcolors;
   palettebits = n <= 2 ? 1 : (n <= 4 ? 2 : (n <= 16 ? 4 : 8));
   palette_ok = n <= 256 && prof.bits <= 8;
-  if(w * h < n * 2) {palette_ok = 0;} /*don't add palette overhead if image has only a few pixels*/
+  if(w * h < n * 2 || w * h < 10) {palette_ok = 0;} /*don't add palette overhead if image has only a few pixels*/
   if(grey_ok && prof.bits <= palettebits) {palette_ok = 0;}  /*grey is less overhead*/
 
   if(palette_ok)
@@ -4559,7 +4559,7 @@ unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h,
 
 #ifdef LODEPNG_COMPILE_ENCODER
 
-unsigned encode(std::vector<unsigned char>& out,
+static unsigned encode(std::vector<unsigned char>& out,
                 unsigned char* in, unsigned w, unsigned h,
                 State& state)
 {

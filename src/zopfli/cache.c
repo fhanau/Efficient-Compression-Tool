@@ -77,7 +77,6 @@ void ZopfliCacheToSublen(const ZopfliLongestMatchCache* lmc, size_t pos, unsigne
 #if ZOPFLI_CACHE_LENGTH == 0
   return;
 #endif
-    size_t i;
     unsigned maxlength = ZopfliMaxCachedSublen(lmc, pos);
     unsigned prevlength = 0;
 
@@ -85,7 +84,7 @@ void ZopfliCacheToSublen(const ZopfliLongestMatchCache* lmc, size_t pos, unsigne
     for (unsigned char j = 0; j < ZOPFLI_CACHE_LENGTH; j++) {
         unsigned lengthtwo = cache[j * 3] + 3;
         unsigned dist = cache[j * 3 + 1] + 256 * cache[j * 3 + 2];
-        for (i = prevlength; i <= lengthtwo; i++) {
+        for (unsigned i = prevlength; i <= lengthtwo; i++) {
             sublen[i] = dist;
         }
         if (lengthtwo == maxlength) break;

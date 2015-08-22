@@ -416,8 +416,8 @@ Change the population counts in a way that the consequent Hufmann tree
 compression, especially its rle-part will be more likely to compress this data
 more efficiently. length containts the size of the histogram.
 */
-static void OptimizeHuffmanForRle(int length, size_t* counts) {
-  int i, k, stride;
+static void OptimizeHuffmanForRle(unsigned length, size_t* counts) {
+  unsigned i, k, stride;
   size_t symbol, sum, limit;
 
   /* 1) We don't want to touch the trailing zeros. We may break the
@@ -469,7 +469,7 @@ static void OptimizeHuffmanForRle(int length, size_t* counts) {
         || AbsDiff(counts[i], limit) >= 4) {
       if (stride >= 4 || (stride >= 3 && sum == 0)) {
         /* The stride must end, collapse what we have, if we have enough (4). */
-        int count = (sum + stride / 2) / stride;
+        unsigned count = (sum + stride / 2) / stride;
         if (count < 1) count = 1;
         if (sum == 0) {
           /* Don't make an all zeros stride to be upgraded to ones. */
@@ -617,6 +617,7 @@ static void AddLZ77Block(int btype, int final,
     /* End symbol. */
     AddHuffmanBits(ll_symbols[256], ll_lengths[256], bp, out, outsize);
 }
+
 static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
                                 const unsigned char* in,
                                 size_t instart, size_t inend,
@@ -678,7 +679,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
 struct BlockData {
   int btype;
   ZopfliLZ77Store store;
-  int blocksize; //inend - instart
+  size_t blocksize; //inend - instart
 };
 
 static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned char* in,
@@ -759,7 +760,7 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
                                   const unsigned char* in,
                                   size_t instart, size_t inend,
                                   unsigned char* bp,
-                                  unsigned char** out, size_t* outsize, int threads) {
+                                  unsigned char** out, size_t* outsize, unsigned threads) {
   std::vector<std::thread> multi (threads);
   size_t* splitpoints = 0;
   size_t npoints = 0;

@@ -247,8 +247,8 @@ static void opng_write_data(png_structp png_ptr, png_bytep data, size_t length)
     struct opng_encoding_stats * stats = context->stats;
     FILE * stream = context->stream;
 
-    int io_state = png_get_io_state(png_ptr);
-    int io_state_loc = io_state & PNG_IO_MASK_LOC;
+    unsigned io_state = png_get_io_state(png_ptr);
+    unsigned io_state_loc = io_state & PNG_IO_MASK_LOC;
     OPNG_ASSERT((io_state & PNG_IO_WRITING) && (io_state_loc != 0), "Incorrect info in png_ptr->io_state");
 
     /* Handle the optipng-specific events. */

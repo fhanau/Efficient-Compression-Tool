@@ -98,7 +98,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
     /* Enable saving of extra markers that we want to copy */
     if (!strip) {
         jpeg_save_markers(&srcinfo, JPEG_COM, 0xFFFF);
-        for (int m = 0; m < 16; m++)
+        for (unsigned m = 0; m < 16; m++)
             jpeg_save_markers(&srcinfo, JPEG_APP0 + m, 0xFFFF);
     }
 
@@ -139,7 +139,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
     jpeg_finish_compress(&dstinfo);
     free(inbuffer);
 
-    int x = 0;
+    bool x = 0;
 
     if (insize < outsize || (progressive && insize == outsize)){
         x = 1;

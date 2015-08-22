@@ -12,8 +12,8 @@
 #endif
 
 static unsigned long processedfiles;
-static long long bytes;
-static long long savings;
+static size_t bytes;
+static size_t savings;
 
 static void Usage() {
     printf (
@@ -90,7 +90,7 @@ static void ECT_ReportSavings(){
     else {printf("No compatible files found\n");}
 }
 
-static int ECTGzip(const char * Infile, const int Mode, unsigned char multithreading){
+static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multithreading){
     if (!IsGzip(Infile)){
         if (exists(((std::string)Infile).append(".gz").c_str())){
             return 2;
@@ -166,7 +166,7 @@ static void OptimizeJPEG(const char * Infile, const ECTOptions& Options){
 #ifdef MP3_SUPPORTED
 static void OptimizeMP3(const char * Infile, const ECTOptions& Options){
     ID3_Tag orig (Infile);
-    unsigned start = orig.Size();
+    size_t start = orig.Size();
     ID3_Frame* picFrame = orig.Find(ID3FID_PICTURE);
     if (picFrame)
     {
@@ -174,7 +174,7 @@ static void OptimizeMP3(const char * Infile, const ECTOptions& Options){
         if (mime){
             char mimetxt[20];
             mime->Get(mimetxt, 19);
-            printf("%s", mimetxt);
+            //printf("%s", mimetxt);
             ID3_Field* pic = picFrame->GetField(ID3FN_DATA);
             bool ispng = memcmp(mimetxt, "image/png", 9) == 0 || memcmp(mimetxt, "PNG", 3) == 0;
             if (pic && (memcmp(mimetxt, "image/jpeg", 10) == 0 || ispng)){
@@ -221,7 +221,7 @@ static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
                 if (!statcompressedfile){
                 savings = savings + size - filesize(Infile);
                 }
-                else if (statcompressedfile == 1){
+                else if (statcompressedfile){
                     savings = savings + size - filesize(((std::string)Infile).append(".gz").c_str());
                 }
             }

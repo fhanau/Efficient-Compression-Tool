@@ -37,7 +37,7 @@ struct opng_options
 {
     int fix;
     int nb, nc, np, nz;
-    int optim_level;
+    unsigned optim_level;
 };
 
 // The optimization engine
@@ -272,7 +272,7 @@ static int opng_optimize_file(opng_optimizer *optimizer, const char *Infile, boo
 
 static struct opng_options options;
 
-int Optipng(int level, const char * Infile, bool force_no_palette)
+int Optipng(unsigned level, const char * Infile, bool force_no_palette)
 {
     memset(&options, 0, sizeof(options));
     opng_optimizer *the_optimizer = opng_create_optimizer();

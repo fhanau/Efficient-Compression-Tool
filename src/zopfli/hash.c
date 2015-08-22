@@ -132,8 +132,6 @@ void LoopedUpdateHash(const unsigned char* array, size_t pos, size_t end,
   }
   pos -= n;
 
-
-
   for (i = 0; i < n; i++, pos++){
     h->val = pos + ZOPFLI_MIN_MATCH <= end ? ((h->val << HASH_SHIFT) ^ array[pos + ZOPFLI_MIN_MATCH - 1]) & HASH_MASK : 0;
     h->hashval[hposs[i]] = h->val;

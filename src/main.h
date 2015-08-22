@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <string>
 #include <cstring>
-#include <unistd.h>
 
 #include "gztools.h"
 
@@ -21,7 +20,7 @@
 #endif
 
 struct ECTOptions{
-    int  Mode;
+    unsigned  Mode;
     bool strip;
     bool Progressive;
     bool JPEG_ACTIVE;
@@ -33,10 +32,10 @@ struct ECTOptions{
 #ifdef BOOST_SUPPORTED
     bool Recurse;
 #endif
-    int DeflateMultithreading;
+    unsigned DeflateMultithreading;
 };
 
-int Optipng(int filter, const char * Infile, bool force_no_palette);
-int Zopflipng(bool strip, const char * Infile, bool strict, int Mode, int filter, int multithreading);
+int Optipng(unsigned filter, const char * Infile, bool force_no_palette);
+int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int filter, unsigned multithreading);
 int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Infile, const char * Outfile);
-int ZopfliGzip(const char* filename, const char* outname, int mode, int multithreading);
+int ZopfliGzip(const char* filename, const char* outname, unsigned mode, unsigned multithreading);
