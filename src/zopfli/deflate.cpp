@@ -367,7 +367,10 @@ static size_t CalculateBlockSymbolSize(const unsigned* ll_lengths,
     for (i = 0; i < 259; i++){
       ll_table[i] = ll_lengths[ZopfliGetLengthSymbol(i)] + ZopfliGetLengthExtraBits(i);
     }
-    unsigned char d_table[32768];
+    unsigned char* d_table = (unsigned char*)malloc(32768 * sizeof(unsigned));
+    if (!d_table){
+      exit(1);
+    }
     for (i = 0; i < 129; i++){
       d_table[i] = d_lengths[ZopfliGetDistSymbol(i)] + ZopfliGetDistExtraBits(i);
     }
@@ -396,6 +399,7 @@ static size_t CalculateBlockSymbolSize(const unsigned* ll_lengths,
         result += d_table[dists[i]];
       }
     }
+    free(d_table);
   }
   return result;
 }
@@ -430,6 +434,9 @@ static void OptimizeHuffmanForRle(int length, size_t* counts) {
   /* 2) Let's mark all population counts that already can be encoded
   with an rle code.*/
   int* good_for_rle = (int*)calloc(length, sizeof(int));
+  if (!good_for_rle){
+    exit(1);
+  }
 
   /* Let's not spoil any of the existing good rle codes.
   Mark any seq of 0's that is longer than 5 as a good_for_rle.
@@ -627,6 +634,9 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
   s.blockend = inend;
 #ifdef ZOPFLI_LONGEST_MATCH_CACHE
   s.lmc = (ZopfliLongestMatchCache*)malloc(sizeof(ZopfliLongestMatchCache));
+  if (!s.lmc){
+    exit(1);
+  }
   ZopfliInitCache(blocksize, s.lmc);
 #endif
   if (blocksize <= options->skipdynamic){
@@ -684,6 +694,9 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
   s.blockend = inend;
 #ifdef ZOPFLI_LONGEST_MATCH_CACHE
   s.lmc = (ZopfliLongestMatchCache*)malloc(sizeof(ZopfliLongestMatchCache));
+  if (!s.lmc){
+    exit(1);
+  }
   ZopfliInitCache(blocksize, s.lmc);
 #endif
   if (blocksize <= options->skipdynamic){

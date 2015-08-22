@@ -548,6 +548,9 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
                 buf_size = (((length + 4) + (buf_size_incr - 1))
                             / buf_size_incr) * buf_size_incr;
                 buf = (png_bytep)png_malloc(context->libpng_ptr, buf_size);
+                if (!buf){
+                    exit(1);
+                }
                 /* Do not use realloc() here, it's unnecessarily slow. */
             }
             if (fread(buf, length + 4, 1, in_stream) != 1)  /* data + crc */

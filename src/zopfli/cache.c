@@ -34,6 +34,9 @@ void ZopfliInitCache(size_t blocksize, ZopfliLongestMatchCache* lmc) {
   lmc->dist = (unsigned short*)calloc(blocksize, sizeof(unsigned short));
   /* Rather large amount of memory. */
   lmc->sublen = (unsigned char*)calloc(CacheBytes * blocksize, 1);
+  if (!(lmc->length && lmc->dist && lmc->sublen)){
+    exit(1);
+  }
   /* length > 0 and dist 0 is invalid combination, which indicates on purpose
     that this cache value is not filled in yet. */
   for (size_t i = 0; i < blocksize; i++) lmc->length[i] = 1;

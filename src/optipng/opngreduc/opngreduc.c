@@ -711,6 +711,10 @@ static png_uint_32 opng_reduce_to_palette(png_structp png_ptr, png_infop info_pt
    png_bytepp row_ptr = png_get_rows(png_ptr, info_ptr);
    int channels = png_get_channels(png_ptr, info_ptr);
    png_bytep alpha_row = (png_bytep)png_malloc(png_ptr, width);
+   if (!alpha_row){
+     exit(1);
+   }
+
 
    row_info.width = width;
    row_info.rowbytes = 0;  /* not used */

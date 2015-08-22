@@ -59,6 +59,9 @@ int zlibuncompress (unsigned char **dest, size_t *destLen, const unsigned char *
     int err = inflateInit2(&stream, -15);
     if (err != Z_OK) return err;
     unsigned char *buf = (unsigned char *)malloc(BUFFER_SIZE);
+    if(!buf){
+        exit(1);
+    }
     stream.next_out = buf;
 
     while (err == Z_OK){

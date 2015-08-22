@@ -184,6 +184,9 @@ int ZopfliLengthLimitedCodeLengths(
 
   /* One leaf per symbol. Only numsymbols leaves will be used. */
   Node* leaves = (Node*)malloc(n * sizeof(*leaves));
+  if (!leaves){
+    exit(1);
+  }
 
   /* Initialize all bitlengths at 0. */
   for (i = 0; i < n; i++) {
@@ -221,12 +224,18 @@ int ZopfliLengthLimitedCodeLengths(
   NodePool pool;
   pool.size = 2 * maxbits * (maxbits + 1);
   pool.nodes = (Node*)malloc(pool.size * sizeof(*pool.nodes));
+  if (!pool.nodes){
+    exit(1);
+  }
   pool.next = pool.nodes;
   for (i = 0; i < pool.size; i++) {
     pool.nodes[i].inuse = 0;
   }
 
   Node* (*lists)[2] = (Node* (*)[2])malloc(maxbits * sizeof(*lists));
+  if (!lists || !lists[0] || !lists[1]){
+    exit(1);
+  }
   InitLists(&pool, leaves, maxbits, lists);
 
   /* In the last list, 2 * numsymbols - 2 active chains need to be created. Two

@@ -123,7 +123,10 @@ static void GetBestLengths(ZopfliBlockState *s,
                              SymbolStats* costcontext, unsigned short* length_array, unsigned char storeincache) {
   size_t i;
   float litlentable [259];
-  float disttable [32768];
+  float* disttable =(float*)malloc(32768 * sizeof(float));
+  if (!disttable){
+    exit(1);
+  }
   if (costcontext){  /* Dynamic Block */
     for (i = 3; i < 259; i++){
       litlentable[i] = costcontext->ll_symbols[ZopfliGetLengthSymbol(i)] + ZopfliGetLengthExtraBits(i);
@@ -206,6 +209,7 @@ static void GetBestLengths(ZopfliBlockState *s,
       disttable[i] = 13;
     }
   }
+  free(disttable);
 
   /* Best cost to get here so far. */
   size_t blocksize = inend - instart;
@@ -218,7 +222,7 @@ static void GetBestLengths(ZopfliBlockState *s,
   if (instart == inend) return;
 
   float* costs = (float*)malloc(sizeof(float) * (blocksize + 1));
-  if (!costs) exit(-1); /* Allocation failed. */
+  if (!costs) exit(1); /* Allocation failed. */
   costs[0] = 0;  /* Because it's the start. */
   memset(costs + 1, 127, sizeof(float) * blocksize);
 
@@ -417,7 +421,7 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
   RanState ran_state;
   int lastrandomstep = -1;
 
-  if (!length_array) exit(-1); /* Allocation failed. */
+  if (!length_array) exit(1); /* Allocation failed. */
 
   InitRanState(&ran_state);
   InitStats(&stats);
@@ -516,7 +520,7 @@ void ZopfliLZ77OptimalFixed(ZopfliBlockState *s,
 {
   /* Dist to get to here with smallest cost. */
   unsigned short* length_array = (unsigned short*)malloc(sizeof(unsigned short) * (inend - instart + 1));
-  if (!length_array) exit(-1); /* Allocation failed. */
+  if (!length_array) exit(1); /* Allocation failed. */
 
   s->blockstart = instart;
   s->blockend = inend;

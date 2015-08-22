@@ -31,6 +31,9 @@ void ZopfliLengthsToSymbols(const unsigned* lengths, size_t n, unsigned maxbits,
                             unsigned* symbols) {
   size_t* bl_count = (size_t*)calloc(maxbits + 1, sizeof(size_t));
   size_t* next_code = (size_t*)malloc(sizeof(size_t) * (maxbits + 1));
+  if (!bl_count || !next_code){
+    exit(1);
+  }
   unsigned i;
 
   /* 1) Count the number of codes for each code length. Let bl_count[N] be the

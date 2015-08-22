@@ -172,7 +172,7 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
   unsigned numblocks = 1;
   double splitcost, origcost;
   unsigned char* done = (unsigned char*)calloc(llsize, 1);
-  if (!done) exit(-1); /* Allocation failed. */
+  if (!done) exit(1); /* Allocation failed. */
   size_t lstart = 0;
   size_t lend = llsize;
   for (;;) {

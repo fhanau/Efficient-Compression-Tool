@@ -194,7 +194,7 @@ opng_transformer_t * opng_create_transformer()
 {
     opng_transformer_t * result = (opng_transformer_t *)calloc(1, sizeof(struct opng_transformer));
     if (result == NULL)
-        return NULL;
+        exit(1);
 
     opng_sigs_init(&result->strip_sigs);
     opng_sigs_init(&result->protect_sigs);

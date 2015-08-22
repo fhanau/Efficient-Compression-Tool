@@ -307,6 +307,9 @@ int Optipng(int level, const char * Infile, bool force_no_palette)
 {
     memset(&options, 0, sizeof(options));
     opng_optimizer *the_optimizer = opng_create_optimizer();
+    if (!the_optimizer){
+        exit(1);
+    }
     opng_transformer_t *the_transformer = opng_create_transformer();
     //Logging works only if NDEBUG is not defined and should be used only for testing
     //logging = true;

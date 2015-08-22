@@ -43,7 +43,7 @@ void ZopfliCopyLZ77Store(const ZopfliLZ77Store* source, ZopfliLZ77Store* dest) {
   dest->litlens = (unsigned short*)malloc(sizeof(*dest->litlens) * source->size);
   dest->dists = (unsigned short*)malloc(sizeof(*dest->dists) * source->size);
 
-  if (!dest->litlens || !dest->dists) exit(-1); /* Allocation failed. */
+  if (!dest->litlens || !dest->dists) exit(1); /* Allocation failed. */
 
   dest->size = source->size;
   for (i = 0; i < source->size; i++) {
