@@ -83,37 +83,6 @@ void opng_error(const char *fname, const char *message)
     fprintf(stderr, "%s: error: %s\n", fname != NULL ? fname : "ECT", message);
 }
 
-#ifndef NDEBUG
-
-static bool logging;
-
-/*
- * Prints a printf-formatted informational message (level = OPNG_MSG_INFO)
- * to the logger.
- */
-#ifdef __GNUC__
-__attribute__ ((format (printf, 1, 2)))
-#endif
-void opng_printf(const char *format, ...)
-{
-    if (!logging)
-        return;
-    va_list arg_ptr;
-    va_start(arg_ptr, format);
-    if (format[0] != 0)
-        vfprintf(stderr, format, arg_ptr);
-    va_end(arg_ptr);
-    return;
-}
-
-#else
-void opng_printf(
-#ifdef __GNUC__
-                 __attribute__((__unused__))
-#endif
-                 const char *format, ...){}
-#endif
-
 // Reads an image from an image file stream. Reduces the image if possible.
 static int opng_read_file(struct opng_session *session, FILE *stream, bool force_no_palette)
 {
@@ -200,7 +169,7 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
     {
         if (options->fix)
         {
-            opng_printf("Recoverable errors found in input. Fixing...\n");
+            //printf("Recoverable errors found in input. Fixing...\n");
         }
         else
         {

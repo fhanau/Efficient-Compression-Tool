@@ -174,12 +174,12 @@ static void opng_handle_chunk(png_structp png_ptr, png_bytep chunk_type)
         debug_chunk_name[4] = (char)0;
         if (opng_is_apng_chunk(chunk_type))
         {
-            opng_printf("Snipping: %s\n", debug_chunk_name);
+            /*printf("Snipping: %s\n", debug_chunk_name);*/
             stats->flags |= OPNG_HAS_SNIPPED_IMAGES;
         }
         else
         {
-            opng_printf("Stripping: %s\n", debug_chunk_name);
+            /*printf("Stripping: %s\n", debug_chunk_name);*/
             stats->flags |= OPNG_HAS_STRIPPED_METADATA;
         }
         opng_set_keep_unknown_chunk(png_ptr, PNG_HANDLE_CHUNK_NEVER, chunk_type);

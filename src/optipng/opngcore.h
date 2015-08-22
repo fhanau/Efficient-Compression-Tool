@@ -24,12 +24,6 @@ extern "C" {
 #endif
 
 /**
- * Prints a printf-formatted informational message (@c level = @c OPNG_MSG_INFO)
- * to the logger.
- **/
-void opng_printf(const char *format, ...);
-
-/**
  * Prints a warning message (@c level = @c OPNG_MSG_WARNING) to the logger.
  **/
 void opng_warning(const char *fname, const char *message);
