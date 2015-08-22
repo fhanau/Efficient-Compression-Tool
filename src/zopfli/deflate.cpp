@@ -422,10 +422,7 @@ static void OptimizeHuffmanForRle(unsigned length, size_t* counts) {
 
   /* 1) We don't want to touch the trailing zeros. We may break the
   rules of the format by adding more data in the distance codes. */
-  for (; length >= 0; --length) {
-    if (length == 0) {
-      return;
-    }
+  for (; length != 0; --length) {
     if (counts[length - 1] != 0) {
       /* Now counts[0..length - 1] does not have trailing zeros. */
       break;
