@@ -239,7 +239,7 @@ int main(int argc, const char * argv[]) {
     ECTOptions Options;
     Options.strip = false;
     Options.Progressive = false;
-    Options.Mode = 1;
+    Options.Mode = 2;
 #ifdef BOOST_SUPPORTED
     Options.Recurse = false;
 #endif
