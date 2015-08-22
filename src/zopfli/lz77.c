@@ -278,8 +278,7 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
       match = new - dist;
 
       /* Testing the byte at position bestlength first, goes slightly faster. */
-      if (pos + bestlength >= size
-          || *(scan + bestlength) == *(match + bestlength)) {
+      if (*(scan + bestlength) == *(match + bestlength)) {
 
 #ifdef ZOPFLI_HASH_SAME
         unsigned short same0 = h->same[hpos];
@@ -365,7 +364,6 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
   unsigned short pp = hpos;  /* During the whole loop, p == hprev[pp]. */
   unsigned short* hprev = h->prev;
   unsigned char hash2 = 0;
-  unsigned size2 = size - pos;
   unsigned short p = hprev[pp];
 
   unsigned dist = p < pp ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp); /* Not unsigned short on purpose. */
@@ -395,8 +393,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
     scan = new;
     match = scan - dist;
 
-    if (unlikely(bestlength >= size2
-                  || *(scan + bestlength) == *(match + bestlength))) {
+    if (unlikely(*(unsigned short*)(scan + bestlength -1) == *(unsigned short*)(match + bestlength-1))) {
 #ifdef ZOPFLI_HASH_SAME
       if (same0 > 2) {//TUNE THE TWO!!!
         unsigned short same1 = h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
@@ -454,7 +451,7 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
   size_t i = 0, j;
   unsigned short leng;
   unsigned short dist;
-  int lengthscore;
+  unsigned lengthscore;
   size_t windowstart = instart > ZOPFLI_WINDOW_SIZE
       ? instart - ZOPFLI_WINDOW_SIZE : 0;
   unsigned short dummysublen[259];
@@ -464,7 +461,7 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
 
   unsigned prev_length = 0;
   unsigned prev_match = 0;
-  int prevlengthscore;
+  unsigned prevlengthscore;
   int match_available = 0;
 
   if (instart == inend) return;

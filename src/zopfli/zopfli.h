@@ -81,11 +81,11 @@ typedef struct ZopfliOptions {
   unsigned searchext;
 
   /*Use per block multithreading*/
-  int multithreading;
+  unsigned multithreading;
 } ZopfliOptions;
 
 /* Initializes options with default values. */
-void ZopfliInitOptions(ZopfliOptions* options, int mode, int multithreading);
+void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithreading);
 
 /* Output format */
 typedef enum {

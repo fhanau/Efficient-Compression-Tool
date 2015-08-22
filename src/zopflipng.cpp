@@ -32,7 +32,7 @@
 struct ZopfliPNGOptions {
     ZopfliPNGOptions();
 
-    int Mode;
+    unsigned Mode;
 
     // Allow altering hidden colors of fully transparent pixels
     bool lossy_transparent;
@@ -44,7 +44,7 @@ struct ZopfliPNGOptions {
     bool strip;
 
     //Use per block multithreading
-    int multithreading;
+    unsigned multithreading;
 
 };
 
@@ -327,7 +327,7 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
     return error;
 }
 
-int Zopflipng(bool strip, const char * Infile, bool strict, int Mode, int filter, int multithreading) {
+int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int filter, unsigned multithreading) {
     ZopfliPNGOptions png_options;
     png_options.Mode = Mode;
     png_options.multithreading = multithreading;

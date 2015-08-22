@@ -147,7 +147,7 @@ static void CompressFile(const ZopfliOptions* options,
   free(in);
 }
 
-int ZopfliGzip(const char* filename, const char* outname, int mode, int multithreading) {
+int ZopfliGzip(const char* filename, const char* outname, unsigned mode, unsigned multithreading) {
   ZopfliOptions options;
   //ZopfliFormat output_type = ZOPFLI_FORMAT_GZIP;
   //output_type = ZOPFLI_FORMAT_ZLIB;

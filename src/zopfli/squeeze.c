@@ -451,10 +451,6 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
     stats.ll_symbols[255] -= 0.5;
     stats.ll_symbols[257] -= 1.2;
     stats.ll_symbols[258] += 0.3;
-
-    for (unsigned i = 259; i < 272; i++){
-        ll_symbols[i] += 0.1;
-    }
     stats.ll_symbols[272] += 1.2;
     stats.ll_symbols[282] += 0.2;
     stats.ll_symbols[283] += 0.2;
