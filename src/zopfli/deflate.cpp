@@ -367,7 +367,7 @@ static size_t CalculateBlockSymbolSize(const unsigned* ll_lengths,
     for (i = 0; i < 259; i++){
       ll_table[i] = ll_lengths[ZopfliGetLengthSymbol(i)] + ZopfliGetLengthExtraBits(i);
     }
-    unsigned char* d_table = (unsigned char*)malloc(32768 * sizeof(unsigned));
+    unsigned char* d_table = (unsigned char*)malloc(32768 * sizeof(unsigned char));
     if (!d_table){
       exit(1);
     }
