@@ -273,39 +273,36 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
   const unsigned char* new = &array[pos];
   /* Go through all distances. */
   while (dist < ZOPFLI_WINDOW_SIZE) {
-    if (dist > 0) {
-      scan = new;
-      match = new - dist;
+    scan = new;
+    match = new - dist;
 
-      /* Testing the byte at position bestlength first, goes slightly faster. */
-      if (*(scan + bestlength) == *(match + bestlength)) {
-
+    /* Testing the byte at position bestlength first, goes slightly faster. */
+    if (unlikely(*(unsigned short*)(scan + bestlength - 1) == *(unsigned short*)(match + bestlength - 1))) {
 #ifdef ZOPFLI_HASH_SAME
-        unsigned short same0 = h->same[hpos];
-        if (same0 > 2) {
-          unsigned short same1 = h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
-          unsigned short same = same0 < same1 ? same0 : same1;
-          if (same > limit) same = limit;
-          scan += same;
-          match += same;
-        }
+      unsigned short same0 = h->same[hpos];
+      if (same0 > 2) {
+        unsigned short same1 = h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
+        unsigned short same = same0 < same1 ? same0 : same1;
+        if (same > limit) same = limit;
+        scan += same;
+        match += same;
+      }
 #endif
-        scan = GetMatch(scan, match, arrayend
+      scan = GetMatch(scan, match, arrayend
 #ifndef __GNUC__
-                        , arrayend_safe
+                      , arrayend_safe
 #endif
-                        );
-        unsigned short currentlength = scan - new;  /* The found length. */
-        if (currentlength > bestlength) {
-          if (sublen) {
-            for (unsigned short j = bestlength + 1; j <= currentlength; j++) {
-              sublen[j] = dist;
-            }
+                      );
+      unsigned short currentlength = scan - new;  /* The found length. */
+      if (currentlength > bestlength) {
+        if (sublen) {
+          for (unsigned short j = bestlength + 1; j <= currentlength; j++) {
+            sublen[j] = dist;
           }
-          bestdist = dist;
-          bestlength = currentlength;
-          if (currentlength >= limit) break;
         }
+        bestdist = dist;
+        bestlength = currentlength;
+        if (currentlength >= limit) break;
       }
     }
 
@@ -382,13 +379,6 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
   const unsigned char* scan;
   const unsigned char* match;
   /* Go through all distances. */
-  if (dist == 0){
-    pp = p;
-    p = hprev[p];
-
-    dist += p < pp ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp);
-    chain_counter--;
-  }
   while (dist < ZOPFLI_WINDOW_SIZE) {
     scan = new;
     match = scan - dist;
