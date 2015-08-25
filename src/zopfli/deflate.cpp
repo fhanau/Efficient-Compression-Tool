@@ -644,7 +644,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
     ZopfliLZ77OptimalFixed(&s, in, instart, inend, &store);
   }
   else{
-    ZopfliLZ77Optimal(&s, in, instart, inend, &store);
+    ZopfliLZ77Optimal2(&s, in, instart, inend, &store);
   }
 
 
@@ -704,7 +704,7 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
     ZopfliLZ77OptimalFixed(&s, in, instart, inend, &store->store);
   }
   else{
-    ZopfliLZ77Optimal(&s, in, instart, inend, &store->store);
+    ZopfliLZ77Optimal2(&s, in, instart, inend, &store->store);
   }
 
   /* For small block, encoding with fixed tree can be smaller. For large block,

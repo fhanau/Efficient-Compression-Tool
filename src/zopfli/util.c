@@ -203,13 +203,13 @@ unsigned ZopfliGetLengthSymbol(unsigned l) {
   return table[l];
 }
 
-void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithreading) {
+void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithreading, unsigned isPNG) {
   if (mode < 3) {
     options->numiterations = 1;
-    options->chain_length = 400;
+    options->chain_length = 415;
     options->lengthscoresearch = 600;
-    options->noblocksplitlz = 1000;
     options->cheapsearch = 0;
+    options->noblocksplitlz = 512;
   }
   else if (mode < 4) {
     options->numiterations = 4;
@@ -220,7 +220,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   }
   else {
     options->lengthscoresearch = 1024;
-    options->noblocksplitlz = 25;
+    options->noblocksplitlz = 100;
     if (mode < 5) {
     options->numiterations = 15;
     options->chain_length = 8192;
@@ -233,9 +233,10 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
     }
   }
   options->num = mode < 3 ? 3 : 9;
-  options->skipdynamic = mode > 2 ? 80 : 400;
+  options->skipdynamic = mode > 3 ? 80 : 200;
   options->blocksplittingmax = mode > 2 ? 0 : 15;
-  options->trystatic = mode > 3 ? 2000 : 800;
+  options->trystatic = mode > 2 ? 800 : 0;
   options->noblocksplit = 1400;
   options->multithreading = multithreading;
+  options->isPNG = isPNG;
 }

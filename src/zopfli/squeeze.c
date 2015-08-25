@@ -40,15 +40,6 @@ typedef struct SymbolStats {
   float d_symbols[32];  /* Length of each dist symbol in bits. */
 } SymbolStats;
 
-/* Sets everything to 0. */
-static void InitStats(SymbolStats* stats) {
-  memset(stats->litlens, 0, 288 * sizeof(stats->litlens[0]));
-  memset(stats->dists, 0, 32 * sizeof(stats->dists[0]));
-
-  memset(stats->ll_symbols, 0, 288 * sizeof(stats->ll_symbols[0]));
-  memset(stats->d_symbols, 0, 32 * sizeof(stats->d_symbols[0]));
-}
-
 static void CopyStats(SymbolStats* source, SymbolStats* dest) {
   memcpy(dest->litlens, source->litlens, 288 * sizeof(dest->litlens[0]));
   memcpy(dest->dists, source->dists, 32 * sizeof(dest->dists[0]));
@@ -100,12 +91,6 @@ static void RandomizeStatFreqs(RanState* state, SymbolStats* stats) {
   stats->litlens[256] = 1;  /* End symbol. */
 }
 
-static void ClearStatFreqs(SymbolStats* stats) {
-  size_t i;
-  for (i = 0; i < 288; i++) stats->litlens[i] = 0;
-  for (i = 0; i < 32; i++) stats->dists[i] = 0;
-}
-
 /*
 Performs the forward pass for "squeeze". Gets the most optimal length to reach
 every byte from a previous byte, using cost calculations.
@@ -117,17 +102,20 @@ costcontext: abstract context for the costmodel function
 length_array: output array of size (inend - instart) which will receive the best
     length to reach this byte from a previous byte.
 */
+
 static void GetBestLengths(ZopfliBlockState *s,
                              const unsigned char* in,
                              size_t instart, size_t inend,
                              SymbolStats* costcontext, unsigned short* length_array, unsigned char storeincache) {
   size_t i;
+
   float litlentable [259];
-  float* disttable =(float*)malloc(32768 * sizeof(float));
+  float* disttable = (float*)malloc(32768 * sizeof(float));
   if (!disttable){
     exit(1);
   }
   if (costcontext){  /* Dynamic Block */
+
     for (i = 3; i < 259; i++){
       litlentable[i] = costcontext->ll_symbols[ZopfliGetLengthSymbol(i)] + ZopfliGetLengthExtraBits(i);
     }
@@ -209,7 +197,6 @@ static void GetBestLengths(ZopfliBlockState *s,
       disttable[i] = 13;
     }
   }
-  free(disttable);
 
   /* Best cost to get here so far. */
   size_t blocksize = inend - instart;
@@ -276,6 +263,7 @@ static void GetBestLengths(ZopfliBlockState *s,
   }
 
   ZopfliCleanHash(h);
+  free(disttable);
   free(costs);
 }
 
@@ -368,6 +356,9 @@ static void CalculateStatistics(SymbolStats* stats) {
 
 /* Appends the symbol statistics from the store. */
 static void GetStatistics(const ZopfliLZ77Store* store, SymbolStats* stats) {
+  memset(stats->litlens, 0, 288 * sizeof(stats->litlens[0]));
+  memset(stats->dists, 0, 32 * sizeof(stats->dists[0]));
+
   size_t i;
   for (i = 0; i < store->size; i++) {
     if (store->dists[i] == 0) {
@@ -424,7 +415,6 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
   if (!length_array) exit(1); /* Allocation failed. */
 
   InitRanState(&ran_state);
-  InitStats(&stats);
   ZopfliInitLZ77Store(&currentstore);
 
   /* Do regular deflate, then loop multiple shortest path runs, each time using
@@ -434,11 +424,62 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
   ZopfliLZ77Greedy(s, in, instart, inend, &currentstore, 0);
   GetStatistics(&currentstore, &stats);
 
-  /*TODO:Corrections for cost model inaccuracies. There is still much potential here
-   Enable this in Mode 3, too, though less aggressive*/
-  if (s->options->numiterations == 1){
+  /* Repeat statistics with each time the cost model from the previous stat
+  run. */
+  for (int i = 1; i < s->options->numiterations+1; i++) {
+    ZopfliCleanLZ77Store(&currentstore);
+    ZopfliInitLZ77Store(&currentstore);
+    LZ77OptimalRun(s, in, instart, inend, length_array, &stats, &currentstore, i == 1 && i != s->options->numiterations);
+
+    cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists,
+                                    0, currentstore.size, 2, 1);
+    if (cost < bestcost) {
+      /* Copy to the output store. */
+      ZopfliCopyLZ77Store(&currentstore, store);
+      CopyStats(&stats, &beststats);
+      bestcost = cost;
+    }
+    CopyStats(&stats, &laststats);
+    GetStatistics(&currentstore, &stats);
+    if (lastrandomstep != -1) {
+      /* This makes it converge slower but better. Do it only once the
+      randomness kicks in so that if the user does few iterations, it gives a
+      better result sooner. */
+      AddWeighedStatFreqs(&stats, 1.0, &laststats, 0.5, &stats);
+      CalculateStatistics(&stats);
+    }
+    if (i > 6 && cost == lastcost) {
+      CopyStats(&beststats, &stats);
+      RandomizeStatFreqs(&ran_state, &stats);
+      CalculateStatistics(&stats);
+      lastrandomstep = i;
+    }
+    lastcost = cost;
+  }
+
+  free(length_array);
+  ZopfliCleanLZ77Store(&currentstore);
+}
+
+void ZopfliLZ77Optimal2(ZopfliBlockState *s,
+                        const unsigned char* in, size_t instart, size_t inend,
+                        ZopfliLZ77Store* store) {
+  if (s->options->numiterations != 1){
+    ZopfliLZ77Optimal(s, in, instart, inend, store);
+    return;
+  }
+  /* Dist to get to here with smallest cost. */
+  unsigned short* length_array = (unsigned short*)malloc(sizeof(unsigned short) * (inend - instart + 1));
+  if (!length_array) exit(1); /* Allocation failed. */
+
+  SymbolStats stats;
+  ZopfliLZ77Greedy(s, in, instart, inend, store, 0);
+  GetStatistics(store, &stats);
+  if (s->options->isPNG){
+    /*TODO:Corrections for cost model inaccuracies. There is still much potential here
+    Enable this in Mode 3, too, though less aggressive*/
     for (unsigned i = 0; i < 256; i++){
-        stats.ll_symbols[i] -= 0.4;
+      stats.ll_symbols[i] -= 0.4;
     }
     if (inend - instart < 1000){
       for (unsigned i = 0; i < 256; i++){
@@ -473,40 +514,12 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
   }
 
   /* Repeat statistics with each time the cost model from the previous stat
-  run. */
-  for (int i = 1; i < s->options->numiterations+1; i++) {
-    ZopfliCleanLZ77Store(&currentstore);
-    ZopfliInitLZ77Store(&currentstore);
-    LZ77OptimalRun(s, in, instart, inend, length_array, &stats, &currentstore, i != s->options->numiterations);
-    cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists,
-                                    0, currentstore.size, 2, 1);
-    if (cost < bestcost) {
-      /* Copy to the output store. */
-      ZopfliCopyLZ77Store(&currentstore, store);
-      CopyStats(&stats, &beststats);
-      bestcost = cost;
-    }
-    CopyStats(&stats, &laststats);
-    ClearStatFreqs(&stats);
-    GetStatistics(&currentstore, &stats);
-    if (lastrandomstep != -1) {
-      /* This makes it converge slower but better. Do it only once the
-      randomness kicks in so that if the user does few iterations, it gives a
-      better result sooner. */
-      AddWeighedStatFreqs(&stats, 1.0, &laststats, 0.5, &stats);
-      CalculateStatistics(&stats);
-    }
-    if (i > 6 && cost == lastcost) {
-      CopyStats(&beststats, &stats);
-      RandomizeStatFreqs(&ran_state, &stats);
-      CalculateStatistics(&stats);
-      lastrandomstep = i;
-    }
-    lastcost = cost;
-  }
+   run. */
+  ZopfliCleanLZ77Store(store);
+  ZopfliInitLZ77Store(store);
+  LZ77OptimalRun(s, in, instart, inend, length_array, &stats, store, 0);
 
   free(length_array);
-  ZopfliCleanLZ77Store(&currentstore);
 }
 
 void ZopfliLZ77OptimalFixed(ZopfliBlockState *s,
@@ -517,9 +530,6 @@ void ZopfliLZ77OptimalFixed(ZopfliBlockState *s,
   /* Dist to get to here with smallest cost. */
   unsigned short* length_array = (unsigned short*)malloc(sizeof(unsigned short) * (inend - instart + 1));
   if (!length_array) exit(1); /* Allocation failed. */
-
-  s->blockstart = instart;
-  s->blockend = inend;
 
   /* Shortest path for fixed tree This one should give the shortest possible
   result for fixed tree, no repeated runs are needed since the tree is known. */

@@ -48,6 +48,10 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
                        const unsigned char* in, size_t instart, size_t inend,
                        ZopfliLZ77Store* store);
 
+    void ZopfliLZ77Optimal2(ZopfliBlockState *s,
+                           const unsigned char* in, size_t instart, size_t inend,
+                           ZopfliLZ77Store* store);
+
 /*
 Does the same as ZopfliLZ77Optimal, but optimized for the fixed tree of the
 deflate standard.

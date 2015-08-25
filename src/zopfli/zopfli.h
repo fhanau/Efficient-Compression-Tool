@@ -82,10 +82,14 @@ typedef struct ZopfliOptions {
 
   /*Use per block multithreading*/
   unsigned multithreading;
+
+  /*Use tuning for PNG files*/
+  unsigned isPNG;
+
 } ZopfliOptions;
 
 /* Initializes options with default values. */
-void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithreading);
+void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithreading, unsigned isPNG);
 
 /* Output format */
 typedef enum {
