@@ -125,21 +125,25 @@ void LoopedUpdateHash(const unsigned char* array, size_t pos, size_t end,
   if (end - pos > 65536){
     end = pos + 65536;
   }
-  unsigned short hposs[n];
+  unsigned short* hposstore = malloc(n * sizeof(unsigned short));
+  if (!hposstore){
+    exit(-1);
+  }
+
   unsigned i;
   for (i = 0; i < n; i++, pos++){
-    hposs[i] = pos & ZOPFLI_WINDOW_MASK;
+    hposstore[i] = pos & ZOPFLI_WINDOW_MASK;
   }
   pos -= n;
 
   for (i = 0; i < n; i++, pos++){
     h->val = pos + ZOPFLI_MIN_MATCH <= end ? ((h->val << HASH_SHIFT) ^ array[pos + ZOPFLI_MIN_MATCH - 1]) & HASH_MASK : 0;
-    h->hashval[hposs[i]] = h->val;
+    h->hashval[hposstore[i]] = h->val;
     if (h->head[h->val] != -1 && h->hashval[h->head[h->val]] == h->val) {
-      h->prev[hposs[i]] = h->head[h->val];
+      h->prev[hposstore[i]] = h->head[h->val];
     }
-    else h->prev[hposs[i]] = hposs[i];
-    h->head[h->val] = hposs[i];
+    else h->prev[hposstore[i]] = hposstore[i];
+    h->head[h->val] = hposstore[i];
 
 #ifdef ZOPFLI_HASH_SAME
     unsigned short amount = 0;
@@ -152,19 +156,21 @@ void LoopedUpdateHash(const unsigned char* array, size_t pos, size_t end,
            array[pos] == array[pos + amount + 1]) {
       amount++;
     }
-    h->same[hposs[i]] = amount;
+    h->same[hposstore[i]] = amount;
 
 #ifdef ZOPFLI_HASH_SAME_HASH
-    h->val2 = ((h->same[hposs[i]] - ZOPFLI_MIN_MATCH) & 255) ^ h->val;
-    h->hashval2[hposs[i]] = h->val2;
+    h->val2 = ((h->same[hposstore[i]] - ZOPFLI_MIN_MATCH) & 255) ^ h->val;
+    h->hashval2[hposstore[i]] = h->val2;
     if (h->head2[h->val2] != -1 && h->hashval2[h->head2[h->val2]] == h->val2) {
-      h->prev2[hposs[i]] = h->head2[h->val2];
+      h->prev2[hposstore[i]] = h->head2[h->val2];
     }
-    else h->prev2[hposs[i]] = hposs[i];
-    h->head2[h->val2] = hposs[i];
+    else h->prev2[hposstore[i]] = hposstore[i];
+    h->head2[h->val2] = hposstore[i];
 #endif
 #endif
   }
+
+  free(hposstore);
 }
 
 void ZopfliWarmupHash(const unsigned char* array, size_t pos, ZopfliHash* h) {
