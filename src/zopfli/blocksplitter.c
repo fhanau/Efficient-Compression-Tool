@@ -44,74 +44,70 @@ typedef struct SplitCostContext {
  Gets the cost which is the sum of the cost of the left and the right section
  of the data.
  */
-static double SplitCost(size_t i, SplitCostContext* c) {
-  return ZopfliCalculateBlockSize(c->litlens, c->dists, c->start, i, 2, 0) +
-  ZopfliCalculateBlockSize(c->litlens, c->dists, i, c->end, 2, 0);
+static double SplitCost(size_t i, SplitCostContext* c, double* first, double* second) {
+  *first = ZopfliCalculateBlockSize(c->litlens, c->dists, c->start, i, 2, 0);
+  *second = ZopfliCalculateBlockSize(c->litlens, c->dists, i, c->end, 2, 0);
+  return *first + *second;
 }
 
 /*
 Finds minimum of function f(i) where is is of type size_t, f(i) is of type
 double, i is in range start-end (excluding end).
 */
-static size_t FindMinimum(SplitCostContext* context,
-                          size_t start, size_t end, const ZopfliOptions* options) {
-  if (end - start < options->cheapsearch) {
-    double best = ZOPFLI_LARGE_FLOAT;
-    size_t result = start;
-    size_t i;
-    for (i = start; i < end; i++) {
-      double v = SplitCost(i, context);
-      if (v < best) {
-        best = v;
-        result = i;
-      }
-    }
-    return result;
-  } else {
-    /* Try to find minimum faster by recursively checking multiple points. */
+static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, double* size, double* biggersize, const ZopfliOptions* options) {
+  size_t startsize = end - start;
+  size_t shorten = (end - start) / 200;
+  end -= shorten;
+  start += shorten;
+  /* Try to find minimum faster by recursively checking multiple points. */
 #define NUM 9  /* Good value: 9. */
-    size_t i;
-    size_t p[NUM];
-    double vp[NUM];
-    double prevstore = -1;
-    double prevpos;
-    size_t besti;
-    double best;
-    double lastbest = ZOPFLI_LARGE_FLOAT;
-    size_t pos = start;
-    for (;;) {
-      if (end - start <= options->num) break;
+  size_t i;
+  size_t p[NUM];
+  double first, second;
+  double vp[NUM];
+  double prevstore = -1;
+  double prevpos = ZOPFLI_LARGE_FLOAT;
+  size_t besti;
+  double best;
+  double lastbest = ZOPFLI_LARGE_FLOAT;
+  size_t pos = start;
+  size_t ostart = start;
+  size_t oend = end;
+  //pos
+  for (;;) {
+    if (end - start <= options->num) break;
+    if (end - start <= startsize/100 && startsize > 600 && options->num == 3) break;
 
-      for (i = 0; i < options->num; i++) {
-        p[i] = start + (i + 1) * ((end - start) / (options->num + 1));
-        if (options->num % 2 == 1 && i == (options->num - 1) / 2 && prevstore != -1 && (prevpos == p[i]  || options->num == 3)){
-          vp[i] = best;
-          continue;
-        }
-        vp[i] = SplitCost(p[i], context);
+    for (i = 0; i < options->num; i++) {
+      p[i] = start + (i + 1) * ((end - start) / (options->num + 1));
+      if (options->num % 2 && i == (options->num - 1) / 2 && prevstore != -1 && (prevpos == p[i]  || options->num == 3)){
+        vp[i] = best;
+        continue;
       }
-      besti = 0;
-      best = vp[0];
-      prevstore = best;
-      for (i = 1; i < options->num; i++) {
-        if (vp[i] < best) {
-          best = vp[i];
-          besti = i;
-          prevpos = vp[i];
-          //prevstore = vp[i];
-        }
-      }
-      if (best > lastbest) break;
-
-      start = besti == 0 ? start : p[besti - 1];
-      end = besti == options->num - 1 ? end : p[besti + 1];
-
-      pos = p[besti];
-      lastbest = best;
+      vp[i] = SplitCost(p[i], context, &first, &second);
     }
-    return pos;
-#undef NUM
+    besti = 0;
+    best = vp[0];
+    prevstore = best;
+    for (i = 1; i < options->num; i++) {
+      if (vp[i] < best) {
+        best = vp[i];
+        besti = i;
+        prevpos = vp[i];
+      }
+    }
+    if (best > lastbest) break;
+
+    start = besti == 0 ? start : p[besti - 1];
+    end = besti == options->num - 1 ? end : p[besti + 1];
+
+    pos = p[besti];
+    lastbest = best;
   }
+  *size = best;
+  *biggersize = oend - pos > pos - ostart ? second : first;
+  return pos;
+#undef NUM
 }
 
 static void AddSorted(size_t value, size_t** out, size_t* outsize) {
@@ -153,9 +149,11 @@ static int FindLargestSplittableBlock(
     size_t start = i == 0 ? 0 : splitpoints[i - 1];
     size_t end = i == npoints ? llsize - 1 : splitpoints[i];
     if (!done[start] && end - start > longest) {
+      int st = (*lstart == start);
+      int en = (*lend == end);
+      found = 1 + st + en;// + *lstart == start + 2 * (*lend == end);
       *lstart = start;
       *lend = end;
-      found = 1;
       longest = end - start;
     }
   }
@@ -171,6 +169,9 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
   size_t llpos;
   unsigned numblocks = 1;
   double splitcost, origcost;
+  double prevcost = ZOPFLI_LARGE_FLOAT;
+  double nprevcost;
+  int splittingleft = 0;
   unsigned char* done = (unsigned char*)calloc(llsize, 1);
   if (!done) exit(1); /* Allocation failed. */
   size_t lstart = 0;
@@ -188,13 +189,17 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
     c.start = lstart;
     c.end = lend;
     assert(lstart < lend);
-    llpos = FindMinimum(&c, lstart + 1, lend, options);
+    llpos = FindMinimum(&c, lstart + 1, lend, &splitcost, &nprevcost, options);
     assert(llpos > lstart);
     assert(llpos < lend);
 
-    splitcost = ZopfliCalculateBlockSize(litlens, dists, lstart, llpos, 2, 0) +
-        ZopfliCalculateBlockSize(litlens, dists, llpos, lend, 2, 0);
+    if (prevcost == ZOPFLI_LARGE_FLOAT || splittingleft == 1){
     origcost = ZopfliCalculateBlockSize(litlens, dists, lstart, lend, 2, 0);
+    }
+    else {
+      origcost = prevcost;
+    }
+    prevcost = nprevcost;
 
     if (splitcost > origcost || llpos == lstart + 1 || llpos == lend) {
       done[lstart] = 1;
@@ -203,8 +208,9 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
       numblocks++;
     }
 
-    if (!FindLargestSplittableBlock(
-        llsize, done, *splitpoints, *npoints, &lstart, &lend)) {
+
+    splittingleft = FindLargestSplittableBlock(llsize, done, *splitpoints, *npoints, &lstart, &lend);
+    if (!splittingleft) {
       break;  /* No further split will probably reduce compression. */
     }
 

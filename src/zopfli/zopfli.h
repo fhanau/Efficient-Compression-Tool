@@ -71,9 +71,6 @@ typedef struct ZopfliOptions {
   /* Don't blocksplit under this size (LZ77'd data). */
   unsigned noblocksplitlz;
 
-  /* Use cheap splitpoint search above this value. */
-  unsigned cheapsearch;
-
   /* Number of parralel block split point searches*/
   unsigned num;
 
