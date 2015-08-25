@@ -13,7 +13,7 @@
 
 static unsigned long processedfiles;
 static size_t bytes;
-static size_t savings;
+static long long savings;
 
 static void Usage() {
     printf (
@@ -63,34 +63,43 @@ static void Usage() {
 
 static void ECT_ReportSavings(){
     if (processedfiles){
-    int bk = 0;
-    int k = 0;
-    double smul = savings;
-    double bmul = bytes;
-    while (smul > 1024) {smul /= 1024; k++;}
-    while (bmul > 1024) {bmul /= 1024; bk++;}
-    char *counter;
-    if (k == 1) {counter = (char *)"K";}
-    else if (k == 2) {counter = (char *)"M";}
-    else if (k == 3) {counter = (char *)"G";}
-    else {counter = (char *)"";}
-    char *counter2;
-    if (bk == 1){counter2 = (char *)"K";}
-    else if (bk == 2){counter2 = (char *)"M";}
-    else if (bk == 3){counter2 = (char *)"G";}
-    else {counter2 = (char *)"";}
-    printf("Processed %lu file%s\n"
-           "Saved ", processedfiles, processedfiles > 1 ? "s":"");
-    if (k == 0){printf("%0.0f", smul);}
-    else{printf("%0.2f", smul);}
-    printf("%sB out of ", counter);
-    if (bk == 0){printf("%0.0f", bmul);}
-    else{printf("%0.2f", bmul);}
-    printf("%sB (%0.3f%%)\n", counter2, (100.0 * savings)/bytes);}
+        printf("Processed %lu file%s\n", processedfiles, processedfiles > 1 ? "s":"");
+        if (savings < 0){
+            printf("Result is bigger\n");
+            return;
+        }
+
+        int bk = 0;
+        int k = 0;
+        double smul = savings;
+        double bmul = bytes;
+        while (smul > 1024) {smul /= 1024; k++;}
+        while (bmul > 1024) {bmul /= 1024; bk++;}
+        char *counter;
+        if (k == 1) {counter = (char *)"K";}
+        else if (k == 2) {counter = (char *)"M";}
+        else if (k == 3) {counter = (char *)"G";}
+        else {counter = (char *)"";}
+        char *counter2;
+        if (bk == 1){counter2 = (char *)"K";}
+        else if (bk == 2){counter2 = (char *)"M";}
+        else if (bk == 3){counter2 = (char *)"G";}
+        else {counter2 = (char *)"";}
+        printf("Saved ");
+        if (k == 0){printf("%0.0f", smul);}
+        else{printf("%0.2f", smul);}
+        printf("%sB out of ", counter);
+        if (bk == 0){printf("%0.0f", bmul);}
+        else{printf("%0.2f", bmul);}
+        printf("%sB (%0.4f%%)\n", counter2, (100.0 * savings)/bytes);}
     else {printf("No compatible files found\n");}
 }
 
-static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multithreading){
+static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multithreading, long long fs){
+    if (!fs){
+        printf("%s: Compression of empty files is currently not supported\n", Infile);
+        return 2;
+    }
     if (!IsGzip(Infile)){
         if (exists(((std::string)Infile).append(".gz").c_str())){
             return 2;
@@ -204,8 +213,12 @@ static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
 
     if ((Options.PNG_ACTIVE && (x == "PNG" || x == "png")) || (Options.JPEG_ACTIVE && (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg")) || Options.Gzip){
         long long size = filesize(Infile);
-        int statcompressedfile = 0;
-        if (size<100000000) {
+        if (size < 0){
+            printf("%s: bad file\n", Infile);
+            return;
+        }
+        bool statcompressedfile = 0;
+        if (size < 1200000000) {//completely random value
             if (x == "PNG" || x == "png"){
                 OptimizePNG(Infile, Options);
             }
@@ -213,7 +226,8 @@ static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
                 OptimizeJPEG(Infile, Options);
             }
             else if (Options.Gzip){
-                statcompressedfile = ECTGzip(Infile, Options.Mode, Options.DeflateMultithreading);
+                //if (!size)
+                statcompressedfile = ECTGzip(Infile, Options.Mode, Options.DeflateMultithreading, size);
             }
             if(Options.SavingsCounter){
                 processedfiles++;
@@ -222,7 +236,7 @@ static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
                 savings = savings + size - filesize(Infile);
                 }
                 else if (statcompressedfile){
-                    savings = savings + size - filesize(((std::string)Infile).append(".gz").c_str());
+                    savings += (size - filesize(((std::string)Infile).append(".gz").c_str()));
                 }
             }
         }

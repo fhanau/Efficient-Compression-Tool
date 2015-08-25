@@ -40,7 +40,7 @@ static void ZopfliGzipCompress(const ZopfliOptions* options,
   ZOPFLI_APPEND_DATA(139, out, outsize);  /* ID2 */
   ZOPFLI_APPEND_DATA(8, out, outsize);  /* CM */
   ZOPFLI_APPEND_DATA(0, out, outsize);  /* FLG */
-  /* MTIME */
+  /* TODO:MTIME */
   ZOPFLI_APPEND_DATA(0, out, outsize);
   ZOPFLI_APPEND_DATA(0, out, outsize);
   ZOPFLI_APPEND_DATA(0, out, outsize);
@@ -81,7 +81,7 @@ static void ZopfliCompress(const ZopfliOptions* options, ZopfliFormat output_typ
  Loads a file into a memory array.
  */
 static void LoadFile(const char* filename,
-                     unsigned char** out, size_t* outsize) {
+                     unsigned char** out, long long* outsize) {
   FILE* file = fopen(filename, "rb");
   if (!file) return;
 
@@ -90,20 +90,19 @@ static void LoadFile(const char* filename,
   rewind(file);
 
   *out = (unsigned char*)malloc(*outsize);
-
-  if (*outsize && (*out)) {
+  if (!*out && *outsize){
+    exit(1);
+  }
+  if (*outsize) {
     size_t testsize = fread(*out, 1, *outsize, file);
     if (testsize != *outsize) {
       /* It could be a directory */
       free(*out);
       *out = 0;
-      *outsize = 0;
+      *outsize = -1;
     }
   }
-  if (!(*outsize) && !out){ /* If size is not zero, out must be allocated. */
-    printf ("Memory error");
-    exit(1);
-  }
+
   fclose(file);
 }
 
@@ -112,13 +111,13 @@ static void LoadFile(const char* filename,
  */
 static void SaveFile(const char* filename,
                      const unsigned char* in, size_t insize) {
-  FILE* file = fopen(filename, "wb" );
+  FILE* file = fopen(filename, "wb");
   if (!file){
     printf ("Can't write to file");
   }
   else {
-  fwrite((char*)in, 1, insize, file);
-  fclose(file);
+    fwrite((char*)in, 1, insize, file);
+    fclose(file);
   }
 }
 
@@ -130,11 +129,11 @@ static void CompressFile(const ZopfliOptions* options,
                          const char* infilename,
                          const char* outfilename) {
   unsigned char* in;
-  size_t insize;
+  long long insize = -1;
   unsigned char* out = 0;
   size_t outsize = 0;
   LoadFile(infilename, &in, &insize);
-  if (insize == 0) {
+  if (insize < 0) {
     fprintf(stderr, "Invalid filename: %s\n", infilename);
     return;
   }
