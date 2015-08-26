@@ -96,20 +96,37 @@ static const unsigned char* GetMatch(const unsigned char* scan,
 #endif
 ) {
 #ifdef __GNUC__
-
-    /* Optimized Function based on cloudflare's zlib fork. Using AVX for 32 Checks at once may be even faster but currently there is no ctz function for vectors so the old approach would be neccesary again. */
-  do {
-    unsigned long sv = *(unsigned long*)(void*)scan;
-    unsigned long mv = *(unsigned long*)(void*)match;
-    unsigned long xor = sv ^ mv;
-    if (xor) {
-      scan += __builtin_ctzl(xor) / 8;
-      break;
-    } else {
-      scan += 8;
-      match += 8;
-    }
-  } while (scan < end);
+  /* Optimized Function based on cloudflare's zlib fork. Using AVX for 32 Checks at once may be even faster but currently there is no ctz function for vectors so the old approach would be neccesary again. */
+  if (sizeof(size_t) == 8) {
+    do {
+      unsigned long sv = *(unsigned long*)(void*)scan;
+      unsigned long mv = *(unsigned long*)(void*)match;
+      unsigned long xor = sv ^ mv;
+      if (xor) {
+        scan += __builtin_ctzl(xor) / 8;
+        break;
+      }
+      else {
+        scan += 8;
+        match += 8;
+      }
+    } while (scan < end);
+  }
+  else {
+    do {
+      unsigned sv = *(unsigned*)(void*)scan;
+      unsigned mv = *(unsigned*)(void*)match;
+      unsigned xor = sv ^ mv;
+      if (xor) {
+        scan += __builtin_ctzl(xor) / 4;
+        break;
+      }
+      else {
+        scan += 4;
+        match += 4;
+      }
+    } while (scan < end);
+  }
 
   if (unlikely(scan > end))
     scan = end;
