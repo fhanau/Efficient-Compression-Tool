@@ -207,17 +207,14 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   if (mode < 3) {
     options->numiterations = 1;
     options->chain_length = 415;
-    options->lengthscoresearch = 600;
     options->noblocksplitlz = 512;
   }
   else if (mode < 4) {
     options->numiterations = 4;
     options->chain_length = 1000;
-    options->lengthscoresearch = 768;
     options->noblocksplitlz = 200;
   }
   else {
-    options->lengthscoresearch = 1024;
     options->noblocksplitlz = 100;
     if (mode < 5) {
     options->numiterations = 15;

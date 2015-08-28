@@ -573,7 +573,6 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
 
     ZopfliFindLongestMatch(s, h, in, i, inend, ZOPFLI_MAX_MATCH, dummysublen,
                            &dist, &leng, 0);
-    lengthscore = dist > s->options->lengthscoresearch ? leng - 1 : leng;
 
     lengthscore = leng;
     /*TODO: Tuned for M2. Other values(likely higher) will be better for higher modes*/
@@ -598,7 +597,6 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
     }
 
     /* Lazy matching. */
-    prevlengthscore = prev_match > s->options->lengthscoresearch ? prev_length - 1 : prev_length;
 
     prevlengthscore = prev_length;
     if (blocksplitting){

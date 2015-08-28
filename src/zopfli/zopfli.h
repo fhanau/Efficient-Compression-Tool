@@ -56,9 +56,6 @@ typedef struct ZopfliOptions {
   */
   unsigned short chain_length;
 
-  /* When to reduce length in ZopfliLZ77Greedy. */
-  unsigned lengthscoresearch;
-
   /* Don't try to use dynamic block under this size. */
   unsigned skipdynamic;
 
