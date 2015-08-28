@@ -91,49 +91,8 @@ safe_end is a few (8) bytes before end, for comparing multiple bytes at once.
 static const unsigned char* GetMatch(const unsigned char* scan,
                                      const unsigned char* match,
                                      const unsigned char* end
-#ifndef __GNUC__
 , const unsigned char* safe_end
-#endif
 ) {
-#ifdef __GNUC__
-  /* Optimized Function based on cloudflare's zlib fork. Using AVX for 32 Checks at once may be even faster but currently there is no ctz function for vectors so the old approach would be neccesary again. */
-  if (sizeof(size_t) == 8) {
-    do {
-      unsigned long sv = *(unsigned long*)(void*)scan;
-      unsigned long mv = *(unsigned long*)(void*)match;
-      unsigned long xor = sv ^ mv;
-      if (xor) {
-        scan += __builtin_ctzl(xor) / 8;
-        break;
-      }
-      else {
-        scan += 8;
-        match += 8;
-      }
-    } while (scan < end);
-  }
-  else {
-    do {
-      unsigned sv = *(unsigned*)(void*)scan;
-      unsigned mv = *(unsigned*)(void*)match;
-      unsigned xor = sv ^ mv;
-      if (xor) {
-        scan += __builtin_ctzl(xor) / 4;
-        break;
-      }
-      else {
-        scan += 4;
-        match += 4;
-      }
-    } while (scan < end);
-  }
-
-  if (unlikely(scan > end))
-    scan = end;
-  return scan;
-
-#else
-
     if (sizeof(size_t) == 8) {
         /* 8 checks at once per array bounds check (size_t is 64-bit). */
         while (scan < safe_end && *((size_t*)scan) == *((size_t*)match)) {
@@ -161,7 +120,6 @@ static const unsigned char* GetMatch(const unsigned char* scan,
         scan++; match++;
     }
     return scan;
-#endif
 }
 
 #ifdef ZOPFLI_LONGEST_MATCH_CACHE
@@ -272,9 +230,7 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
     limit = size - pos;
   }
   const unsigned char* arrayend = &array[pos] + limit;
-#ifndef __GNUC__
   const unsigned char* arrayend_safe = arrayend - 8;
-#endif
   unsigned short hpos = pos & ZOPFLI_WINDOW_MASK, p, pp;
   unsigned short* hprev = h->prev;
   unsigned char hhead = 0;
@@ -306,9 +262,7 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
       }
 #endif
       scan = GetMatch(scan, match, arrayend
-#ifndef __GNUC__
                       , arrayend_safe
-#endif
                       );
       unsigned short currentlength = scan - new;  /* The found length. */
       if (currentlength > bestlength) {
@@ -371,9 +325,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
     limit = size - pos;
   }
   const unsigned char* arrayend = &array[pos] + limit;
-#ifndef __GNUC__
   const unsigned char* arrayend_safe = arrayend - 8;
-#endif
   unsigned short hpos = pos & ZOPFLI_WINDOW_MASK;
   unsigned short pp = hpos;  /* During the whole loop, p == hprev[pp]. */
   unsigned short* hprev = h->prev;
@@ -401,9 +353,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
       match += same;
 #endif
       scan = GetMatch(scan, match, arrayend
-#ifndef __GNUC__
                       , arrayend_safe
-#endif
                       );
       unsigned short currentlength = scan - new;
       if (currentlength > bestlength) {
@@ -460,9 +410,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
         if (unlikely(*(unsigned short*)(scan + bestlength - 1) == *(unsigned short*)(match + bestlength - 1))) {
 
           scan = GetMatch(scan, match, arrayend
-#ifndef __GNUC__
                           , arrayend_safe
-#endif
                           );
           unsigned short currentlength = scan - new;
           if (unlikely(currentlength > bestlength)) {
@@ -500,9 +448,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
         match += same;
 #endif
       scan = GetMatch(scan, match, arrayend
-#ifndef __GNUC__
                       , arrayend_safe
-#endif
                       );
       unsigned short currentlength = scan - new;
       if (unlikely(currentlength > bestlength)) {
