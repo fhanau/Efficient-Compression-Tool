@@ -349,6 +349,9 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
       match = scan - dist;
 #ifdef ZOPFLI_HASH_SAME
       unsigned short same = h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
+      if (same > limit){
+        same = limit;
+      }
       scan += same;
       match += same;
 #endif
