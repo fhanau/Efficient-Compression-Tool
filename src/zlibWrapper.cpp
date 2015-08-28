@@ -31,6 +31,9 @@ int zlibcompress (unsigned char **dest, size_t *destLen, const unsigned char * s
 
     deflateTune(&stream, 256, 258, 258, chain_length);
     unsigned char *buf = (unsigned char *)malloc(deflateBound(&stream, sourceLen));
+    if (!buf){
+        exit(1);
+    }
     stream.next_out = buf;
 
 
