@@ -468,13 +468,12 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
     ZopfliLZ77Optimal(s, in, instart, inend, store);
     return;
   }
-  /* Dist to get to here with smallest cost. */
-  unsigned short* length_array = (unsigned short*)malloc(sizeof(unsigned short) * (inend - instart + 1));
-  if (!length_array) exit(1); /* Allocation failed. */
 
   SymbolStats stats;
   ZopfliLZ77Greedy(s, in, instart, inend, store, 0);
   GetStatistics(store, &stats);
+  ZopfliCleanLZ77Store(store);
+
   if (s->options->isPNG){
     /*TODO:Corrections for cost model inaccuracies. There is still much potential here
     Enable this in Mode 3, too, though less aggressive*/
@@ -513,10 +512,11 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
     }
   }
 
-  /* Repeat statistics with each time the cost model from the previous stat
-   run. */
-  ZopfliCleanLZ77Store(store);
+
   ZopfliInitLZ77Store(store);
+  /* Dist to get to here with smallest cost. */
+  unsigned short* length_array = (unsigned short*)malloc(sizeof(unsigned short) * (inend - instart + 1));
+  if (!length_array) exit(1); /* Allocation failed. */
   LZ77OptimalRun(s, in, instart, inend, length_array, &stats, store, 0);
 
   free(length_array);
