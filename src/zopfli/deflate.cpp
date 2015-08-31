@@ -340,70 +340,6 @@ static void AddLZ77Data(const unsigned short* litlens,
   assert(expected_data_size == 0 || testlength == expected_data_size);
 }
 
-/*
-Calculates size of the part after the header and tree of an LZ77 block, in bits.
-*/
-static size_t CalculateBlockSymbolSize(const unsigned* ll_lengths,
-                                       const unsigned* d_lengths,
-                                       const unsigned short* litlens,
-                                       const unsigned short* dists,
-                                       size_t lstart, size_t lend) {
-  size_t i;
-  size_t result = ll_lengths[256]; /*end symbol*/
-  if (lend - lstart < 800){
-    for (i = lstart; i < lend; i++) {
-      if (dists[i] == 0) {
-        result += ll_lengths[litlens[i]];
-      } else {
-        result += ll_lengths[ZopfliGetLengthSymbol(litlens[i])];
-        result += d_lengths[ZopfliGetDistSymbol(dists[i])];
-        result += ZopfliGetLengthExtraBits(litlens[i]);
-        result += ZopfliGetDistExtraBits(dists[i]);
-      }
-    }
-  }
-  else {
-    unsigned short ll_table[259];
-    for (i = 0; i < 259; i++){
-      ll_table[i] = ll_lengths[ZopfliGetLengthSymbol(i)] + ZopfliGetLengthExtraBits(i);
-    }
-    unsigned char* d_table = (unsigned char*)malloc(32768 * sizeof(unsigned char));
-    if (!d_table){
-      exit(1);
-    }
-    for (i = 0; i < 129; i++){
-      d_table[i] = d_lengths[ZopfliGetDistSymbol(i)] + ZopfliGetDistExtraBits(i);
-    }
-    memset(d_table + 129, d_lengths[14] + 6, 64);
-    memset(d_table + 193, d_lengths[15] + 6, 64);
-    memset(d_table + 257, d_lengths[16] + 7, 128);
-    memset(d_table + 385, d_lengths[17] + 7, 128);
-    memset(d_table + 513, d_lengths[18] + 8, 256);
-    memset(d_table + 769, d_lengths[19] + 8, 256);
-    memset(d_table + 1025, d_lengths[20] + 9, 512);
-    memset(d_table + 1537, d_lengths[21] + 9, 512);
-    memset(d_table + 2049, d_lengths[22] + 10, 1024);
-    memset(d_table + 3073, d_lengths[23] + 10, 1024);
-    memset(d_table + 4097, d_lengths[24] + 11, 2048);
-    memset(d_table + 6145, d_lengths[25] + 11, 2048);
-    memset(d_table + 8193, d_lengths[26] + 12, 4096);
-    memset(d_table + 12289, d_lengths[27] + 12, 4096);
-    memset(d_table + 16385, d_lengths[28] + 13, 8192);
-    memset(d_table + 24577, d_lengths[29] + 13, 8191);
-
-    for (i = lstart; i < lend; i++) {
-      if (dists[i] == 0) {
-        result += ll_lengths[litlens[i]];
-      } else {
-        result += ll_table[litlens[i]];
-        result += d_table[dists[i]];
-      }
-    }
-    free(d_table);
-  }
-  return result;
-}
-
 static size_t AbsDiff(size_t x, size_t y) {
   if (x > y)
     return x - y;
@@ -508,19 +444,59 @@ lengths that give the smallest size of tree encoding + encoding of all the
 symbols to have smallest output size. This are not necessarily the ideal Huffman
 bit lengths.
 */
-static void GetDynamicLengths(const unsigned short* litlens,
+static size_t GetDynamicLengths(const unsigned short* litlens,
                               const unsigned short* dists,
                               size_t lstart, size_t lend,
-                              unsigned* ll_lengths, unsigned* d_lengths) {
+                              unsigned* ll_lengths, unsigned* d_lengths, unsigned count) {
   size_t ll_counts[288];
   size_t d_counts[32];
+  size_t ll_counts2[288];
+  size_t d_counts2[32];
+
 
   ZopfliLZ77Counts(litlens, dists, lstart, lend, ll_counts, d_counts);
+  if (count){
+    memcpy(ll_counts2, ll_counts, 288 * sizeof(size_t));
+    memcpy(d_counts2, d_counts, 32 * sizeof(size_t));
+  }
   OptimizeHuffmanForRle(288, ll_counts);
   OptimizeHuffmanForRle(32, d_counts);
+
   ZopfliLengthLimitedCodeLengths(ll_counts, 288, 15, ll_lengths);
   ZopfliLengthLimitedCodeLengths(d_counts, 32, 15, d_lengths);
   PatchDistanceCodesForBuggyDecoders(d_lengths);
+  if (count){
+    size_t result = 0;
+    unsigned i;
+
+    for (i = 0; i < 286; i++){
+      result += ll_lengths[i] * ll_counts2[i];
+    }
+    for (i = 265; i < 269; i++){
+      result += ll_counts2[i];
+    }
+    for (i = 269; i < 273; i++){
+      result += ll_counts2[i] * 2;
+    }
+    for (i = 269; i < 277; i++){
+      result += ll_counts2[i] * 3;
+    }
+    for (i = 277; i < 281; i++){
+      result += ll_counts2[i] * 4;
+    }
+    for (i = 281; i < 285; i++){
+      result += ll_counts2[i] * 5;
+    }
+    for (i = 0; i < 30; i++){
+      result += d_lengths[i] * d_counts2[i];
+    }
+    for (i = 4; i < 30; i++){
+      result += ((i - 2) / 2) * d_counts2[i];
+    }
+    return result;
+
+  }
+  return 0;
 }
 
 double ZopfliCalculateBlockSize(const unsigned short* litlens,
@@ -552,9 +528,8 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
 
   } else {
     unsigned d_lengths[32];
-    GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths);
+    result += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, 1);
     result += CalculateTreeSize(ll_lengths, d_lengths, hq);
-    result += CalculateBlockSymbolSize(ll_lengths, d_lengths, litlens, dists, lstart, lend);
 
     return result;
   }
@@ -601,7 +576,7 @@ static void AddLZ77Block(int btype, int final,
       for (i = 0; i < 32; i++) d_lengths[i] = 5;
     } else {
         /* Dynamic block. */
-        GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths);
+        GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, 0);
         AddDynamicTree(ll_lengths, d_lengths, bp, out, outsize);
     }
     ZopfliLengthsToSymbols(ll_lengths, 288, 15, ll_symbols);
