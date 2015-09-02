@@ -573,10 +573,6 @@ Returne error code (0 if it went ok)
 */
 unsigned lodepng_chunk_create(unsigned char** out, size_t* outlength, unsigned length,
                               const char* type, const unsigned char* data);
-
-
-/*Calculate CRC32 of buffer*/
-unsigned lodepng_crc32(const unsigned char* buf, size_t len);
 #endif /*LODEPNG_COMPILE_PNG*/
 
 

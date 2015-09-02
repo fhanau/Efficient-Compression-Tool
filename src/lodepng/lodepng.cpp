@@ -1167,7 +1167,7 @@ const LodePNGDecompressSettings lodepng_default_decompress_settings = {0, 0, 0, 
 #ifdef LODEPNG_COMPILE_PNG
 
 /*Return the CRC of the bytes buf[0..len-1].*/
-unsigned lodepng_crc32(const unsigned char* buf, size_t len)
+static unsigned lodepng_crc32(const unsigned char* buf, size_t len)
 {
   return crc32(0, buf, len);
 }

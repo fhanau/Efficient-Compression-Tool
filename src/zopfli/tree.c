@@ -70,6 +70,7 @@ void ZopfliCalculateEntropy(const size_t* count, size_t n, float* bitlengths) {
     sum += count[i];
   }
   float log2sum = sum == 0 ? log(n) : log2(sum);
+
   for (i = 0; i < n; ++i) {
     /* When the count of the symbol is 0, but its cost is requested anyway, it
     means the symbol will appear at least once anyway, so give it the cost as if
