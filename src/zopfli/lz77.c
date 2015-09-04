@@ -637,14 +637,22 @@ void ZopfliLZ77Counts(const unsigned short* litlens,
   for (i = 0; i < 32; i++) {
     d_count[i] = 0;
   }
+  size_t ll_count2[259];
+  for (i = 0; i < 259; i++) {
+    ll_count2[i] = 0;
+  }
 
   for (i = start; i < end; i++) {
     if (dists[i] == 0) {
       ll_count[litlens[i]]++;
     } else {
-      ll_count[ZopfliGetLengthSymbol(litlens[i])]++;
+      ll_count2[litlens[i]]++;
       d_count[ZopfliGetDistSymbol(dists[i])]++;
     }
+  }
+
+  for (i = 3; i < 259; i++){
+    ll_count[ZopfliGetLengthSymbol(i)] += ll_count2[i];
   }
 
   ll_count[256] = 1;  /* End symbol. */
