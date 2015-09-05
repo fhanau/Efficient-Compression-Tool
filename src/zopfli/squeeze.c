@@ -247,7 +247,7 @@ static void GetBestLengths(ZopfliBlockState *s,
     ZopfliFindLongestMatch2(s, h, in, i, inend, sublen, &leng, storeincache);
 
     /* Literal. */
-    float newCost = costs[j] + (costcontext == 0 ? 8 + (in[i] > 143) : costcontext->ll_symbols[in[i]]);
+    float newCost = costs[j] + (costcontext ? costcontext->ll_symbols[in[i]] : 8 + (in[i] > 143));
     if (newCost < costs[j + 1]) {//Can we unlikely
       costs[j + 1] = newCost;
       length_array[j + 1] = 1;
@@ -275,22 +275,21 @@ the amount of lz77 symbols.
 */
 static void TraceBackwards(size_t size, const unsigned short* length_array,
                            unsigned short** path, size_t* pathsize) {
-  size_t index = size;
   if (size == 0) return;
   for (;;) {
-    ZOPFLI_APPEND_DATA(length_array[index], path, pathsize);
-    assert(length_array[index] <= index);
-    assert(length_array[index] <= ZOPFLI_MAX_MATCH);
-    assert(length_array[index] != 0);
-    index -= length_array[index];
-    if (index == 0) break;
+    ZOPFLI_APPEND_DATA(length_array[size], path, pathsize);
+    assert(length_array[size] <= size);
+    assert(length_array[size] <= ZOPFLI_MAX_MATCH);
+    assert(length_array[size] != 0);
+    size -= length_array[size];
+    if (size == 0) break;
   }
 
   /* Mirror result. */
-  for (index = 0; index < *pathsize / 2; index++) {
-    unsigned short temp = (*path)[index];
-    (*path)[index] = (*path)[*pathsize - index - 1];
-    (*path)[*pathsize - index - 1] = temp;
+  for (size = 0; size < *pathsize / 2; size++) {
+    unsigned short temp = (*path)[size];
+    (*path)[size] = (*path)[*pathsize - size - 1];
+    (*path)[*pathsize - size - 1] = temp;
   }
 }
 

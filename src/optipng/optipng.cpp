@@ -239,11 +239,10 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
 
         // Try filters PNG_FILTER_NONE and PNG_ALL_FILTERS.
 
-        // fstream is not initalized but that doesn't matter as it isn't used
-        opng_write_file(session, fstream, 0, level, true);
+        opng_write_file(session, 0, 0, level, true);
         best_idat = session->out_stats.idat_size;
 
-        opng_write_file(session, fstream, 1, level, true);
+        opng_write_file(session, 0, 1, level, true);
 
         if (best_idat > session->out_stats.idat_size){
             optimal_filter = 5;}
