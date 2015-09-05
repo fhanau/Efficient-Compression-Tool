@@ -62,6 +62,10 @@ unsigned getChunks(std::vector<std::string> names[3],
     {
       location = 2;
     }
+    else if(name == "tRNS")
+    {
+        //Copying tRNS can damage images
+    }
     else if(name != "IEND")
     {
       names[location].push_back(name);
