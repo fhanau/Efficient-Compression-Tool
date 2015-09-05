@@ -88,38 +88,81 @@ match is the earlier position to compare.
 end is the last possible byte, beyond which to stop looking.
 safe_end is a few (8) bytes before end, for comparing multiple bytes at once.
 */
+#ifdef __GNUC__
+__attribute__ ((always_inline))
+#endif
 static const unsigned char* GetMatch(const unsigned char* scan,
                                      const unsigned char* match,
                                      const unsigned char* end
-, const unsigned char* safe_end
+                                     , const unsigned char* safe_end
 ) {
-    if (sizeof(size_t) == 8) {
-        /* 8 checks at once per array bounds check (size_t is 64-bit). */
-        while (scan < safe_end && *((size_t*)scan) == *((size_t*)match)) {
-            scan += 8;
-            match += 8;
-        }
-    } else if (sizeof(unsigned) == 4) {
-        /* 4 checks at once per array bounds check (unsigned is 32-bit). */
-        while (scan < safe_end
-               && *((unsigned*)scan) == *((unsigned*)match)) {
-            scan += 4;
-            match += 4;
-        }
-    } else {
-        /* do 8 checks at once per array bounds check. */
-        while (scan < safe_end && *scan == *match && *++scan == *++match
-               && *++scan == *++match && *++scan == *++match
-               && *++scan == *++match && *++scan == *++match
-               && *++scan == *++match && *++scan == *++match) {
-            scan++; match++;
-        }
+#ifdef __GNUC__
+  /* Optimized Function based on cloudflare's zlib fork. Using AVX for 32 Checks at once may be even faster but currently there is no ctz function for vectors so the old approach would be neccesary again. */
+  if (sizeof(size_t) == 8) {
+    do {
+      unsigned long sv = *(unsigned long*)(void*)scan;
+      unsigned long mv = *(unsigned long*)(void*)match;
+      unsigned long xor = sv ^ mv;
+      if (xor) {
+        scan += __builtin_ctzl(xor) / 8;
+        break;
+      }
+      else {
+        scan += 8;
+        match += 8;
+      }
+    } while (scan < end);
+  }
+  else {
+    do {
+      unsigned sv = *(unsigned*)(void*)scan;
+      unsigned mv = *(unsigned*)(void*)match;
+      unsigned xor = sv ^ mv;
+      if (xor) {
+        scan += __builtin_ctz(xor) / 4;
+        break;
+      }
+      else {
+        scan += 4;
+        match += 4;
+      }
+    } while (scan < end);
+  }
+
+  if (unlikely(scan > end))
+    scan = end;
+  return scan;
+
+#else
+
+  if (sizeof(size_t) == 8) {
+    /* 8 checks at once per array bounds check (size_t is 64-bit). */
+    while (scan < safe_end && *((size_t*)scan) == *((size_t*)match)) {
+      scan += 8;
+      match += 8;
     }
-    /* The remaining few bytes. */
-    while (scan != end && *scan == *match) {
-        scan++; match++;
+  } else if (sizeof(unsigned) == 4) {
+    /* 4 checks at once per array bounds check (unsigned is 32-bit). */
+    while (scan < safe_end
+           && *((unsigned*)scan) == *((unsigned*)match)) {
+      scan += 4;
+      match += 4;
     }
-    return scan;
+  } else {
+    /* do 8 checks at once per array bounds check. */
+    while (scan < safe_end && *scan == *match && *++scan == *++match
+           && *++scan == *++match && *++scan == *++match
+           && *++scan == *++match && *++scan == *++match
+           && *++scan == *++match && *++scan == *++match) {
+      scan++; match++;
+    }
+  }
+  /* The remaining few bytes. */
+  while (scan != end && *scan == *match) {
+    scan++; match++;
+  }
+  return scan;
+#endif
 }
 
 #ifdef ZOPFLI_LONGEST_MATCH_CACHE
@@ -407,7 +450,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
                           , arrayend_safe
                           );
           unsigned short currentlength = scan - new;
-          if (unlikely(currentlength > bestlength)) {
+          if (currentlength > bestlength) {
             for (unsigned short j = bestlength + 1; j <= currentlength; j++) {
               sublen[j] = dist;
             }
