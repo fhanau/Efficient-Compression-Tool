@@ -402,14 +402,12 @@ static void OptimizeHuffmanForRle(unsigned length, size_t* counts) {
     if (i == length || good_for_rle[i]
         /* Heuristic for selecting the stride ranges to collapse. */
         || AbsDiff(counts[i], limit) >= 4) {
-      if (stride >= 4 || (stride >= 3 && sum == 0)) {
+      if (stride + !sum >= 4) {
         /* The stride must end, collapse what we have, if we have enough (4). */
         unsigned count = (sum + stride / 2) / stride;
-        if (count < 1) count = 1;
-        if (sum == 0) {
-          /* Don't make an all zeros stride to be upgraded to ones. */
-          count = 0;
-        }
+        /* Don't make an all zeros stride to be upgraded to ones. */
+        if (!count && sum) count = 1;
+
         for (k = 0; k < stride; ++k) {
           /* We don't want to change value at counts[i],
           that is already belonging to the next stride. Thus - 1. */
@@ -425,8 +423,6 @@ static void OptimizeHuffmanForRle(unsigned length, size_t* counts) {
                  counts[i + 2] + counts[i + 3] + 2) / 4;
       } else if (i < length) {
         limit = counts[i];
-      } else {
-        limit = 0;
       }
     }
     ++stride;
