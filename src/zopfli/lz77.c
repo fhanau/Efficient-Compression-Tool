@@ -253,7 +253,7 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
     if (unlikely(*(unsigned short*)(scan + bestlength - 1) == *(unsigned short*)(match + bestlength - 1))) {
 #ifdef ZOPFLI_HASH_SAME
       unsigned short same0 = h->same[hpos];
-      if (same0 > 1) {
+      if (same0 > 2) {
         unsigned short same1 = h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
         unsigned short same = same0 < same1 ? same0 : same1;
         if (same > limit) same = limit;
@@ -339,23 +339,13 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
   const unsigned char* new = &array[pos];
 
   const unsigned char* scan;
-  const unsigned char* match;
 
   unsigned short same0 = h->same[hpos];
   if (same0 >= limit) {
 
     while (dist < ZOPFLI_WINDOW_SIZE) {
-      scan = new;
-      match = scan - dist;
-#ifdef ZOPFLI_HASH_SAME
-      unsigned short same = h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
-      if (same > limit){
-        same = limit;
-      }
-      scan += same;
-      match += same;
-#endif
-      scan = GetMatch(scan, match, arrayend
+      scan = new + h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
+      scan = GetMatch(scan, scan - dist, arrayend
                       , arrayend_safe
                       );
       unsigned short currentlength = scan - new;
@@ -373,7 +363,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
 
             size_t* stsublen = (size_t*)sublen;
             size_t stdist = dist + (dist << 16) + ((size_t)dist << 32) + ((size_t)dist << 48);
-            for (j = bestlength/4 + 1; j <= bestlength/4 + (currentlength - bestlength) / 4; j++) {
+            for (j = bestlength / 4 + 1; j <= currentlength / 4; j++) {
               stsublen[j] = stdist;
             }
         }
@@ -384,7 +374,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
           }
           unsigned* usublen = (unsigned*)sublen;
           unsigned udist = dist + (dist << 16);
-          for (unsigned short j = bestlength/2 + 1; j < /*currentlength/2*/bestlength/2 + 1 + (currentlength - bestlength) / 2; j++) {
+          for (unsigned short j = bestlength/2 + 1; j <= currentlength / 2; j++) {
             usublen[j] = udist;
           }
         }
@@ -403,6 +393,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
     }
   }
   else{
+    const unsigned char* match;
 
     if(same0 < 2 && h->val2 == h->hashval2[p]){
       hprev = h->prev2;
@@ -436,7 +427,6 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
 
     }
     else{
-      unsigned char hash2 = 0;
 
   /* Go through all distances. */
   while (dist < ZOPFLI_WINDOW_SIZE) {
@@ -466,10 +456,8 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
 
 #ifdef ZOPFLI_HASH_SAME_HASH
     /* Switch to the other hash once this will be more efficient. */
-    if (unlikely(!hash2 && bestlength >= same0 &&
-        h->val2 == h->hashval2[p])) {
+    if (bestlength >= same0 && h->val2 == h->hashval2[p]) {
       /* Now use the hash that encodes the length and first byte. */
-      hash2 = 1;
       hprev = h->prev2;
     }
 #endif
