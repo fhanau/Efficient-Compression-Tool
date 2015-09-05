@@ -208,14 +208,17 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
     options->numiterations = 1;
     options->chain_length = 415;
     options->noblocksplitlz = 512;
+    options->noblocksplit = 3000;
   }
   else if (mode < 4) {
     options->numiterations = 4;
     options->chain_length = 1000;
     options->noblocksplitlz = 200;
+    options->noblocksplit = 2000;
   }
   else {
     options->noblocksplitlz = 100;
+    options->noblocksplit = 1400;
     if (mode < 5) {
     options->numiterations = 15;
     options->chain_length = 8192;
@@ -227,9 +230,8 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   }
   options->num = mode < 3 ? 3 : 9;
   options->skipdynamic = mode > 3 ? 80 : 200;
-  options->blocksplittingmax = mode > 2 ? 0 : 15;
+  options->blocksplittingmax = mode > 2 ? 0 : multithreading > 15 ? multithreading : 15;
   options->trystatic = mode > 2 ? 800 : 0;
-  options->noblocksplit = 1400;
   options->multithreading = multithreading;
   options->isPNG = isPNG;
 }
