@@ -230,7 +230,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   }
   options->num = mode < 3 ? 3 : 9;
   options->skipdynamic = mode > 3 ? 80 : 200;
-  options->blocksplittingmax = mode > 2 ? 0 : multithreading > 15 ? multithreading : 15;
+  options->blocksplittingmax = mode > 2 || isPNG ? 0 : multithreading > 15 ? multithreading : 15;
   options->trystatic = mode > 2 ? 800 : 0;
   options->multithreading = multithreading;
   options->isPNG = isPNG;
