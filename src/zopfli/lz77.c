@@ -487,7 +487,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
                       , arrayend_safe
                       );
       unsigned short currentlength = scan - new;
-      if (unlikely(currentlength > bestlength)) {
+      if (currentlength > bestlength) {
         for (unsigned short j = bestlength + 1; j <= currentlength; j++) {
           sublen[j] = dist;
         }
