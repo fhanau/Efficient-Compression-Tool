@@ -7,9 +7,9 @@ Libpng (www.libpng.org/pub/png/libpng.html) is licensed under the PNG license in
 Optipng (http://optipng.sourceforge.net/) is (C) 2001-2013 Cosmin Truta and licensed under the zlib license.
 Opngreduc (part of optipng) is (C) 2001-2013 Cosmin Truta and licensed under the libpng license.
 Cexcept (http://www.nicemice.net/cexcept/) is (C) 2000-2008 Adam M. Costello and Cosmin Truta and licensed under the Cexcept license.
-Zopfli and Zopflipng (https://code.google.com/p/zopfli/) are (C) Google Inc. and licensed under the Apache License, see src/zopfli/COPYING.
+Brotli(https://github.com/google/brotli), Zopfli and Zopflipng (https://github.com/google/zopfli) are (C) Google Inc. and licensed under the Apache License, see src/zopfli/COPYING.
 Lodepng (https://github.com/lvandeve/lodepng/) is Copyright (c) 2005-2014 Lode Vandevenne and licensed under the Lodepng License, see src/zopfli/src/zopflipng/lodepng/lodepng.h.
 
-Zlib, Mozjpeg, Libpng, Optipng, Opngreduc, Zopfli, Zopflipng and Lodepng have been modified and are NOT the original versions.
+Zlib, Mozjpeg, Libpng, Optipng, Opngreduc, Zopfli, Zopflipng, Brotli and Lodepng have been modified and are NOT the original versions.
 
 Versions used:
