@@ -58,7 +58,7 @@ be executed independently on each huge block.
 Dividing into huge blocks hurts compression, but not much relative to the size.
 Set this to, for example, 20MB (20000000). Set it to 0 to disable master blocks.
 */
-#define ZOPFLI_MASTER_BLOCK_SIZE 25000000
+#define ZOPFLI_MASTER_BLOCK_SIZE 5000000
 
 /*
 Used to initialize costs for example

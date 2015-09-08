@@ -801,10 +801,14 @@ void ZopfliDeflate(const ZopfliOptions* options, int final,
   ZopfliDeflatePart(options, final, in, 0, insize, bp, out, outsize);
 #else
   size_t i = 0;
+  size_t msize = ZOPFLI_MASTER_BLOCK_SIZE;
+  if (!options->isPNG && options->numiterations == 1){
+    msize /= 5;
+  }
   while (i < insize) {
-    int masterfinal = (i + ZOPFLI_MASTER_BLOCK_SIZE >= insize);
+    int masterfinal = (i + msize >= insize);
     int final2 = final && masterfinal;
-    size_t size = masterfinal ? insize - i : ZOPFLI_MASTER_BLOCK_SIZE;
+    size_t size = masterfinal ? insize - i : msize;
     ZopfliDeflatePart(options, final2, in, i, i + size, bp, out, outsize);
     i += size;
   }
