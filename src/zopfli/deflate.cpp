@@ -24,8 +24,11 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifndef NOMULTI
 #include <thread>
 #include <vector>
+#endif
 
 #include "blocksplitter.h"
 #include "lz77.h"
@@ -650,6 +653,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
   ZopfliCleanLZ77Store(&store);
 }
 
+#ifndef NOMULTI
 struct BlockData {
   int btype;
   ZopfliLZ77Store store;
@@ -705,30 +709,6 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
 #endif
 }
 
-/*
-Does squeeze strategy where first block splitting is done, then each block is
-squeezed.
-Parameters: see description of the ZopfliDeflate function.
-*/
-static void DeflateSplittingFirst(const ZopfliOptions* options,
-                                  int final,
-                                  const unsigned char* in,
-                                  size_t instart, size_t inend,
-                                  unsigned char* bp,
-                                  unsigned char** out, size_t* outsize) {
-  size_t* splitpoints = 0;
-  size_t npoints = 0;
-  ZopfliBlockSplit(options, in, instart, inend, &splitpoints, &npoints);
-  for (size_t i = 0; i <= npoints; i++) {
-    size_t start = i == 0 ? instart : splitpoints[i - 1];
-    size_t end = i == npoints ? inend : splitpoints[i];
-    DeflateDynamicBlock(options, i == npoints && final, in, start, end,
-                 bp, out, outsize);
-  }
-
-  free(splitpoints);
-}
-
 static void DeflateSplittingFirst2(const ZopfliOptions* options,
                                   int final,
                                   const unsigned char* in,
@@ -768,6 +748,31 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
 
   free(splitpoints);
 }
+#endif
+
+/*
+ Does squeeze strategy where first block splitting is done, then each block is
+ squeezed.
+ Parameters: see description of the ZopfliDeflate function.
+ */
+static void DeflateSplittingFirst(const ZopfliOptions* options,
+                                  int final,
+                                  const unsigned char* in,
+                                  size_t instart, size_t inend,
+                                  unsigned char* bp,
+                                  unsigned char** out, size_t* outsize) {
+  size_t* splitpoints = 0;
+  size_t npoints = 0;
+  ZopfliBlockSplit(options, in, instart, inend, &splitpoints, &npoints);
+  for (size_t i = 0; i <= npoints; i++) {
+    size_t start = i == 0 ? instart : splitpoints[i - 1];
+    size_t end = i == npoints ? inend : splitpoints[i];
+    DeflateDynamicBlock(options, i == npoints && final, in, start, end,
+                        bp, out, outsize);
+  }
+
+  free(splitpoints);
+}
 
 /*
 Deflate a part, to allow ZopfliDeflate() to use multiple master blocks if
@@ -786,9 +791,11 @@ static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
   if (inend - instart < options->noblocksplit){
     DeflateDynamicBlock(options, final, in, instart, inend, bp, out, outsize);
   }
+#ifndef NOMULTI
   else if (options->multithreading > 1){
     DeflateSplittingFirst2(options, final, in, instart, inend, bp, out, outsize, options->multithreading);
   }
+#endif
   else {
     DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize);
   }

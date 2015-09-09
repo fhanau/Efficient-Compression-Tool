@@ -5,7 +5,10 @@
 
 #include "main.h"
 #include "support.h"
+
+#ifndef NOMULTI
 #include <thread>
+#endif
 
 #ifdef MP3_SUPPORTED
 #include <id3/tag.h>
@@ -52,8 +55,10 @@ static void Usage() {
             " --disable-jpg  Disable JPEG optimization\n"
 #endif
             " --strict       Enable strict losslessness\n"
+#ifndef NOMULTI
             " --mt-deflate   Use per block multithreading in Deflate\n"
             " --mt-deflate=i Use per block multithreading in Deflate, use i threads\n"
+#endif
             //" --arithmetic   Use arithmetic encoding for JPEGs, incompatible with most software\n"
 #ifdef __DATE__
             ,__DATE__
@@ -282,6 +287,7 @@ int main(int argc, const char * argv[]) {
             else if (strncmp(argv[i], "-recurse", 2) == 0)  {Options.Recurse = 1;}
 #endif
             else if (strcmp(argv[i], "--strict") == 0) {Options.Strict = true;}
+#ifndef NOMULTI
             else if (strncmp(argv[i], "--mt-deflate", 12) == 0) {
                 if (strncmp(argv[i], "--mt-deflate=", 13) == 0){
                     Options.DeflateMultithreading = atoi(argv[i] + 13);
@@ -290,6 +296,7 @@ int main(int argc, const char * argv[]) {
                     Options.DeflateMultithreading = std::thread::hardware_concurrency();
                 }
             }
+#endif
             //else if (strcmp(argv[i], "--arithmetic") == 0) {Options.Arithmetic = true;}
             else {printf("Unknown flag: %s\n", argv[i]); return 0;}
         }
