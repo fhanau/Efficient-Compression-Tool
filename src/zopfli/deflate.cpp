@@ -365,7 +365,7 @@ void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
 
   // 2) Let's mark all population counts that already can be encoded
   // with an rle code.
-  uint8_t* good_for_rle = (uint8_t*)calloc(length, 1);
+  unsigned char* good_for_rle = (unsigned char*)calloc(length, 1);
   if (!good_for_rle) {
     exit(1);
   }
