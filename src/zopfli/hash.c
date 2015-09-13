@@ -30,7 +30,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 
 void ZopfliInitHash(ZopfliHash* h) {
   h->val = 0;
-  h->head = (int*)malloc(sizeof(*h->head) * 65536);
+  h->head = (short*)malloc(sizeof(*h->head) * 65536);
   h->prev = (unsigned short*)malloc(sizeof(*h->prev) * ZOPFLI_WINDOW_SIZE);
   h->hashval = (int*)malloc(sizeof(*h->hashval) * ZOPFLI_WINDOW_SIZE);
   if (!(h->hashval && h->prev && h->head)){
@@ -48,7 +48,7 @@ void ZopfliInitHash(ZopfliHash* h) {
 
 #ifdef ZOPFLI_HASH_SAME_HASH
   h->val2 = 0;
-  h->head2 = (int*)malloc(sizeof(*h->head2) * 65536);
+  h->head2 = (short*)malloc(sizeof(*h->head2) * 65536);
   h->prev2 = (unsigned short*)malloc(sizeof(*h->prev2) * ZOPFLI_WINDOW_SIZE);
   h->hashval2 = (int*)malloc(sizeof(*h->hashval2) * ZOPFLI_WINDOW_SIZE);
   if (!(h->hashval2 && h->prev2 && h->head2)){
