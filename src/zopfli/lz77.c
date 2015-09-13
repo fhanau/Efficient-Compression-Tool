@@ -56,7 +56,7 @@ void ZopfliCopyLZ77Store(const ZopfliLZ77Store* source, ZopfliLZ77Store* dest) {
 Appends the length and distance to the LZ77 arrays of the ZopfliLZ77Store.
 context must be a ZopfliLZ77Store*.
 */
-void ZopfliStoreLitLenDist(unsigned short length, unsigned short dist,
+static void ZopfliStoreLitLenDist(unsigned short length, unsigned short dist,
                            ZopfliLZ77Store* store) {
   size_t size2 = store->size;  /* Needed for using ZOPFLI_APPEND_DATA twice. */
   ZOPFLI_APPEND_DATA(length, &store->litlens, &store->size);

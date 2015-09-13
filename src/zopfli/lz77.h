@@ -42,8 +42,8 @@ Parameter litlens: Contains the literal symbols or length values.
 Parameter dists: Contains the distances. A value is 0 to indicate that there is
 no dist and the corresponding litlens value is a literal instead of a length.
 Parameter size: The size of both the litlens and dists arrays.
-The memory can best be managed by using ZopfliInitLZ77Store to initialize it,
-ZopfliCleanLZ77Store to destroy it, and ZopfliStoreLitLenDist to append values.
+The memory can best be managed by using ZopfliInitLZ77Store to initialize it
+and ZopfliCleanLZ77Store to destroy it.
 
 */
 typedef struct ZopfliLZ77Store {
@@ -56,8 +56,6 @@ typedef struct ZopfliLZ77Store {
 void ZopfliInitLZ77Store(ZopfliLZ77Store* store);
 void ZopfliCleanLZ77Store(ZopfliLZ77Store* store);
 void ZopfliCopyLZ77Store(const ZopfliLZ77Store* source, ZopfliLZ77Store* dest);
-void ZopfliStoreLitLenDist(unsigned short length, unsigned short dist,
-                           ZopfliLZ77Store* store);
 
 /*
 Some state information for compressing a block.

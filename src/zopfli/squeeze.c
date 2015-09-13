@@ -275,21 +275,13 @@ the amount of lz77 symbols.
 */
 static void TraceBackwards(size_t size, const unsigned short* length_array,
                            unsigned short** path, size_t* pathsize) {
-  if (size == 0) return;
-  for (;;) {
+  if (!size) return;
+  for (;size;) {
     ZOPFLI_APPEND_DATA(length_array[size], path, pathsize);
     assert(length_array[size] <= size);
     assert(length_array[size] <= ZOPFLI_MAX_MATCH);
     assert(length_array[size] != 0);
     size -= length_array[size];
-    if (size == 0) break;
-  }
-
-  /* Mirror result. */
-  for (size = 0; size < *pathsize / 2; size++) {
-    unsigned short temp = (*path)[size];
-    (*path)[size] = (*path)[*pathsize - size - 1];
-    (*path)[*pathsize - size - 1] = temp;
   }
 }
 
@@ -309,8 +301,13 @@ static void FollowPath(ZopfliBlockState* s,
   ZopfliInitHash(h);
   ZopfliWarmupHash(in, windowstart, h);
   LoopedUpdateHash(in, windowstart, inend, h, instart - windowstart);
+
+  store->litlens = malloc(pathsize * sizeof(unsigned short));
+  store->dists = malloc(pathsize * sizeof(unsigned short));
+
   size_t pos = instart;
-  for (i = 0; i < pathsize; i++) {
+  /*pathsize contains matches in reverted order.*/
+  for (i = pathsize - 1;; i--) {
     unsigned short length = path[i];
     assert(pos < inend);
 
@@ -328,7 +325,8 @@ static void FollowPath(ZopfliBlockState* s,
 #ifndef NDEBUG
         ZopfliVerifyLenDist(in, inend, pos, dist, length);
 #endif
-      ZopfliStoreLitLenDist(length, dist, store);
+      store->litlens[store->size] = length;
+      store->dists[store->size] = dist;
 
       for (size_t j = 1; j < length; j++) {
         ZopfliUpdateHash(in, pos + j, inend, h);
@@ -336,12 +334,15 @@ static void FollowPath(ZopfliBlockState* s,
 
     } else {
       length = 1;
-      ZopfliStoreLitLenDist(in[pos], 0, store);
+      store->litlens[store->size] = in[pos];
+      store->dists[store->size] = 0;
     }
 
     assert(pos + length <= inend);
 
     pos += length;
+    store->size += 1;
+    if (!i){break;}
   }
 
   ZopfliCleanHash(h);
@@ -500,13 +501,13 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
       }
     }
     for (unsigned i = 0; i < 288; i++){
-      if (!stats.ll_symbols[i]){
-        stats.ll_symbols[i] = 0;
+      if (stats.ll_symbols[i] < 1){
+        stats.ll_symbols[i] = 1;
       }
     }
     for (unsigned i = 0; i < 32; i++){
-      if (!stats.d_symbols[i]){
-        stats.d_symbols[i] = 0;
+      if (stats.d_symbols[i] < 1){
+        stats.d_symbols[i] = 1;
       }
     }
   }
