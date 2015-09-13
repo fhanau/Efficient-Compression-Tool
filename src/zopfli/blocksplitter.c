@@ -34,7 +34,6 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 typedef struct SplitCostContext {
   const unsigned short* litlens;
   const unsigned short* dists;
-  size_t llsize;
   size_t start;
   size_t end;
 } SplitCostContext;
@@ -56,7 +55,7 @@ double, i is in range start-end (excluding end).
 */
 static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, double* size, double* biggersize, const ZopfliOptions* options) {
   size_t startsize = end - start;
-  /* Try to find minimum faster by recursively checking multiple points. */
+  /* Try to find minimum by recursively checking multiple points. */
 #define NUM 9  /* Good value: 9. */
   size_t i;
   size_t p[NUM];
@@ -181,7 +180,6 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
 
     c.litlens = litlens;
     c.dists = dists;
-    c.llsize = llsize;
     c.start = lstart;
     c.end = lend;
     assert(lstart < lend);
