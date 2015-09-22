@@ -28,6 +28,7 @@ Jyrki Katajainen, Alistair Moffat, Andrew Turpin".
 #include "katajainen.h"
 #include "util.h"
 #include <stdlib.h>
+#include <assert.h>
 
 typedef struct Node Node;
 
@@ -174,7 +175,7 @@ static int LeafComparator(const void* a, const void* b) {
   return ((const Node*)a)->weight - ((const Node*)b)->weight;
 }
 
-int ZopfliLengthLimitedCodeLengths(
+void ZopfliLengthLimitedCodeLengths(
     const size_t* frequencies, int n, int maxbits, unsigned* bitlengths) {
   int i;
   int numsymbols = 0;  /* Amount of symbols with frequency > 0. */
@@ -203,18 +204,15 @@ int ZopfliLengthLimitedCodeLengths(
   }
 
   /* Check special cases and error conditions. */
-  if ((1 << maxbits) < numsymbols) {
-    free(leaves);
-    return 1;  /* Error, too few maxbits to represent symbols. */
-  }
+  assert((1 << maxbits) >= numsymbols); /* Error, too few maxbits to represent symbols. */
   if (numsymbols == 0) {
     free(leaves);
-    return 0;  /* No symbols at all. OK. */
+    return;  /* No symbols at all. OK. */
   }
   if (numsymbols == 1) {
     bitlengths[leaves[0].count] = 1;
     free(leaves);
-    return 0;  /* Only one symbol, give it bitlength 1, not 0. OK. */
+    return;  /* Only one symbol, give it bitlength 1, not 0. OK. */
   }
 
   /* Sort the leaves from lightest to heaviest. */
@@ -250,5 +248,5 @@ int ZopfliLengthLimitedCodeLengths(
   free(lists);
   free(leaves);
   free(pool.nodes);
-  return 0;  /* OK. */
+  return;  /* OK. */
 }

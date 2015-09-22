@@ -246,7 +246,7 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
 
   /* Convert LZ77 positions to positions in the uncompressed input. */
   pos = instart;
-  if (nlz77points > 0) {
+  if (nlz77points) {
     for (i = 0; i < store.size; i++) {
       size_t length = store.dists[i] == 0 ? 1 : store.litlens[i];
       if (lz77splitpoints[*npoints] == i) {

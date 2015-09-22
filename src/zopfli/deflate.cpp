@@ -135,8 +135,8 @@ static size_t EncodeTree(const unsigned* ll_lengths,
   for(i = 0; i < 19; i++) clcounts[i] = 0;
 
   /* Trim zeros. */
-  while (hlit > 0 && ll_lengths[257 + hlit - 1] == 0) hlit--;
-  while (hdist > 0 && d_lengths[1 + hdist - 1] == 0) hdist--;
+  while (hlit && ll_lengths[257 + hlit - 1] == 0) hlit--;
+  while (hdist && d_lengths[1 + hdist - 1] == 0) hdist--;
   unsigned hlit2 = hlit + 257;
 
   unsigned lld_total = hlit2 + hdist + 1; /* Total amount of literal, length, distance codes. */
@@ -200,12 +200,12 @@ static size_t EncodeTree(const unsigned* ll_lengths,
 
     /* No or insufficient repetition */
     clcounts[symbol] += count;
-    while (count > 0) {
-      if (!size_only) {
+    if (!size_only) {
+      while (count) {
         ZOPFLI_APPEND_DATA(symbol, &rle, &rle_size);
         ZOPFLI_APPEND_DATA(0, &rle_bits, &rle_bits_size);
+        count--;
       }
-      count--;
     }
   }
   ZopfliLengthLimitedCodeLengths(clcounts, 19, 7, clcl);
@@ -213,7 +213,7 @@ static size_t EncodeTree(const unsigned* ll_lengths,
 
   unsigned hclen = 15;
   /* Trim zeros. */
-  while (hclen > 0 && clcounts[order[hclen + 4 - 1]] == 0) hclen--;
+  while (hclen && clcounts[order[hclen + 4 - 1]] == 0) hclen--;
 
   if (!size_only) {
     AddBits(hlit, 5, bp, out, outsize);
@@ -305,9 +305,7 @@ assert, but you can set it to 0 to not do the assertion.
 static void AddLZ77Data(const unsigned short* litlens,
                         const unsigned short* dists,
                         size_t lstart, size_t lend,
-#ifndef NDEBUG
                         size_t expected_data_size,
-#endif
                         const unsigned* ll_symbols, const unsigned* ll_lengths,
                         const unsigned* d_symbols, const unsigned* d_lengths,
                         unsigned char* bp,
@@ -562,37 +560,34 @@ static void AddLZ77Block(int btype, int final,
                          size_t expected_data_size,
                          unsigned char* bp,
                          unsigned char** out, size_t* outsize) {
-    unsigned ll_lengths[288];
-    unsigned d_lengths[32];
-    unsigned ll_symbols[288];
-    unsigned d_symbols[32];
-    AddBit(final, bp, out, outsize);
-    AddBit(btype & 1, bp, out, outsize);
-    AddBit((btype & 2) >> 1, bp, out, outsize);
-    if (btype == 1) {
-      /* Fixed block. */
-      size_t i;
-      for (i = 0; i < 144; i++) ll_lengths[i] = 8;
-      for (i = 144; i < 256; i++) ll_lengths[i] = 9;
-      for (i = 256; i < 280; i++) ll_lengths[i] = 7;
-      for (i = 280; i < 288; i++) ll_lengths[i] = 8;
-      for (i = 0; i < 32; i++) d_lengths[i] = 5;
-    } else {
-        /* Dynamic block. */
-        GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, 0);
-        AddDynamicTree(ll_lengths, d_lengths, bp, out, outsize);
-    }
-    ZopfliLengthsToSymbols(ll_lengths, 288, 15, ll_symbols);
-    ZopfliLengthsToSymbols(d_lengths, 32, 15, d_symbols);
-    AddLZ77Data(litlens, dists, lstart, lend
-#ifndef NDEBUG
-                , expected_data_size
-#endif
-                , ll_symbols, ll_lengths, d_symbols, d_lengths,
-                bp, out, outsize
-                );
-    /* End symbol. */
-    AddHuffmanBits(ll_symbols[256], ll_lengths[256], bp, out, outsize);
+  unsigned ll_lengths[288];
+  unsigned d_lengths[32];
+  unsigned ll_symbols[288];
+  unsigned d_symbols[32];
+  AddBit(final, bp, out, outsize);
+  AddBit(btype & 1, bp, out, outsize);
+  AddBit((btype & 2) >> 1, bp, out, outsize);
+
+  if (btype == 1) {
+    /* Fixed block. */
+    size_t i;
+    for (i = 0; i < 144; i++) ll_lengths[i] = 8;
+    for (i = 144; i < 256; i++) ll_lengths[i] = 9;
+    for (i = 256; i < 280; i++) ll_lengths[i] = 7;
+    for (i = 280; i < 288; i++) ll_lengths[i] = 8;
+    for (i = 0; i < 32; i++) d_lengths[i] = 5;
+  } else {
+    /* Dynamic block. */
+    GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, 0);
+    AddDynamicTree(ll_lengths, d_lengths, bp, out, outsize);
+  }
+  ZopfliLengthsToSymbols(ll_lengths, 288, 15, ll_symbols);
+  ZopfliLengthsToSymbols(d_lengths, 32, 15, d_symbols);
+  AddLZ77Data(litlens, dists, lstart, lend
+              , expected_data_size
+              , ll_symbols, ll_lengths, d_symbols, d_lengths,
+              bp, out, outsize);
+  AddHuffmanBits(ll_symbols[256], ll_lengths[256], bp, out, outsize);
 }
 
 static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
