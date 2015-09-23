@@ -109,6 +109,7 @@ static void GetBestLengths(ZopfliBlockState *s,
                              SymbolStats* costcontext, unsigned short* length_array, unsigned char storeincache) {
   size_t i;
 
+  /*TODO: Put this in seperate function*/
   float litlentable [259];
   float* disttable = (float*)malloc(32768 * sizeof(float));
   if (!disttable){
