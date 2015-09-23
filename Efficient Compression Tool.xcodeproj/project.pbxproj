@@ -50,6 +50,7 @@
 /* Begin PBXFileReference section */
 		3804A73E1B8E1A5E00837A57 /* gztools.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = gztools.h; path = src/gztools.h; sourceTree = "<group>"; };
 		380769801A4447CE004BABF3 /* ECT */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ECT; sourceTree = BUILT_PRODUCTS_DIR; };
+		38098A491BAB468000EF2A48 /* disttable.h */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = disttable.h; path = src/zopfli/disttable.h; sourceTree = "<group>"; tabWidth = 2; };
 		3810E93D1AC30515005DF07F /* optipng.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; name = optipng.cpp; path = src/optipng/optipng.cpp; sourceTree = "<group>"; tabWidth = 2; };
 		384E85201ABB5CFF000991A9 /* libboost_filesystem.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libboost_filesystem.a; path = ../../../../../usr/local/lib/libboost_filesystem.a; sourceTree = "<group>"; };
 		384E85231ABB5D6A000991A9 /* libboost_system.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libboost_system.a; path = ../../../../../usr/local/lib/libboost_system.a; sourceTree = "<group>"; };
@@ -122,6 +123,7 @@
 		380769771A4447CE004BABF3 = {
 			isa = PBXGroup;
 			children = (
+				38098A491BAB468000EF2A48 /* disttable.h */,
 				38F6DAA11B85CD4E00398704 /* libid3.a */,
 				38EC23931AE275140076815D /* libz.a */,
 				384E85231ABB5D6A000991A9 /* libboost_system.a */,
@@ -222,7 +224,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 3807697B1A4447CE004BABF3 /* Build configuration list for PBXProject "Efficient Compression Tool" */;
+			buildConfigurationList = 3807697B1A4447CE004BABF3 /* Build configuration list for PBXProject "Efficient Compression Tool Kopie" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
@@ -427,7 +429,7 @@
 				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
 				GCC_INSTRUMENT_PROGRAM_FLOW_ARCS = NO;
 				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
-				GCC_OPTIMIZATION_LEVEL = 2;
+				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_SHORT_ENUMS = NO;
 				GCC_THREADSAFE_STATICS = YES;
 				GCC_TREAT_IMPLICIT_FUNCTION_DECLARATIONS_AS_ERRORS = NO;
@@ -526,7 +528,7 @@
 				GCC_INLINES_ARE_PRIVATE_EXTERN = YES;
 				GCC_INSTRUMENT_PROGRAM_FLOW_ARCS = NO;
 				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
-				GCC_OPTIMIZATION_LEVEL = 2;
+				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_SHORT_ENUMS = NO;
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GCC_THREADSAFE_STATICS = YES;
@@ -589,7 +591,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		3807697B1A4447CE004BABF3 /* Build configuration list for PBXProject "Efficient Compression Tool" */ = {
+		3807697B1A4447CE004BABF3 /* Build configuration list for PBXProject "Efficient Compression Tool Kopie" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				380769851A4447CE004BABF3 /* Debug */,
