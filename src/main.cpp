@@ -109,7 +109,7 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
         if (exists(((std::string)Infile).append(".gz").c_str())){
             return 2;
         }
-        ZopfliGzip(Infile, NULL, Mode, multithreading);
+        ZopfliGzip(Infile, 0, Mode, multithreading);
         return 1;
     }
     else {
@@ -120,7 +120,7 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
             return 2;
         }
         ungz(Infile, ((std::string)Infile).append(".ungz").c_str());
-        ZopfliGzip(((std::string)Infile).append(".ungz").c_str(), NULL, Mode, multithreading);
+        ZopfliGzip(((std::string)Infile).append(".ungz").c_str(), 0, Mode, multithreading);
         if (filesize(((std::string)Infile).append(".ungz.gz").c_str()) < filesize(Infile)){
             unlink(Infile);
             rename(((std::string)Infile).append(".ungz.gz").c_str(), Infile);

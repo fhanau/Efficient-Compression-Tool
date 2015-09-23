@@ -230,7 +230,7 @@ static void GetBestLengths(ZopfliBlockState *s,
         && h->same[(i - ZOPFLI_MAX_MATCH) & ZOPFLI_WINDOW_MASK]
             > ZOPFLI_MAX_MATCH) {
       //Simplified costmodel(ZOPFLI_MAX_MATCH, 1, costcontext) call
-      float symbolcost = costcontext == NULL ? 13 : costcontext->ll_symbols[285] + costcontext->d_symbols[16];
+      float symbolcost = costcontext ? costcontext->ll_symbols[285] + costcontext->d_symbols[16] : 13;
       /* Set the length to reach each one to ZOPFLI_MAX_MATCH, and the cost to
       the cost corresponding to that length. Doing this, we skip
       ZOPFLI_MAX_MATCH values to avoid calling ZopfliFindLongestMatch. */
@@ -275,7 +275,6 @@ the amount of lz77 symbols.
 */
 static void TraceBackwards(size_t size, const unsigned short* length_array,
                            unsigned short** path, size_t* pathsize) {
-  if (!size) return;
   for (;size;) {
     ZOPFLI_APPEND_DATA(length_array[size], path, pathsize);
     assert(length_array[size] <= size);
