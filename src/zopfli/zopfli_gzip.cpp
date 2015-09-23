@@ -27,6 +27,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "zlib_container.h"
 #include "../main.h"
 
+//FIXME: This does NOT work for empty files.
 /*
 Compresses the data according to the gzip specification.
 */
@@ -47,6 +48,7 @@ static void ZopfliGzipCompress(const ZopfliOptions* options,
   ZOPFLI_APPEND_DATA(0, out, outsize);
 
   ZOPFLI_APPEND_DATA(2, out, outsize);  /* XFL, 2 indicates best compression. */
+  //TODO:
   ZOPFLI_APPEND_DATA(3, out, outsize);  /* OS follows Unix conventions. */
 
   ZopfliDeflate(options, 1, in, insize, &bp, out, outsize);
@@ -154,7 +156,7 @@ int ZopfliGzip(const char* filename, const char* outname, unsigned mode, unsigne
 
   ZopfliInitOptions(&options, mode, multithreading, 0);
   //Append ".gz" ".zlib" ".deflate"
-  CompressFile(&options, ZOPFLI_FORMAT_GZIP, filename, outname != NULL ? outname : ((std::string)filename).append(".gz").c_str());
 
+  CompressFile(&options, ZOPFLI_FORMAT_GZIP, filename, outname ? outname : ((std::string)filename).append(".gz").c_str());
   return 0;
 }

@@ -265,7 +265,7 @@ static png_uint_32 opng_analyze_bits(png_structp png_ptr, png_infop info_ptr, pn
    png_uint_32 height, width;
    int bit_depth, color_type;
    png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL);
-   if (bit_depth < 8)
+   if (bit_depth < 8 || !height || !width)
       return OPNG_REDUCE_NONE;  /* not applicable */
    if (color_type & PNG_COLOR_MASK_PALETTE)
       return OPNG_REDUCE_NONE;  /* let opng_reduce_palette() handle it */
@@ -420,7 +420,9 @@ static png_uint_32  opng_reduce_bits(png_structp png_ptr, png_infop info_ptr, pn
    png_get_IHDR(png_ptr, info_ptr, &width, &height,
       &src_bit_depth, &src_color_type,
       &interlace_type, &compression_type, &filter_type);
-
+  if (!height || !width){
+    return OPNG_REDUCE_NONE;
+  }
    /* Compute the new image parameters bit_depth, color_type, etc. */
    OPNG_ASSERT(src_bit_depth >= 8);
    if (reductions & OPNG_REDUCE_16_TO_8)
@@ -593,7 +595,7 @@ opng_reduce_palette_bits(png_structp png_ptr, png_infop info_ptr,
       return OPNG_REDUCE_NONE;
    png_get_IHDR(png_ptr, info_ptr, &width, &height, &src_bit_depth,
       &color_type, &interlace_type, &compression_type, &filter_type);
-   if (color_type != PNG_COLOR_TYPE_PALETTE)
+   if (color_type != PNG_COLOR_TYPE_PALETTE || !height || !width)
       return OPNG_REDUCE_NONE;
    if (!png_get_PLTE(png_ptr, info_ptr, &palette, &num_palette))
       num_palette = 0;
@@ -705,7 +707,7 @@ static png_uint_32 opng_reduce_to_palette(png_structp png_ptr, png_infop info_pt
    png_uint_32 j;
    png_get_IHDR(png_ptr, info_ptr, &width, &height, &src_bit_depth,
       &color_type, &interlace_type, &compression_type, &filter_type);
-   if (src_bit_depth != 8)
+  if (src_bit_depth != 8 || !height || !width)
       return OPNG_REDUCE_NONE;  /* nothing is done in this case */
    OPNG_ASSERT(!(color_type & PNG_COLOR_MASK_PALETTE));
 
@@ -994,6 +996,9 @@ static png_uint_32 opng_reduce_palette(png_structp png_ptr, png_infop info_ptr, 
 
    png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth,
       &color_type, &interlace_type, &compression_type, &filter_type);
+  if (!height || !width){
+    return OPNG_REDUCE_NONE;
+  }
    png_bytepp row_ptr = png_get_rows(png_ptr, info_ptr);
    if (!png_get_PLTE(png_ptr, info_ptr, &palette, &num_palette))
    {
