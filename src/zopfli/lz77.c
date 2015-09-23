@@ -25,6 +25,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "disttable.h"
 
 void ZopfliInitLZ77Store(ZopfliLZ77Store* store) {
   store->size = 0;
@@ -678,7 +679,7 @@ void ZopfliLZ77Counts(const unsigned short* litlens,
       ll_count[litlens[i]]++;
     } else {
       ll_count2[litlens[i]]++;
-      d_count[ZopfliGetDistSymbol(dists[i])]++;
+      d_count[disttable[dists[i]]]++;
     }
   }
 
