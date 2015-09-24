@@ -111,7 +111,7 @@ static void GetBestLengths(ZopfliBlockState *s,
 
   /*TODO: Put this in seperate function*/
   float litlentable [259];
-  float* disttable = (float*)malloc(32768 * sizeof(float));
+  float* disttable = (float*)malloc(ZOPFLI_WINDOW_SIZE * sizeof(float));
   if (!disttable){
     exit(1);
   }
@@ -398,9 +398,12 @@ static void LZ77OptimalRun(ZopfliBlockState* s, const unsigned char* in, size_t 
   free(path);
 }
 
+/*TODO: Replace this w/ proper implementation. This performs bad on files w/ changing redundancy */
+static SymbolStats st;
+
 void ZopfliLZ77Optimal(ZopfliBlockState *s,
                        const unsigned char* in, size_t instart, size_t inend,
-                       ZopfliLZ77Store* store) {
+                       ZopfliLZ77Store* store, unsigned char first) {
   /* Dist to get to here with smallest cost. */
   unsigned short* length_array = (unsigned short*)malloc(sizeof(unsigned short) * (inend - instart + 1));
   ZopfliLZ77Store currentstore;
@@ -421,8 +424,13 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
   the statistics of the previous run. */
 
   /* Initial run. */
-  ZopfliLZ77Greedy(s, in, instart, inend, &currentstore, 0);
-  GetStatistics(&currentstore, &stats);
+  if (first || s->options->isPNG || s->options->numiterations > 5){
+    ZopfliLZ77Greedy(s, in, instart, inend, &currentstore, 0);
+    GetStatistics(&currentstore, &stats);
+  }
+  else{
+    CopyStats(&st, &stats);
+  }
 
   /* Repeat statistics with each time the cost model from the previous stat
   run. */
@@ -458,20 +466,23 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
   }
 
   free(length_array);
+  CopyStats(&beststats, &st);
   ZopfliCleanLZ77Store(&currentstore);
 }
 
 void ZopfliLZ77Optimal2(ZopfliBlockState *s,
                         const unsigned char* in, size_t instart, size_t inend,
-                        ZopfliLZ77Store* store) {
+                        ZopfliLZ77Store* store, unsigned char first) {
+  SymbolStats stats;
   if (s->options->numiterations != 1){
-    ZopfliLZ77Optimal(s, in, instart, inend, store);
+    ZopfliLZ77Optimal(s, in, instart, inend, store, first);
     return;
   }
 
   SymbolStats stats;
+  if (first || s->options->isPNG){
   ZopfliLZ77Greedy(s, in, instart, inend, store, 0);
-  GetStatistics(store, &stats);
+  GetStatistics(store, &st);
   ZopfliCleanLZ77Store(store);
 
   if (s->options->isPNG){
@@ -517,8 +528,8 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
   /* Dist to get to here with smallest cost. */
   unsigned short* length_array = (unsigned short*)malloc(sizeof(unsigned short) * (inend - instart + 1));
   if (!length_array) exit(1); /* Allocation failed. */
-  LZ77OptimalRun(s, in, instart, inend, length_array, &stats, store, 0);
-
+  LZ77OptimalRun(s, in, instart, inend, length_array, &st, store, 0);
+  GetStatistics(store, &st);
   free(length_array);
 }
 

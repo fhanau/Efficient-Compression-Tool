@@ -44,13 +44,10 @@ Calculates lit/len and dist pairs for given data.
 If instart is larger than 0, it uses values before instart as starting
 dictionary.
 */
-void ZopfliLZ77Optimal(ZopfliBlockState *s,
-                       const unsigned char* in, size_t instart, size_t inend,
-                       ZopfliLZ77Store* store);
 
     void ZopfliLZ77Optimal2(ZopfliBlockState *s,
                            const unsigned char* in, size_t instart, size_t inend,
-                           ZopfliLZ77Store* store);
+                           ZopfliLZ77Store* store, unsigned char first);
 
 /*
 Does the same as ZopfliLZ77Optimal, but optimized for the fixed tree of the

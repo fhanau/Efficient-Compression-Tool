@@ -594,7 +594,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
                                 const unsigned char* in,
                                 size_t instart, size_t inend,
                                 unsigned char* bp,
-                                unsigned char** out, size_t* outsize) {
+                                unsigned char** out, size_t* outsize, unsigned char first) {
   ZopfliBlockState s;
   size_t blocksize = inend - instart;
   ZopfliLZ77Store store;
@@ -617,7 +617,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
     ZopfliLZ77OptimalFixed(&s, in, instart, inend, &store);
   }
   else{
-    ZopfliLZ77Optimal2(&s, in, instart, inend, &store);
+    ZopfliLZ77Optimal2(&s, in, instart, inend, &store, first);
   }
 
 
@@ -678,7 +678,7 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
     ZopfliLZ77OptimalFixed(&s, in, instart, inend, &store->store);
   }
   else{
-    ZopfliLZ77Optimal2(&s, in, instart, inend, &store->store);
+    ZopfliLZ77Optimal2(&s, in, instart, inend, &store->store, 1);
   }
 
   /* For small block, encoding with fixed tree can be smaller. For large block,
@@ -755,7 +755,7 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
                                   const unsigned char* in,
                                   size_t instart, size_t inend,
                                   unsigned char* bp,
-                                  unsigned char** out, size_t* outsize) {
+                                  unsigned char** out, size_t* outsize, unsigned char first) {
   size_t* splitpoints = 0;
   size_t npoints = 0;
   ZopfliBlockSplit(options, in, instart, inend, &splitpoints, &npoints);
@@ -763,7 +763,7 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
     size_t start = i == 0 ? instart : splitpoints[i - 1];
     size_t end = i == npoints ? inend : splitpoints[i];
     DeflateDynamicBlock(options, i == npoints && final, in, start, end,
-                        bp, out, outsize);
+                        bp, out, outsize, first && i == 0);
   }
 
   free(splitpoints);
@@ -781,10 +781,10 @@ the final bit will be set on the last block.
 static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
                        const unsigned char* in, size_t instart, size_t inend,
                        unsigned char* bp, unsigned char** out,
-                       size_t* outsize) {
+                       size_t* outsize, unsigned char first) {
   /* Blocksplitting likely wont improve compression on small files */
   if (inend - instart < options->noblocksplit){
-    DeflateDynamicBlock(options, final, in, instart, inend, bp, out, outsize);
+    DeflateDynamicBlock(options, final, in, instart, inend, bp, out, outsize, first);
   }
 #ifndef NOMULTI
   else if (options->multithreading > 1){
@@ -792,7 +792,7 @@ static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
   }
 #endif
   else {
-    DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize);
+    DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize, first);
   }
 }
 
@@ -800,7 +800,7 @@ void ZopfliDeflate(const ZopfliOptions* options, int final,
                    const unsigned char* in, size_t insize,
                    unsigned char* bp, unsigned char** out, size_t* outsize) {
 #if ZOPFLI_MASTER_BLOCK_SIZE == 0
-  ZopfliDeflatePart(options, final, in, 0, insize, bp, out, outsize);
+  ZopfliDeflatePart(options, final, in, 0, insize, bp, out, outsize, 1);
 #else
   size_t i = 0;
   size_t msize = ZOPFLI_MASTER_BLOCK_SIZE;
@@ -811,7 +811,7 @@ void ZopfliDeflate(const ZopfliOptions* options, int final,
     int masterfinal = (i + msize >= insize);
     int final2 = final && masterfinal;
     size_t size = masterfinal ? insize - i : msize;
-    ZopfliDeflatePart(options, final2, in, i, i + size, bp, out, outsize);
+    ZopfliDeflatePart(options, final2, in, i, i + size, bp, out, outsize, i == 0);
     i += size;
   }
 #endif
