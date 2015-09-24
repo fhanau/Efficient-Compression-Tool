@@ -39,7 +39,6 @@ void ZopfliCleanLZ77Store(ZopfliLZ77Store* store) {
 }
 
 void ZopfliCopyLZ77Store(const ZopfliLZ77Store* source, ZopfliLZ77Store* dest) {
-  size_t i;
   ZopfliCleanLZ77Store(dest);
   dest->litlens = (unsigned short*)malloc(sizeof(*dest->litlens) * source->size);
   dest->dists = (unsigned short*)malloc(sizeof(*dest->dists) * source->size);
@@ -47,10 +46,9 @@ void ZopfliCopyLZ77Store(const ZopfliLZ77Store* source, ZopfliLZ77Store* dest) {
   if (!dest->litlens || !dest->dists) exit(1); /* Allocation failed. */
 
   dest->size = source->size;
-  for (i = 0; i < source->size; i++) {
-    dest->litlens[i] = source->litlens[i];
-    dest->dists[i] = source->dists[i];
-  }
+
+  memcpy(dest->litlens, source->litlens, source->size * sizeof(*dest->dists));
+  memcpy(dest->dists, source->dists, source->size * sizeof(*dest->dists));
 }
 
 /*
