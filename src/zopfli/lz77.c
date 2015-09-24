@@ -114,19 +114,15 @@ static const unsigned char* GetMatch(const unsigned char* scan,
     } while (scan < end);
   }
   else {
-    do {
-      unsigned sv = *(unsigned*)(void*)scan;
-      unsigned mv = *(unsigned*)(void*)match;
-      unsigned xor = sv ^ mv;
-      if (xor) {
-        scan += __builtin_ctz(xor) / 4;
-        break;
-      }
-      else {
-        scan += 4;
-        match += 4;
-      }
-    } while (scan < end);
+    while (scan < safe_end
+           && *((unsigned*)scan) == *((unsigned*)match)) {
+      scan += 4;
+      match += 4;
+    }
+    /* The remaining few bytes. */
+    while (scan != end && *scan == *match) {
+      scan++; match++;
+    }
   }
 
   if (unlikely(scan > end))
