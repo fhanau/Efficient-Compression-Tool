@@ -455,7 +455,7 @@ static void ZopfliLZ77Optimal(ZopfliBlockState *s,
   the statistics of the previous run. */
 
   /* Initial run. */
-  if (first || s->options->isPNG || s->options->numiterations > 5){
+  if (first || (!s->options->reuse_costmodel)){
     ZopfliLZ77Greedy(s, in, instart, inend, &currentstore, 0);
     GetStatistics(&currentstore, &stats);
   }
@@ -510,9 +510,9 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
     return;
   }
 
-  if (first || s->options->isPNG){
+  if (first || (!s->options->reuse_costmodel)){
   ZopfliLZ77Greedy(s, in, instart, inend, store, 0);
-  GetStatistics(store, &st);
+  GetStatistics(store, &stats);
   ZopfliCleanLZ77Store(store);
   }
 
@@ -528,6 +528,7 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
       }
     }
     stats.ll_symbols[0] -= 1;
+    stats.ll_symbols[1] -= 0.4;
     stats.d_symbols[0] -= 1.5;
     stats.d_symbols[3] -= 1.4;
     stats.ll_symbols[255] -= 0.5;
@@ -558,7 +559,7 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
   /* Dist to get to here with smallest cost. */
   unsigned short* length_array = (unsigned short*)malloc(sizeof(unsigned short) * (inend - instart + 1));
   if (!length_array) exit(1); /* Allocation failed. */
-  LZ77OptimalRun(s, in, instart, inend, length_array, &st, store, 0);
+  LZ77OptimalRun(s, in, instart, inend, length_array, s->options->reuse_costmodel ? &st : &stats, store, 0);
   GetStatistics(store, &st);
   free(length_array);
 }

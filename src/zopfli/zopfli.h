@@ -80,6 +80,8 @@ typedef struct ZopfliOptions {
   /*Use tuning for PNG files*/
   unsigned isPNG;
 
+  unsigned reuse_costmodel;
+
 } ZopfliOptions;
 
 /* Initializes options with default values. */

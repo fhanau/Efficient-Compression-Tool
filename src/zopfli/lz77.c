@@ -21,11 +21,11 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 
 #include "lz77.h"
 #include "util.h"
+#include "disttable.h"
 
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "disttable.h"
 #include <string.h>
 
 void ZopfliInitLZ77Store(ZopfliLZ77Store* store) {

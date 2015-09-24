@@ -234,4 +234,5 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   options->trystatic = mode > 3 ? 800 : 0;
   options->multithreading = multithreading;
   options->isPNG = isPNG;
+  options->reuse_costmodel = (!isPNG) && mode < 4 && (!multithreading);
 }
