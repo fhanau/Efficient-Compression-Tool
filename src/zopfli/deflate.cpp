@@ -33,7 +33,6 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "blocksplitter.h"
 #include "lz77.h"
 #include "squeeze.h"
-#include "tree.h"
 #include "katajainen.h"
 
 /*
@@ -103,6 +102,45 @@ static void PatchDistanceCodesForBuggyDecoders(unsigned* d_lengths) {
   } else if (num_dist_codes == 1) {
     d_lengths[d_lengths[0] ? 1 : 0] = 1;
   }
+}
+
+/*
+ Converts a series of Huffman tree bitlengths to the bit values of the symbols.
+ */
+static void ZopfliLengthsToSymbols(const unsigned* lengths, size_t n, unsigned maxbits,
+                            unsigned* symbols) {
+  size_t* bl_count = (size_t*)calloc(maxbits + 1, sizeof(size_t));
+  size_t* next_code = (size_t*)malloc(sizeof(size_t) * (maxbits + 1));
+  if (!bl_count || !next_code){
+    exit(1);
+  }
+  unsigned i;
+
+  /* 1) Count the number of codes for each code length. Let bl_count[N] be the
+   number of codes of length N, N >= 1. */
+  for (i = 0; i < n; i++) {
+    assert(lengths[i] <= maxbits);
+    bl_count[lengths[i]]++;
+  }
+  /* 2) Find the numerical value of the smallest code for each code length. */
+  unsigned code = 0;
+  bl_count[0] = 0;
+  for (unsigned bits = 1; bits <= maxbits; bits++) {
+    code = (code + bl_count[bits-1]) << 1;
+    next_code[bits] = code;
+  }
+  /* 3) Assign numerical values to all codes, using consecutive values for all
+   codes of the same length with the base values determined at step 2. */
+  for (i = 0;  i < n; i++) {
+    unsigned len = lengths[i];
+    if (len) {
+      symbols[i] = next_code[len];
+      next_code[len]++;
+    }
+  }
+
+  free(bl_count);
+  free(next_code);
 }
 
 /*

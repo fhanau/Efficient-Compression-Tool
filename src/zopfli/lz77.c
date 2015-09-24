@@ -26,6 +26,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <stdio.h>
 #include <stdlib.h>
 #include "disttable.h"
+#include <string.h>
 
 void ZopfliInitLZ77Store(ZopfliLZ77Store* store) {
   store->size = 0;

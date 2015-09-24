@@ -24,10 +24,10 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "blocksplitter.h"
 #include "deflate.h"
-#include "tree.h"
 #include "util.h"
 
 typedef struct SymbolStats {
@@ -348,6 +348,37 @@ static void FollowPath(ZopfliBlockState* s,
   ZopfliCleanHash(h);
 }
 
+/*
+ Calculates the entropy of each symbol, based on the counts of each symbol. The
+ result is similar to the result of ZopfliCalculateBitLengths, but with the
+ actual theoritical bit lengths according to the entropy. Since the resulting
+ values are fractional, they cannot be used to encode the tree specified by
+ DEFLATE.
+ */
+static void ZopfliCalculateEntropy(const size_t* count, size_t n, float* bitlengths) {
+  unsigned sum = 0;
+  unsigned i;
+  for (i = 0; i < n; ++i) {
+    sum += count[i];
+  }
+  float log2sum = sum == 0 ? log(n) : log2(sum);
+
+  for (i = 0; i < n; ++i) {
+    /* When the count of the symbol is 0, but its cost is requested anyway, it
+     means the symbol will appear at least once anyway, so give it the cost as if
+     its count is 1.*/
+    if (count[i] == 0) bitlengths[i] = log2sum;
+    else bitlengths[i] = log2sum - log2f(count[i]);
+    /* Depending on compiler and architecture, the above subtraction of two
+     floating point numbers may give a negative result very close to zero
+     instead of zero (e.g. -5.973954e-17 with gcc 4.1.2 on Ubuntu 11.4). Clamp
+     it to zero. These floating point imprecisions do not affect the cost model
+     significantly so this is ok. */
+    if (bitlengths[i] < 0 && bitlengths[i] > -1e-5) bitlengths[i] = 0;
+    assert(bitlengths[i] >= 0);
+  }
+}
+
 /* Calculates the entropy of the statistics */
 static void CalculateStatistics(SymbolStats* stats) {
   ZopfliCalculateEntropy(stats->litlens, 288, stats->ll_symbols);
@@ -401,7 +432,7 @@ static void LZ77OptimalRun(ZopfliBlockState* s, const unsigned char* in, size_t 
 /*TODO: Replace this w/ proper implementation. This performs bad on files w/ changing redundancy */
 static SymbolStats st;
 
-void ZopfliLZ77Optimal(ZopfliBlockState *s,
+static void ZopfliLZ77Optimal(ZopfliBlockState *s,
                        const unsigned char* in, size_t instart, size_t inend,
                        ZopfliLZ77Store* store, unsigned char first) {
   /* Dist to get to here with smallest cost. */
@@ -479,11 +510,11 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
     return;
   }
 
-  SymbolStats stats;
   if (first || s->options->isPNG){
   ZopfliLZ77Greedy(s, in, instart, inend, store, 0);
   GetStatistics(store, &st);
   ZopfliCleanLZ77Store(store);
+  }
 
   if (s->options->isPNG){
     /*TODO:Corrections for cost model inaccuracies. There is still much potential here
@@ -522,7 +553,6 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
       }
     }
   }
-
 
   ZopfliInitLZ77Store(store);
   /* Dist to get to here with smallest cost. */
