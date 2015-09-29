@@ -31,7 +31,7 @@ The hash for ZopfliFindLongestMatch of lz77.c.
 typedef struct ZopfliHash {
   short* head;  /* Hash value to index of its most recent occurance. */
   unsigned short* prev;  /* Index to index of prev. occurance of same hash. */
-  int* hashval;  /* Index to hash value at this index. */
+  short* hashval;  /* Index to hash value at this index. */
   int val;  /* Current hash value. */
 
 #ifdef ZOPFLI_HASH_SAME_HASH
@@ -39,7 +39,7 @@ typedef struct ZopfliHash {
   a value that is calculated differently.  */
   short* head2;  /* Hash value to index of its most recent occurance. */
   unsigned short* prev2;  /* Index to index of prev. occurance of same hash. */
-  int* hashval2;  /* Index to hash value at this index. */
+  short* hashval2;  /* Index to hash value at this index. */
   int val2;  /* Current hash value. */
 #endif
 
