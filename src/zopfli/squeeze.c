@@ -112,11 +112,13 @@ static void GetBestLengths(ZopfliBlockState *s,
   /*TODO: Put this in seperate function*/
   float litlentable [259];
   float* disttable = (float*)malloc(ZOPFLI_WINDOW_SIZE * sizeof(float));
+  float* literals;
   if (!disttable){
     exit(1);
   }
   if (costcontext){  /* Dynamic Block */
 
+    literals = costcontext->ll_symbols;
     for (i = 3; i < 259; i++){
       litlentable[i] = costcontext->ll_symbols[ZopfliGetLengthSymbol(i)] + ZopfliGetLengthExtraBits(i);
     }
@@ -173,6 +175,17 @@ static void GetBestLengths(ZopfliBlockState *s,
     }
   }
   else {
+    literals = malloc(256 * sizeof(float));
+    if (!literals){
+      exit(1);
+    }
+
+    for (i = 0; i < 144; i++){
+      literals[i] = 8;
+    }
+    for (; i < 256; i++){
+      literals[i] = 9;
+    }
     for (i = 3; i < 259; i++){
       litlentable[i] = 12 + (i > 114) + ZopfliGetLengthExtraBits(i);
     }
@@ -248,7 +261,7 @@ static void GetBestLengths(ZopfliBlockState *s,
     ZopfliFindLongestMatch2(s, h, in, i, inend, sublen, &leng, storeincache);
 
     /* Literal. */
-    float newCost = costs[j] + (costcontext ? costcontext->ll_symbols[in[i]] : 8 + (in[i] > 143));
+    float newCost = costs[j] + literals[in[i]];
     if (newCost < costs[j + 1]) {//Can we unlikely
       costs[j + 1] = newCost;
       length_array[j + 1] = 1;
@@ -263,6 +276,9 @@ static void GetBestLengths(ZopfliBlockState *s,
     }
   }
 
+  if (!costcontext){
+    free(literals);
+  }
   ZopfliCleanHash(h);
   free(disttable);
   free(costs);
