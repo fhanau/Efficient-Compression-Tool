@@ -1,7 +1,6 @@
 Makefile Build:
-Use the Makefile to build  dependencies and the binary:
+Use the Makefile to build dependencies and the binary:
 cd src/
-make deps
 make
 
 Xcode Build (Mac only):
