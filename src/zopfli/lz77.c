@@ -91,7 +91,7 @@ safe_end is a few (8) bytes before end, for comparing multiple bytes at once.
 #ifdef __GNUC__
 __attribute__ ((always_inline))
 #endif
-inline static const unsigned char* GetMatch(const unsigned char* scan,
+static const unsigned char* GetMatch(const unsigned char* scan,
                                      const unsigned char* match,
                                      const unsigned char* end
                                      , const unsigned char* safe_end
@@ -278,7 +278,7 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
 
   unsigned dist = p < pp ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp); /* Not unsigned short on purpose. */
 
-  unsigned short bestlength = 1;
+  unsigned short bestlength = 2;
   unsigned short bestdist = 0;
   const unsigned char* scan;
   const unsigned char* match;
@@ -372,7 +372,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
 
   unsigned dist = p < pp ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp); /* Not unsigned short on purpose. */
 
-  unsigned short bestlength = 1;
+  unsigned short bestlength = 2;
   unsigned short bestdist = 0;
 
   const unsigned char* new = &array[pos];
@@ -409,7 +409,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
         else{
           if ((currentlength - bestlength) % 2){
             sublen[bestlength + 1] = dist;
-            bestlength += 1;
+            bestlength++;
           }
           unsigned* usublen = (unsigned*)sublen;
           unsigned udist = dist + (dist << 16);
@@ -434,7 +434,7 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
   else{
     const unsigned char* match;
 
-    if(same0 < 2 && h->val2 == h->hashval2[p]){
+    if(h->val2 == h->hashval2[p]){
       hprev = h->prev2;
       while (dist < ZOPFLI_WINDOW_SIZE) {
         scan = new;
