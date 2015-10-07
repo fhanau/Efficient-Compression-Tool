@@ -91,7 +91,7 @@ safe_end is a few (8) bytes before end, for comparing multiple bytes at once.
 #ifdef __GNUC__
 __attribute__ ((always_inline))
 #endif
-static const unsigned char* GetMatch(const unsigned char* scan,
+inline static const unsigned char* GetMatch(const unsigned char* scan,
                                      const unsigned char* match,
                                      const unsigned char* end
                                      , const unsigned char* safe_end
