@@ -71,7 +71,7 @@ static opng_optimizer * opng_create_optimizer()
  */
 void opng_warning(const char *fname, const char *message)
 {
-    fprintf(stderr, "%s: warning: %s\n", fname != NULL ? fname : "ECT", message);
+    fprintf(stderr, "%s: warning: %s\n", fname ? fname : "ECT", message);
 }
 
 /*
@@ -80,7 +80,7 @@ void opng_warning(const char *fname, const char *message)
  */
 void opng_error(const char *fname, const char *message)
 {
-    fprintf(stderr, "%s: error: %s\n", fname != NULL ? fname : "ECT", message);
+    fprintf(stderr, "%s: error: %s\n", fname ? fname : "ECT", message);
 }
 
 // Reads an image from an image file stream. Reduces the image if possible.
@@ -263,6 +263,7 @@ static int opng_optimize_file(opng_optimizer *optimizer, const char *Infile, boo
     memset(&session, 0, sizeof(session));
     session.options = options;
     session.transformer = optimizer->transformer;
+    session.Infile = Infile;
     opng_init_image(&session.image);
     int optimal_filter = opng_optimize_impl(&session, Infile, force_no_palette);
     opng_clear_image(&session.image);

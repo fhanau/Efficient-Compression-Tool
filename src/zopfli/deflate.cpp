@@ -162,13 +162,11 @@ static size_t EncodeTree(const unsigned* ll_lengths,
   size_t i, j;
   size_t clcounts[19];
   unsigned clcl[19];  /* Code length code lengths. */
-  unsigned clsymbols[19];
   /* The order in which code length code lengths are encoded as per deflate. */
   static const unsigned order[19] = {
     16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
   };
   int size_only = !out;
-  size_t result_size = 0;
 
   for(i = 0; i < 19; i++) clcounts[i] = 0;
 
@@ -247,13 +245,15 @@ static size_t EncodeTree(const unsigned* ll_lengths,
     }
   }
   ZopfliLengthLimitedCodeLengths(clcounts, 19, 7, clcl);
-  if (!size_only) ZopfliLengthsToSymbols(clcl, 19, 7, clsymbols);
 
   unsigned hclen = 15;
   /* Trim zeros. */
   while (hclen && clcounts[order[hclen + 4 - 1]] == 0) hclen--;
 
   if (!size_only) {
+    unsigned clsymbols[19];
+    ZopfliLengthsToSymbols(clcl, 19, 7, clsymbols);
+
     AddBits(hlit, 5, bp, out, outsize);
     AddBits(hdist, 5, bp, out, outsize);
     AddBits(hclen, 4, bp, out, outsize);
@@ -270,9 +270,12 @@ static size_t EncodeTree(const unsigned* ll_lengths,
       else if (rle[i] == 17) AddBits(rle_bits[i], 3, bp, out, outsize);
       else if (rle[i] == 18) AddBits(rle_bits[i], 7, bp, out, outsize);
     }
+
+    free(rle);
+    free(rle_bits);
   }
 
-  result_size += 14;  /* hlit, hdist, hclen bits */
+  size_t result_size = 14;  /* hlit, hdist, hclen bits */
   result_size += (hclen + 4) * 3;  /* clcl bits */
   for(i = 0; i < 19; i++) {
     result_size += clcl[i] * clcounts[i];
@@ -281,10 +284,6 @@ static size_t EncodeTree(const unsigned* ll_lengths,
   result_size += clcounts[16] * 2;
   result_size += clcounts[17] * 3;
   result_size += clcounts[18] * 7;
-
-  /* Note: in case of "size_only" these are null pointers so no effect. */
-  free(rle);
-  free(rle_bits);
 
   return result_size;
 }

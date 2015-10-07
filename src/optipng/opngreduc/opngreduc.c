@@ -836,7 +836,7 @@ static png_uint_32 opng_reduce_to_palette(png_structp png_ptr, png_infop info_pt
         /*if (channels * 8 == dest_bit_depth || (3 * num_palette + num_trans) * 8 / (channels * 8 - dest_bit_depth) / width / height >= 1) */
         if (channels * 8 == dest_bit_depth || (12 + (5 * num_palette + num_trans)) * 8 / (channels * 8 - dest_bit_depth) / width / height >= 1)
         {num_palette = -1;}
-        if ((num_palette && width * height < 12 * num_palette) || width * height < 8000){
+        if ((num_palette && width * height < 12u * num_palette) || width * height < 8000){
             num_palette = -1;
         }
     }
