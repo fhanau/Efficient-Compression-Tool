@@ -536,54 +536,54 @@ static void ZopfliLZ77Optimal(ZopfliBlockState *s,
 
 void ZopfliLZ77Optimal2(ZopfliBlockState *s,
                         const unsigned char* in, size_t instart, size_t inend,
-                        ZopfliLZ77Store* store, unsigned char first) {
+                        ZopfliLZ77Store* store, unsigned char costmodelnotinited) {
   SymbolStats stats;
   if (s->options->numiterations != 1){
-    ZopfliLZ77Optimal(s, in, instart, inend, store, first);
+    ZopfliLZ77Optimal(s, in, instart, inend, store, costmodelnotinited);
     return;
   }
 
-  if (first || (!s->options->reuse_costmodel)){
-  ZopfliLZ77Greedy(s, in, instart, inend, store, 0);
-  GetStatistics(store, &stats);
-  ZopfliCleanLZ77Store(store);
-  }
+  if (costmodelnotinited || (!s->options->reuse_costmodel)){
+    ZopfliLZ77Greedy(s, in, instart, inend, store, 0);
+    GetStatistics(store, &stats);
+    ZopfliCleanLZ77Store(store);
 
-  if (s->options->isPNG){
-    /*TODO:Corrections for cost model inaccuracies. There is still much potential here
-    Enable this in Mode 3, too, though less aggressive*/
-    for (unsigned i = 0; i < 256; i++){
-      stats.ll_symbols[i] -= 0.4;
-    }
-    if (inend - instart < 1000){
+    if (s->options->isPNG){
+      /*TODO:Corrections for cost model inaccuracies. There is still much potential here
+       Enable this in Mode 3, too, though less aggressive*/
       for (unsigned i = 0; i < 256; i++){
-        stats.ll_symbols[i] -= 0.2;
+        stats.ll_symbols[i] -= 0.4;
       }
-    }
-    stats.ll_symbols[0] -= 1;
-    stats.ll_symbols[1] -= 0.4;
-    stats.d_symbols[0] -= 1.5;
-    stats.d_symbols[3] -= 1.4;
-    stats.ll_symbols[255] -= 0.5;
-    stats.ll_symbols[257] -= 1.2;
-    stats.ll_symbols[258] += 0.3;
-    stats.ll_symbols[272] += 1.2;
-    stats.ll_symbols[282] += 0.2;
-    stats.ll_symbols[283] += 0.2;
-    stats.ll_symbols[284] += 0.4;
-    if (inend - instart < 32768 && inend - instart > 100){
-      for (unsigned i = ZopfliGetDistSymbol(inend - instart) - 1; i < 32; i++){
-        stats.d_symbols[i] += 0.5;
+      if (inend - instart < 1000){
+        for (unsigned i = 0; i < 256; i++){
+          stats.ll_symbols[i] -= 0.2;
+        }
       }
-    }
-    for (unsigned i = 0; i < 288; i++){
-      if (stats.ll_symbols[i] < 1){
-        stats.ll_symbols[i] = 1;
+      stats.ll_symbols[0] -= 1;
+      stats.ll_symbols[1] -= 0.4;
+      stats.d_symbols[0] -= 1.5;
+      stats.d_symbols[3] -= 1.4;
+      stats.ll_symbols[255] -= 0.5;
+      stats.ll_symbols[257] -= 1.2;
+      stats.ll_symbols[258] += 0.3;
+      stats.ll_symbols[272] += 1.2;
+      stats.ll_symbols[282] += 0.2;
+      stats.ll_symbols[283] += 0.2;
+      stats.ll_symbols[284] += 0.4;
+      if (inend - instart < 32768 && inend - instart > 100){
+        for (unsigned i = ZopfliGetDistSymbol(inend - instart) - 1; i < 32; i++){
+          stats.d_symbols[i] += 0.5;
+        }
       }
-    }
-    for (unsigned i = 0; i < 32; i++){
-      if (stats.d_symbols[i] < 1){
-        stats.d_symbols[i] = 1;
+      for (unsigned i = 0; i < 286; i++){
+        if (stats.ll_symbols[i] < 1){
+          stats.ll_symbols[i] = 1;
+        }
+      }
+      for (unsigned i = 0; i < 30; i++){
+        if (stats.d_symbols[i] < 1){
+          stats.d_symbols[i] = 1;
+        }
       }
     }
   }
