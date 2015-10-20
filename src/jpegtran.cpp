@@ -27,7 +27,7 @@
 
 static void jcopy_markers_execute (j_decompress_ptr srcinfo, j_compress_ptr dstinfo)
 {
-    for (jpeg_saved_marker_ptr marker = srcinfo->marker_list; marker != NULL; marker = marker->next) {
+    for (jpeg_saved_marker_ptr marker = srcinfo->marker_list; marker; marker = marker->next) {
         if (dstinfo->write_JFIF_header &&
             marker->marker == JPEG_APP0 &&
             marker->data_length >= 5 &&
@@ -52,14 +52,13 @@ static void jcopy_markers_execute (j_decompress_ptr srcinfo, j_compress_ptr dsti
 
 int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Infile, const char * Outfile)
 {
-
     struct jpeg_decompress_struct srcinfo;
     struct jpeg_compress_struct dstinfo;
     struct jpeg_error_mgr jsrcerr, jdsterr;
     FILE * fp;
-    unsigned char *inbuffer = NULL;
+    unsigned char *inbuffer = 0;
     unsigned long insize = 0;
-    unsigned char *outbuffer = NULL;
+    unsigned char *outbuffer = 0;
     unsigned long outsize = 0;
     const char * progname = "ECT (JPEG)";
     /* Initialize the JPEG decompression object with default error handling. */
@@ -73,7 +72,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
     }
 
     /* Open the input file. */
-    if ((fp = fopen(Infile, "rb")) == NULL) {
+    if (!(fp = fopen(Infile, "rb"))) {
         fprintf(stderr, "%s: can't open %s for reading\n", progname, Infile);
         return 2;
     }
@@ -81,7 +80,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
     size_t nbytes;
     do {
         inbuffer = (unsigned char *)realloc(inbuffer, insize + INPUT_BUF_SIZE);
-        if (inbuffer == NULL) {
+        if (!inbuffer) {
             fprintf(stderr, "%s: memory allocation failure\n", progname);
             exit(1);
       }
@@ -103,7 +102,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
     }
 
     /* Read file header */
-    jpeg_read_header(&srcinfo, TRUE);
+    jpeg_read_header(&srcinfo, 1);
 
     /* Any space needed by a transform option must be requested before
        jpeg_read_coefficients so that memory allocation will be done right.
@@ -123,7 +122,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
     }
     else{
         dstinfo.num_scans = 0;
-        dstinfo.scan_info = NULL;
+        dstinfo.scan_info = 0;
     }
 
     /* Specify data destination for compression */
@@ -148,7 +147,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
     /* Better file than before */
     else{
         /* Open the output file. */
-        if ((fp = fopen(Outfile, "wb")) == NULL) {
+        if (!(fp = fopen(Outfile, "wb"))) {
             fprintf(stderr, "%s: can't open %s for writing\n", progname, Outfile);
             free(outbuffer);
             return 2;

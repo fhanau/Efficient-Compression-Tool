@@ -110,7 +110,7 @@ static int opng_sigs_add(struct opng_sigs *sigs, const char *chunk_name)
         else
             sigs->capacity *= 2;
         void * new_buffer = realloc(sigs->buffer, sigs->capacity * 4);
-        if (new_buffer == NULL)
+        if (!new_buffer)
             return -1;
         sigs->buffer = (png_byte *)new_buffer;
     }
@@ -163,7 +163,7 @@ void opng_transform_chunk (opng_transformer_t *transformer, const char *chunk, i
     {
         /* Missing or incorrect id. */
         if (strip){
-            const char *err_message = NULL;
+            const char *err_message = 0;
             if (id == OPNG_ID_CHUNK_IMAGE)
             {
                 /* Tried to (but shouldn't) strip image data. */
@@ -178,7 +178,7 @@ void opng_transform_chunk (opng_transformer_t *transformer, const char *chunk, i
                 /*TODO:*/
                 err_message = "Use -strip apngc to strip APNG chunks";
             }
-            if (err_message!=NULL){
+            if (err_message){
                 printf("%s", err_message);
                 return;
             }
@@ -193,7 +193,7 @@ void opng_transform_chunk (opng_transformer_t *transformer, const char *chunk, i
 opng_transformer_t * opng_create_transformer()
 {
     opng_transformer_t * result = (opng_transformer_t *)calloc(1, sizeof(struct opng_transformer));
-    if (result == NULL)
+    if (!result)
         exit(1);
 
     opng_sigs_init(&result->strip_sigs);
@@ -262,7 +262,7 @@ const opng_transformer_t * opng_seal_transformer(opng_transformer_t *transformer
  */
 void opng_destroy_transformer(opng_transformer_t *transformer)
 {
-    if (transformer == NULL)
+    if (!transformer)
         return;
 
     opng_sigs_clear(&transformer->strip_sigs);

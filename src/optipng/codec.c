@@ -348,12 +348,12 @@ static void opng_write_data(png_structp png_ptr, png_bytep data, size_t length)
  */
 int opng_decode_image(struct opng_codec_context *context, FILE *stream, const char *fname, bool force_no_palette)
 {
-    context->libpng_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, opng_read_error, opng_read_warning);
+    context->libpng_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, 0, opng_read_error, opng_read_warning);
     context->info_ptr = png_create_info_struct(context->libpng_ptr);
-    if (context->libpng_ptr == NULL || context->info_ptr == NULL)
+    if (!context->libpng_ptr || !context->info_ptr)
     {
-        opng_error(NULL, "Out of memory");
-        png_destroy_read_struct(&context->libpng_ptr, &context->info_ptr, NULL);
+        opng_error(0, "Out of memory");
+        png_destroy_read_struct(&context->libpng_ptr, &context->info_ptr, 0);
         exit(1);
     }
 
@@ -369,9 +369,9 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
 
     Try
     {
-        png_set_keep_unknown_chunks(context->libpng_ptr, PNG_HANDLE_CHUNK_ALWAYS, NULL, 0);
+        png_set_keep_unknown_chunks(context->libpng_ptr, PNG_HANDLE_CHUNK_ALWAYS, 0, 0);
         png_set_read_fn(context->libpng_ptr, context, opng_read_data);
-        png_read_png(context->libpng_ptr, context->info_ptr, 0, NULL);
+        png_read_png(context->libpng_ptr, context->info_ptr, 0, 0);
     }
     Catch (err_msg)
     {
@@ -424,7 +424,7 @@ int opng_decode_reduce_image(struct opng_codec_context *context, int reductions)
  */
 void opng_decode_finish(struct opng_codec_context *context, int free_data)
 {
-    if (context->libpng_ptr == NULL)
+    if (!context->libpng_ptr)
         return;
 
     int freer;
@@ -438,7 +438,7 @@ void opng_decode_finish(struct opng_codec_context *context, int free_data)
         freer = PNG_USER_WILL_FREE_DATA;
 
     png_data_freer(context->libpng_ptr, context->info_ptr, freer, PNG_FREE_ALL);
-    png_destroy_read_struct(&context->libpng_ptr, &context->info_ptr, NULL);
+    png_destroy_read_struct(&context->libpng_ptr, &context->info_ptr, 0);
 }
 
 /*
@@ -448,11 +448,11 @@ int opng_encode_image(struct opng_codec_context *context, int filtered, FILE *st
 {
     const char * volatile err_msg;  /* volatile is required by cexcept */
 
-    context->libpng_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, opng_write_error, opng_write_warning);
+    context->libpng_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, 0, opng_write_error, opng_write_warning);
     context->info_ptr = png_create_info_struct(context->libpng_ptr);
-    if (context->libpng_ptr == NULL || context->info_ptr == NULL)
+    if (!context->libpng_ptr || !context->info_ptr)
     {
-        opng_error(NULL, "Out of memory");
+        opng_error(0, "Out of memory");
         png_destroy_write_struct(&context->libpng_ptr, &context->info_ptr);
         exit(1);
     }
@@ -472,12 +472,12 @@ int opng_encode_image(struct opng_codec_context *context, int filtered, FILE *st
         png_set_compression_mem_level(context->libpng_ptr, 8);
         png_set_compression_window_bits(context->libpng_ptr, 15);
         png_set_compression_strategy(context->libpng_ptr, 0);
-        png_set_keep_unknown_chunks(context->libpng_ptr, PNG_HANDLE_CHUNK_ALWAYS, NULL, 0);
+        png_set_keep_unknown_chunks(context->libpng_ptr, PNG_HANDLE_CHUNK_ALWAYS, 0, 0);
         opng_store_image(context->image, context->libpng_ptr, context->info_ptr);
 
         /* Write the PNG stream. */
-        png_set_write_fn(context->libpng_ptr, context, opng_write_data, NULL);
-        png_write_png(context->libpng_ptr, context->info_ptr, 0, NULL);
+        png_set_write_fn(context->libpng_ptr, context, opng_write_data, 0);
+        png_write_png(context->libpng_ptr, context->info_ptr, 0, 0);
     }
     Catch (err_msg)
     {
@@ -502,10 +502,10 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
     const char * volatile err_msg;
     int volatile result = 0;
 
-    context->libpng_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, opng_write_error, opng_write_warning);
-    if (context->libpng_ptr == NULL)
+    context->libpng_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, 0, opng_write_error, opng_write_warning);
+    if (!context->libpng_ptr)
     {
-        opng_error(NULL, "Out of memory");
+        opng_error(0, "Out of memory");
         exit(1);
     }
 
@@ -513,11 +513,11 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
     opng_init_stats(stats);
     context->stream = out_stream;
     context->fname = Outfile;
-    png_set_write_fn(context->libpng_ptr, context, opng_write_data, NULL);
+    png_set_write_fn(context->libpng_ptr, context, opng_write_data, 0);
 
     Try
     {
-        buf = NULL;
+        buf = 0;
         png_uint_32 buf_size = 0;
 
         /* Write the signature in the output file. */
@@ -536,7 +536,7 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
             length = png_get_uint_32(chunk_hdr);
             if (length > PNG_UINT_31_MAX)
             {
-                if (buf == NULL && length == 0x89504e47UL)  /* "\x89PNG" */
+                if (!buf && length == 0x89504e47UL)  /* "\x89PNG" */
                     continue;  /* skip the signature */
                 opng_error(Infile, "Data error");
                 result = -1;
@@ -569,6 +569,6 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
     }
 
     png_free(context->libpng_ptr, buf);
-    png_destroy_write_struct(&context->libpng_ptr, NULL);
+    png_destroy_write_struct(&context->libpng_ptr, 0);
     return result;
 }

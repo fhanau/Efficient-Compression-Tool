@@ -14,11 +14,11 @@
 
 void ungz(const char * Infile, const char * Outfile){
     gzFile r = gzopen(Infile, "rb");
-    if (r == NULL){
+    if (!r){
         return;
     }
     FILE * stream = fopen (Outfile, "wb");
-    if (stream == NULL){
+    if (!stream){
         return;
     }
     char buf [4096];
@@ -34,7 +34,7 @@ void ungz(const char * Infile, const char * Outfile){
 
 int IsGzip(const char * Infile){
     FILE * stream = fopen (Infile, "rb");
-    if (stream == NULL){
+    if (!stream){
         return 2;
     }
     char buf [2];

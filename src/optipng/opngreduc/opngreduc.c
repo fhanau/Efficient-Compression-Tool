@@ -192,13 +192,13 @@ static void opng_realloc_tRNS(png_structp png_ptr, png_infop info_ptr, int num_t
    png_byte buffer[PNG_MAX_PALETTE_LENGTH];
    png_bytep trans_alpha;
    int src_num_trans = 0;
-   png_get_tRNS(png_ptr, info_ptr, &trans_alpha, &src_num_trans, NULL);
+   png_get_tRNS(png_ptr, info_ptr, &trans_alpha, &src_num_trans, 0);
    if (num_trans == src_num_trans)
       return;
    memcpy(buffer, trans_alpha, (size_t)num_trans);
    if (num_trans > src_num_trans)
       memset(buffer + src_num_trans, 0, num_trans - src_num_trans);
-   png_set_tRNS(png_ptr, info_ptr, buffer, num_trans, NULL);
+   png_set_tRNS(png_ptr, info_ptr, buffer, num_trans, 0);
 }
 
 /*
@@ -218,7 +218,7 @@ static void opng_get_alpha_row(png_row_infop row_info_ptr, png_color_16p trans_c
    if (!(color_type & PNG_COLOR_MASK_ALPHA))
    {
        png_byte trans_red, trans_green, trans_blue, trans_gray;
-      if (trans_color == NULL)
+      if (!trans_color)
       {
          /* All pixels are fully opaque. */
          memset(alpha_row, 255, (size_t)width);
@@ -264,7 +264,7 @@ static png_uint_32 opng_analyze_bits(png_structp png_ptr, png_infop info_ptr, pn
 {
    png_uint_32 height, width;
    int bit_depth, color_type;
-   png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL);
+   png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, 0, 0, 0);
    if (bit_depth < 8 || !height || !width)
       return OPNG_REDUCE_NONE;  /* not applicable */
    if (color_type & PNG_COLOR_MASK_PALETTE)
@@ -486,7 +486,7 @@ static png_uint_32  opng_reduce_bits(png_structp png_ptr, png_infop info_ptr, pn
    }
    png_color_16p trans_color;
    /* Update the ancillary information. */
-   if (png_get_tRNS(png_ptr, info_ptr, NULL, NULL, &trans_color))
+   if (png_get_tRNS(png_ptr, info_ptr, 0, 0, &trans_color))
    {
       if (reductions & OPNG_REDUCE_16_TO_8)
       {
@@ -728,8 +728,8 @@ static png_uint_32 opng_reduce_to_palette(png_structp png_ptr, png_infop info_pt
 
    /* Analyze the possibility of this reduction. */
    int num_palette = num_trans = 0;
-   png_color_16p trans_color = NULL;
-   png_get_tRNS(png_ptr, info_ptr, NULL, NULL, &trans_color);
+   png_color_16p trans_color = 0;
+   png_get_tRNS(png_ptr, info_ptr, 0, 0, &trans_color);
    unsigned prev_gray = prev_red = prev_green = prev_blue = prev_alpha = 256;
    png_uint_32 i;
    for (i = 0; i < height; ++i, ++row_ptr)
@@ -907,7 +907,7 @@ static png_uint_32 opng_reduce_to_palette(png_structp png_ptr, png_infop info_pt
       interlace_type, compression_type, filter_type);
    png_set_PLTE(png_ptr, info_ptr, palette, num_palette);
    if (num_trans > 0)
-      png_set_tRNS(png_ptr, info_ptr, trans_alpha, num_trans, NULL);
+      png_set_tRNS(png_ptr, info_ptr, trans_alpha, num_trans, 0);
    /* bKGD (if present) is automatically updated. */
 
    png_free(png_ptr, alpha_row);
@@ -1002,16 +1002,16 @@ static png_uint_32 opng_reduce_palette(png_structp png_ptr, png_infop info_ptr, 
    png_bytepp row_ptr = png_get_rows(png_ptr, info_ptr);
    if (!png_get_PLTE(png_ptr, info_ptr, &palette, &num_palette))
    {
-      palette = NULL;
+      palette = 0;
       num_palette = 0;
    }
-   if (!png_get_tRNS(png_ptr, info_ptr, &trans_alpha, &num_trans, NULL))
+   if (!png_get_tRNS(png_ptr, info_ptr, &trans_alpha, &num_trans, 0))
    {
-      trans_alpha = NULL;
+      trans_alpha = 0;
       num_trans = 0;
    }
    else
-      OPNG_ASSERT(trans_alpha != NULL && num_trans > 0);
+      OPNG_ASSERT(trans_alpha && num_trans > 0);
 
    opng_analyze_sample_usage(png_ptr, info_ptr, is_used);
    /* Palette-to-gray does not work (yet) if the bit depth is below 8. */
@@ -1106,7 +1106,7 @@ static png_uint_32 opng_reduce_palette(png_structp png_ptr, png_infop info_ptr, 
       {
          /* Reduce tRNS. */
          opng_realloc_tRNS(png_ptr, info_ptr, last_trans_index + 1);
-         png_get_tRNS(png_ptr, info_ptr, &trans_alpha, &num_trans, NULL);
+         png_get_tRNS(png_ptr, info_ptr, &trans_alpha, &num_trans, 0);
          OPNG_ASSERT(num_trans == last_trans_index + 1);
          result |= OPNG_REDUCE_PALETTE_FAST;
       }
@@ -1130,7 +1130,7 @@ static png_uint_32 opng_reduce_palette(png_structp png_ptr, png_infop info_ptr, 
 
    /* Update the ancillary information. */
    if (num_trans > 0)
-      png_set_tRNS(png_ptr, info_ptr, NULL, 0, &gray_trans);
+      png_set_tRNS(png_ptr, info_ptr, 0, 0, &gray_trans);
 #ifdef PNG_bKGD_SUPPORTED
     png_color_16p background;
    if (png_get_bKGD(png_ptr, info_ptr, &background))

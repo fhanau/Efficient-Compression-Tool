@@ -145,14 +145,14 @@ static int opng_write_file(struct opng_session *session, FILE *stream, int filte
 static int opng_copy_file(struct opng_session *session, FILE *in_stream, FILE *out_stream)
 {
     struct opng_codec_context context;
-    opng_init_codec_context(&context, NULL, &session->out_stats, session->transformer);
+    opng_init_codec_context(&context, 0, &session->out_stats, session->transformer);
     return opng_copy_png(&context, in_stream, session->Infile, out_stream, session->Outfile);
 }
 
 static int opng_optimize_impl(struct opng_session *session, const char *Infile, bool force_no_palette)
 {
     FILE * fstream = fopen(Infile, "rb");
-    if (fstream == NULL)
+    if (!fstream)
     {
         opng_error(Infile, "Can't open file");
         return -1;
@@ -204,7 +204,7 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
     int optimal_filter = -1;
     if (options->nz){
         fstream = fopen((((std::string)Infile).append(".bak")).c_str(), "rb");
-        if (fstream == NULL)
+        if (!fstream)
         {opng_error(Infile, "Can't reopen file");}
         else if (fseek(fstream, session->in_stats.datastream_offset, SEEK_SET) != 0){
             opng_error(Infile, "Can't reposition file");
@@ -212,7 +212,7 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
         }
         else {
             FILE * out_stream = fopen(Infile, "wb");
-            if (out_stream == NULL)
+            if (!out_stream)
             {
                 opng_error(Infile, "Can't open file for writing");
             }

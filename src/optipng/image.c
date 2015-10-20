@@ -32,7 +32,7 @@ void opng_load_image(struct opng_image *image, png_structp png_ptr, png_infop in
 
     png_get_IHDR(png_ptr, info_ptr,
         &image->width, &image->height, &image->bit_depth, &image->color_type,
-        &image->interlace_type, NULL, NULL);
+        &image->interlace_type, 0, 0);
     image->row_pointers = png_get_rows(png_ptr, info_ptr);
     png_get_PLTE(png_ptr, info_ptr, &image->palette, &image->num_palette);
     /* Transparency information is not metadata, although tRNS is ancillary. */
@@ -42,7 +42,7 @@ void opng_load_image(struct opng_image *image, png_structp png_ptr, png_infop in
         /* Double copying (pointer + value) is necessary here
          * due to an inconsistency in the libpng design.
          */
-        if (image->trans_color_ptr != NULL)
+        if (image->trans_color_ptr)
         {
             image->trans_color = *image->trans_color_ptr;
             image->trans_color_ptr = &image->trans_color;
@@ -74,19 +74,19 @@ void opng_store_image(struct opng_image *image, png_structp png_ptr, png_infop i
         image->width, image->height, image->bit_depth, image->color_type,
         image->interlace_type, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE );
     png_set_rows(png_ptr, info_ptr, image->row_pointers);
-    if (image->palette != NULL)
+    if (image->palette)
         png_set_PLTE(png_ptr, info_ptr, image->palette, image->num_palette);
     /* Transparency information is not metadata, although tRNS is ancillary. */
-    if (image->trans_alpha != NULL || image->trans_color_ptr != NULL)
+    if (image->trans_alpha || image->trans_color_ptr)
         png_set_tRNS(png_ptr, info_ptr,
             image->trans_alpha, image->num_trans, image->trans_color_ptr);
-    if (image->background_ptr != NULL)
+    if (image->background_ptr)
         png_set_bKGD(png_ptr, info_ptr, image->background_ptr);
-    if (image->hist != NULL)
+    if (image->hist)
         png_set_hIST(png_ptr, info_ptr, image->hist);
-    if (image->sig_bit_ptr != NULL)
+    if (image->sig_bit_ptr)
         png_set_sBIT(png_ptr, info_ptr, image->sig_bit_ptr);
-    if (image->num_unknowns != 0)
+    if (image->num_unknowns)
     {
         png_set_unknown_chunks(png_ptr, info_ptr, image->unknowns, image->num_unknowns);
         /* Is this really necessary? Should it not be implemented in libpng? */
@@ -100,7 +100,7 @@ void opng_store_image(struct opng_image *image, png_structp png_ptr, png_infop i
  */
 void opng_clear_image(struct opng_image *image)
 {
-    if (image->row_pointers == NULL)
+    if (!image->row_pointers)
         return;  /* nothing to clean up */
 
     for (png_uint_32 i = 0; i < image->height; ++i)
