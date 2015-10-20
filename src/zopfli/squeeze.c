@@ -264,11 +264,31 @@ static void GetBestLengths(ZopfliBlockState *s,
       length_array[j + 1] = 1;
     }
 
-    for (unsigned short k = 3; k <= leng; k++) {
-      newCost = costs[j] + litlentable[k] + disttable[sublen[k]];
-      if (newCost < costs[j + k]) {
-        costs[j + k] = newCost;
-        length_array[j + k] = k;
+    if (leng > 40 && sublen[10] == sublen[leng]){
+      for (unsigned short k = 3; k <= 10; k++) {
+        newCost = costs[j] + litlentable[k] + disttable[sublen[k]];
+        if (newCost < costs[j + k]) {
+          costs[j + k] = newCost;
+          length_array[j + k] = k;
+        }
+      }
+      float broadcast = costs[j] + disttable[sublen[10]];
+      for (unsigned short k = 11; k <= leng; k++) {
+        newCost = litlentable[k] + broadcast;
+        if (newCost < costs[j + k]) {
+          costs[j + k] = newCost;
+          length_array[j + k] = k;
+        }
+      }
+
+    }
+    else{
+      for (unsigned short k = 3; k <= leng; k++) {
+        newCost = costs[j] + litlentable[k] + disttable[sublen[k]];
+        if (newCost < costs[j + k]) {
+          costs[j + k] = newCost;
+          length_array[j + k] = k;
+        }
       }
     }
   }
