@@ -28,6 +28,7 @@ Jyrki Katajainen, Alistair Moffat, Andrew Turpin".
 #include "katajainen.h"
 #include "util.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include <assert.h>
 
 typedef struct Node Node;
@@ -35,7 +36,8 @@ typedef struct Node Node;
 /*
 Nodes forming chains. Also used to represent leaves.
 */
-struct Node {
+struct Node
+{
   size_t weight;  /* Total weight (symbol count) of this chain. */
   Node* tail;  /* Previous node(s) of this chain, or 0 if none. */
   int count;  /* Leaf symbol index, or number of leaves before this chain. */
@@ -75,12 +77,10 @@ static Node* GetFreeNode(Node* (*lists)[2], int maxbits, NodePool* pool) {
       for (i = 0; i < pool->size; i++) {
         pool->nodes[i].inuse = 0;
       }
-      if (lists) {
-        for (i = 0; i < maxbits * 2; i++) {
-          Node* node;
-          for (node = lists[i / 2][i % 2]; node; node = node->tail) {
-            node->inuse = 1;
-          }
+      for (i = 0; i < maxbits * 2; i++) {
+        Node* node;
+        for (node = lists[i / 2][i % 2]; node; node = node->tail) {
+          node->inuse = 1;
         }
       }
       pool->next = &pool->nodes[0];
@@ -102,14 +102,12 @@ leaves: The leaves, one per symbol.
 numsymbols: Number of leaves.
 pool: the node memory pool.
 index: The index of the list in which a new chain or leaf is required.
-final: Whether this is the last time this function is called. If it is then it
-  is no more needed to recursively call self.
 */
 static void BoundaryPM(Node* (*lists)[2], int maxbits,
-    Node* leaves, int numsymbols, NodePool* pool, int index, char final) {
+    Node* leaves, int numsymbols, NodePool* pool, int index) {
   int lastcount = lists[index][1]->count;  /* Count of last chain of list. */
 
-  if (index == 0 && lastcount >= numsymbols) return;
+  if (unlikely(!index && lastcount >= numsymbols)) return;
 
   Node* newchain = GetFreeNode(lists, maxbits, pool);
   Node* oldchain = lists[index][1];
@@ -119,23 +117,41 @@ static void BoundaryPM(Node* (*lists)[2], int maxbits,
   lists[index][0] = oldchain;
   lists[index][1] = newchain;
 
-  if (index == 0) {
+  if (unlikely(!index)) {
     /* New leaf node in list 0. */
     InitNode(leaves[lastcount].weight, lastcount + 1, 0, newchain);
   } else {
     size_t sum = lists[index - 1][0]->weight + lists[index - 1][1]->weight;
     if (lastcount < numsymbols && sum > leaves[lastcount].weight) {
       /* New leaf inserted in list, so count is incremented. */
-      InitNode(leaves[lastcount].weight, lastcount + 1, oldchain->tail,
-          newchain);
+      InitNode(leaves[lastcount].weight, lastcount + 1, oldchain->tail, newchain);
     } else {
       InitNode(sum, lastcount, lists[index - 1][1], newchain);
-      if (!final) {
-        /* Two lookahead chains of previous list used up, create new ones. */
-        BoundaryPM(lists, maxbits, leaves, numsymbols, pool, index - 1, 0);
-        BoundaryPM(lists, maxbits, leaves, numsymbols, pool, index - 1, 0);
-      }
+      /* Two lookahead chains of previous list used up, create new ones. */
+      BoundaryPM(lists, maxbits, leaves, numsymbols, pool, index - 1);
+      BoundaryPM(lists, maxbits, leaves, numsymbols, pool, index - 1);
     }
+  }
+}
+
+static void BoundaryPMfinal(Node* (*lists)[2], int maxbits,
+                       Node* leaves, int numsymbols, NodePool* pool, int index) {
+  int lastcount = lists[index][1]->count;  /* Count of last chain of list. */
+
+  Node* newchain = GetFreeNode(lists, maxbits, pool);
+  Node* oldchain = lists[index][1];
+
+  /* These are set up before the recursive calls below, so that there is a list
+   pointing to the new node, to let the garbage collection know it's in use. */
+  lists[index][0] = oldchain;
+  lists[index][1] = newchain;
+
+  size_t sum = lists[index - 1][0]->weight + lists[index - 1][1]->weight;
+  if (lastcount < numsymbols && sum > leaves[lastcount].weight) {
+    /* New leaf inserted in list, so count is incremented. */
+    InitNode(leaves[lastcount].weight, lastcount + 1, oldchain->tail, newchain);
+  } else {
+    InitNode(sum, lastcount, lists[index - 1][1], newchain);
   }
 }
 
@@ -145,8 +161,8 @@ weights.
 */
 static void InitLists(
     NodePool* pool, const Node* leaves, int maxbits, Node* (*lists)[2]) {
-  Node* node0 = GetFreeNode(0, maxbits, pool);
-  Node* node1 = GetFreeNode(0, maxbits, pool);
+  Node* node0 = pool->next++;
+  Node* node1 = pool->next++;
   InitNode(leaves[0].weight, 1, 0, node0);
   InitNode(leaves[1].weight, 2, 0, node1);
   for (int i = 0; i < maxbits; i++) {
@@ -190,9 +206,7 @@ void ZopfliLengthLimitedCodeLengths(
   }
 
   /* Initialize all bitlengths at 0. */
-  for (i = 0; i < n; i++) {
-    bitlengths[i] = 0;
-  }
+  memset(bitlengths, 0, n * sizeof(int));
 
   /* Count used symbols and place them in the leaves. */
   for (i = 0; i < n; i++) {
@@ -243,8 +257,11 @@ void ZopfliLengthLimitedCodeLengths(
   /* In the last list, 2 * numsymbols - 2 active chains need to be created. Two
   are already created in the initialization. Each BoundaryPM run creates one. */
   int numBoundaryPMRuns = 2 * numsymbols - 4;
-  for (i = 0; i < numBoundaryPMRuns; i++) {
-    BoundaryPM(lists, maxbits, leaves, numsymbols, &pool, maxbits - 1, i == numBoundaryPMRuns - 1);
+  for (i = 0; i < numBoundaryPMRuns - 1; i++) {
+    BoundaryPM(lists, maxbits, leaves, numsymbols, &pool, maxbits - 1);
+  }
+  if (numBoundaryPMRuns){
+    BoundaryPMfinal(lists, maxbits, leaves, numsymbols, &pool, maxbits - 1);
   }
 
   ExtractBitLengths(lists[maxbits - 1][1], leaves, bitlengths);
