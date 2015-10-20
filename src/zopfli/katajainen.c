@@ -214,6 +214,13 @@ void ZopfliLengthLimitedCodeLengths(
     free(leaves);
     return;  /* Only one symbol, give it bitlength 1, not 0. OK. */
   }
+  if (numsymbols == 2){
+    bitlengths[leaves[0].count]++;
+    bitlengths[leaves[1].count]++;
+
+    free(leaves);
+    return;
+  }
 
   /* Sort the leaves from lightest to heaviest. */
   qsort(leaves, numsymbols, sizeof(Node), LeafComparator);
@@ -221,14 +228,11 @@ void ZopfliLengthLimitedCodeLengths(
   /* Initialize node memory pool. */
   NodePool pool;
   pool.size = 2 * maxbits * (maxbits + 1);
-  pool.nodes = (Node*)malloc(pool.size * sizeof(*pool.nodes));
+  pool.nodes = (Node*)calloc(pool.size, sizeof(*pool.nodes));
   if (!pool.nodes){
     exit(1);
   }
   pool.next = pool.nodes;
-  for (i = 0; i < pool.size; i++) {
-    pool.nodes[i].inuse = 0;
-  }
 
   Node* (*lists)[2] = (Node* (*)[2])malloc(maxbits * sizeof(*lists));
   if (!lists || !lists[0] || !lists[1]){

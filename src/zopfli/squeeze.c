@@ -189,11 +189,8 @@ static void GetBestLengths(ZopfliBlockState *s,
     for (i = 3; i < 259; i++){
       litlentable[i] = 12 + (i > 114) + ZopfliGetLengthExtraBits(i);
     }
-    for (i = 0; i < 513; i++){
+    for (i = 0; i < 1024; i++){
       disttable[i] = ZopfliGetDistExtraBits(i);
-    }
-    for (; i < 1025; i++){
-      disttable[i] = 8;
     }
     for (; i < 2049; i++){
       disttable[i] = 9;
@@ -357,7 +354,7 @@ static void FollowPath(ZopfliBlockState* s,
     assert(pos + length <= inend);
 
     pos += length;
-    store->size += 1;
+    store->size++;
     if (!i){break;}
   }
 

@@ -52,8 +52,7 @@ static void AddBit(int bit,
 static void AddBits(unsigned symbol, unsigned length,
                     unsigned char* bp, unsigned char** out, size_t* outsize) {
   /* TODO(lode): make more efficient (add more bits at once). */
-  unsigned i;
-  for (i = 0; i < length; i++) {
+  for (unsigned i = 0; i < length; i++) {
     unsigned bit = (symbol >> i) & 1;
     if (*bp == 0) ZOPFLI_APPEND_DATA(0, out, outsize);
     (*out)[*outsize - 1] |= bit << *bp;
@@ -69,8 +68,7 @@ static void AddHuffmanBits(unsigned symbol, unsigned length,
                            unsigned char* bp, unsigned char** out,
                            size_t* outsize) {
   /* TODO(lode): make more efficient (add more bits at once). */
-  unsigned i;
-  for (i = 0; i < length; i++) {
+  for (unsigned i = 0; i < length; i++) {
     unsigned bit = (symbol >> (length - i - 1)) & 1;
     if (*bp == 0) ZOPFLI_APPEND_DATA(0, out, outsize);
     (*out)[*outsize - 1] |= bit << *bp;
@@ -109,8 +107,8 @@ static void PatchDistanceCodesForBuggyDecoders(unsigned* d_lengths) {
  */
 static void ZopfliLengthsToSymbols(const unsigned* lengths, size_t n, unsigned maxbits,
                             unsigned* symbols) {
-  size_t* bl_count = (size_t*)calloc(maxbits + 1, sizeof(size_t));
-  size_t* next_code = (size_t*)malloc(sizeof(size_t) * (maxbits + 1));
+  unsigned* bl_count = (unsigned*)calloc(maxbits + 1, sizeof(unsigned));
+  unsigned* next_code = (unsigned*)malloc(sizeof(unsigned) * (maxbits + 1));
   if (!bl_count || !next_code){
     exit(1);
   }
