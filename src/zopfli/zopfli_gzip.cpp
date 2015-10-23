@@ -18,6 +18,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 */
 
 #include <cstdio>
+#include <sys/stat.h>
 
 #include "util.h"
 #include "zopfli.h"
@@ -28,11 +29,12 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "../main.h"
 
 //FIXME: This does NOT work for empty files.
+
 /*
 Compresses the data according to the gzip specification.
 */
 static void ZopfliGzipCompress(const ZopfliOptions* options,
-                        const unsigned char* in, size_t insize,
+                        const unsigned char* in, size_t insize,  time_t time,
                         unsigned char** out, size_t* outsize) {
   unsigned crcvalue = crc32(0, in, insize);
   unsigned char bp = 0;
@@ -41,14 +43,13 @@ static void ZopfliGzipCompress(const ZopfliOptions* options,
   ZOPFLI_APPEND_DATA(139, out, outsize);  /* ID2 */
   ZOPFLI_APPEND_DATA(8, out, outsize);  /* CM */
   ZOPFLI_APPEND_DATA(0, out, outsize);  /* FLG */
-  /* TODO:MTIME */
-  ZOPFLI_APPEND_DATA(0, out, outsize);
-  ZOPFLI_APPEND_DATA(0, out, outsize);
-  ZOPFLI_APPEND_DATA(0, out, outsize);
-  ZOPFLI_APPEND_DATA(0, out, outsize);
+
+  ZOPFLI_APPEND_DATA(time % 256, out, outsize); /* MTIME */
+  ZOPFLI_APPEND_DATA((time >> 8) % 256, out, outsize);
+  ZOPFLI_APPEND_DATA((time >> 16) % 256, out, outsize);
+  ZOPFLI_APPEND_DATA((time >> 24) % 256, out, outsize);
 
   ZOPFLI_APPEND_DATA(2, out, outsize);  /* XFL, 2 indicates best compression. */
-  //TODO:
   ZOPFLI_APPEND_DATA(3, out, outsize);  /* OS follows Unix conventions. */
 
   ZopfliDeflate(options, 1, in, insize, &bp, out, outsize);
@@ -67,10 +68,10 @@ static void ZopfliGzipCompress(const ZopfliOptions* options,
 }
 
 static void ZopfliCompress(const ZopfliOptions* options, ZopfliFormat output_type,
-                    const unsigned char* in, size_t insize,
+                    const unsigned char* in, size_t insize, time_t time,
                     unsigned char** out, size_t* outsize) {
   if (output_type == ZOPFLI_FORMAT_GZIP) {
-    ZopfliGzipCompress(options, in, insize, out, outsize);
+    ZopfliGzipCompress(options, in, insize, time, out, outsize);
   } else if (output_type == ZOPFLI_FORMAT_ZLIB) {
     //ZopfliZlibCompress(options, in, insize, out, outsize);
   } else if (output_type == ZOPFLI_FORMAT_DEFLATE) {
@@ -140,7 +141,10 @@ static void CompressFile(const ZopfliOptions* options,
     return;
   }
 
-  ZopfliCompress(options, output_type, in, insize, &out, &outsize);
+  struct stat st;
+  stat(infilename, &st);
+  time_t time = st.st_mtime;
+  ZopfliCompress(options, output_type, in, insize, time, &out, &outsize);
 
   SaveFile(outfilename, out, outsize);
 
