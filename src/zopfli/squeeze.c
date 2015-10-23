@@ -584,6 +584,16 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
           stats.d_symbols[i] = 1;
         }
       }
+      for (unsigned i = 0; i < 286; i++){
+        if (stats.ll_symbols[i] > 15){
+          stats.ll_symbols[i] = 15;
+        }
+      }
+      for (unsigned i = 0; i < 30; i++){
+        if (stats.d_symbols[i] > 15){
+          stats.d_symbols[i] = 15;
+        }
+      }
     }
   }
 
