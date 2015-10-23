@@ -407,8 +407,7 @@ static void ZopfliCalculateEntropy(const size_t* count, size_t n, float* bitleng
      instead of zero (e.g. -5.973954e-17 with gcc 4.1.2 on Ubuntu 11.4). Clamp
      it to zero. These floating point imprecisions do not affect the cost model
      significantly so this is ok. */
-    if (bitlengths[i] < 0 && bitlengths[i] > -1e-5) bitlengths[i] = 0;
-    assert(bitlengths[i] >= 0);
+    if (bitlengths[i] < 0) bitlengths[i] = 0;
   }
 }
 
@@ -571,7 +570,7 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
       stats.ll_symbols[283] += 0.2;
       stats.ll_symbols[284] += 0.4;
       if (inend - instart < 32768 && inend - instart > 100){
-        for (unsigned i = ZopfliGetDistSymbol(inend - instart) - 1; i < 32; i++){
+        for (unsigned i = ZopfliGetDistSymbol(inend - instart) - 1; i < 30; i++){
           stats.d_symbols[i] += 0.5;
         }
       }
