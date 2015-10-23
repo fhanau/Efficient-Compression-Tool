@@ -29,6 +29,22 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 
 #define CacheBytes ZOPFLI_CACHE_LENGTH * 3
 
+//Die Möglichkeit einer Insel: Alles was gecachet wird, sind die (chain_counter) DIST werte, an denen eine sublänge geschrieben wird. Wenn mehr als 6 nur den letzten als sechsten++
+//- Oder im obersten dist bit speichern ob sublänge genommen wurde
+//FollowPath() sollte keinen Hash mehr führen müssen, so profitiert auch Modus 2
+
+//New format: all dists stored instead of sublens
+//1type byte w/ type / count:
+//0 empty
+// 1: length / dist pair (all sublens same dist)
+//3: 2len / dist
+//2: use manual search, just limit is stored
+//bigger: number of dists
+
+//unsigned shorts with sublens
+//position size_t
+// dynamically realloc'd
+
 void ZopfliInitCache(size_t blocksize, ZopfliLongestMatchCache* lmc) {
   lmc->length = (unsigned short*)malloc(sizeof(unsigned short) * blocksize);
   lmc->dist = (unsigned short*)calloc(blocksize, sizeof(unsigned short));
