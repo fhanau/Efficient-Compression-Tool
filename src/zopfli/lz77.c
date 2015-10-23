@@ -305,9 +305,14 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
       unsigned short currentlength = scan - new;  /* The found length. */
       if (currentlength > bestlength) {
         if (sublen) {
+#ifdef __APPLE__
+          unsigned broadcast = dist + (dist << 16);
+          memset_pattern4(sublen + bestlength + 1, &broadcast, (currentlength - bestlength) * 2);
+#else
           for (unsigned short j = bestlength + 1; j <= currentlength; j++) {
             sublen[j] = dist;
           }
+#endif
         }
         bestdist = dist;
         bestlength = currentlength;
@@ -381,54 +386,73 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
   unsigned short same0 = h->same[hpos];
   if (same0 >= limit) {
 
-    while (dist < ZOPFLI_WINDOW_SIZE) {
-      scan = new + h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
-      scan = GetMatch(scan, scan - dist, arrayend
-                      , arrayend_safe
-                      );
-      unsigned short currentlength = scan - new;
-      if (currentlength > bestlength) {
+#ifdef __APPLE__
+    if (h->same[(pos - dist) & ZOPFLI_WINDOW_MASK] >= limit){
+      if(likely(dist < ZOPFLI_WINDOW_SIZE)){
 
-        if (sizeof(size_t) == 8){
-          unsigned short j;
+        unsigned broadcast = dist + (dist << 16);
+        memset_pattern4(sublen + 3, &broadcast, (limit - 2) * 2);
 
-          if ((currentlength - bestlength) % 4){
-            for (j = bestlength + 1; j < bestlength + 1 + (currentlength - bestlength) % 4; j++) {
-              sublen[j] = dist;
+        bestdist = dist;
+        bestlength = limit;
+      }
+  }
+    else{
+#endif
+
+
+      while (dist < ZOPFLI_WINDOW_SIZE) {
+        scan = new + h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
+        scan = GetMatch(scan, scan - dist, arrayend
+                        , arrayend_safe
+                        );
+        unsigned short currentlength = scan - new;
+        if (currentlength > bestlength) {
+
+          //TODO: This looks buggy and possibly degrades compression
+          if (sizeof(size_t) == 8){
+            unsigned short j;
+
+            if ((currentlength - bestlength) % 4){
+              for (j = bestlength + 1; j < bestlength + 1 + (currentlength - bestlength) % 4; j++) {
+                sublen[j] = dist;
+              }
+              bestlength += (currentlength - bestlength) % 4;
             }
-            bestlength += (currentlength - bestlength) % 4;
-          }
 
             size_t* stsublen = (size_t*)sublen;
             size_t stdist = dist + (dist << 16) + ((size_t)dist << 32) + ((size_t)dist << 48);
             for (j = bestlength / 4 + 1; j <= currentlength / 4; j++) {
               stsublen[j] = stdist;
             }
-        }
-        else{
-          if ((currentlength - bestlength) % 2){
-            sublen[bestlength + 1] = dist;
-            bestlength++;
           }
-          unsigned* usublen = (unsigned*)sublen;
-          unsigned udist = dist + (dist << 16);
-          for (unsigned short j = bestlength/2 + 1; j <= currentlength / 2; j++) {
-            usublen[j] = udist;
+          else{
+            if ((currentlength - bestlength) % 2){
+              sublen[bestlength + 1] = dist;
+              bestlength++;
+            }
+            unsigned* usublen = (unsigned*)sublen;
+            unsigned udist = dist + (dist << 16);
+            for (unsigned short j = bestlength/2 + 1; j <= currentlength / 2; j++) {
+              usublen[j] = udist;
+            }
           }
+
+          bestdist = dist;
+          bestlength = currentlength;
+          if (currentlength >= limit) break;
         }
 
-        bestdist = dist;
-        bestlength = currentlength;
-        if (currentlength >= limit) break;
+        pp = p;
+        p = hprev[p];
+        
+        dist += p < pp ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp);
+        chain_counter--;
+        if (!chain_counter) break;
       }
-
-      pp = p;
-      p = hprev[p];
-
-      dist += p < pp ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp);
-      chain_counter--;
-      if (!chain_counter) break;
+#ifdef __APPLE__
     }
+#endif
   }
   else{
     const unsigned char* match;
@@ -446,9 +470,14 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
                           );
           unsigned short currentlength = scan - new;
           if (currentlength > bestlength) {
+#ifdef __APPLE__
+            unsigned broadcast = dist + (dist << 16);
+            memset_pattern4(sublen + bestlength + 1, &broadcast, (currentlength - bestlength) * 2);
+#else
             for (unsigned short j = bestlength + 1; j <= currentlength; j++) {
               sublen[j] = dist;
             }
+#endif
             bestdist = dist;
             bestlength = currentlength;
             if (currentlength >= limit) break;
@@ -483,9 +512,14 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
                       );
       unsigned short currentlength = scan - new;
       if (currentlength > bestlength) {
+#ifdef __APPLE__
+        unsigned broadcast = dist + (dist << 16);
+        memset_pattern4(sublen + bestlength + 1, &broadcast, (currentlength - bestlength) * 2);
+#else
         for (unsigned short j = bestlength + 1; j <= currentlength; j++) {
           sublen[j] = dist;
         }
+#endif
         bestdist = dist;
         bestlength = currentlength;
         if (currentlength >= limit) break;
