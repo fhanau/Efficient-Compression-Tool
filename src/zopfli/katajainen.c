@@ -188,11 +188,15 @@ static void ExtractBitLengths(Node* chain, Node* leaves, unsigned* bitlengths) {
 Comparator for sorting the leaves. Has the function signature for qsort.
 */
 static int LeafComparator(const void* a, const void* b) {
-  return ((const Node*)a)->weight - ((const Node*)b)->weight;
+  int wa = ((const Node*)a)->weight;
+  int wb = ((const Node*)b)->weight;
+  if(wa < wb) return -1;
+  if(wa > wb) return 1;
+  /*make the qsort a stable sort*/
+  return ((const Node*)a)->count < ((const Node*)b)->count ? 1 : -1;
 }
 
-void ZopfliLengthLimitedCodeLengths(
-    const size_t* frequencies, int n, int maxbits, unsigned* bitlengths) {
+void ZopfliLengthLimitedCodeLengths(const size_t* frequencies, int n, int maxbits, unsigned* bitlengths) {
   int i;
   int numsymbols = 0;  /* Amount of symbols with frequency > 0. */
 
@@ -260,9 +264,7 @@ void ZopfliLengthLimitedCodeLengths(
   for (i = 0; i < numBoundaryPMRuns - 1; i++) {
     BoundaryPM(lists, maxbits, leaves, numsymbols, &pool, maxbits - 1);
   }
-  if (numBoundaryPMRuns){
-    BoundaryPMfinal(lists, maxbits, leaves, numsymbols, &pool, maxbits - 1);
-  }
+  BoundaryPMfinal(lists, maxbits, leaves, numsymbols, &pool, maxbits - 1);
 
   ExtractBitLengths(lists[maxbits - 1][1], leaves, bitlengths);
 
