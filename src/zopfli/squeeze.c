@@ -421,17 +421,7 @@ static void CalculateStatistics(SymbolStats* stats) {
 static void GetStatistics(const ZopfliLZ77Store* store, SymbolStats* stats) {
   memset(stats->litlens, 0, 288 * sizeof(stats->litlens[0]));
   memset(stats->dists, 0, 32 * sizeof(stats->dists[0]));
-
-  size_t i;
-  for (i = 0; i < store->size; i++) {
-    if (store->dists[i] == 0) {
-      stats->litlens[store->litlens[i]]++;
-    } else {
-      stats->litlens[ZopfliGetLengthSymbol(store->litlens[i])]++;
-      stats->dists[ZopfliGetDistSymbol(store->dists[i])]++;
-    }
-  }
-  stats->litlens[256] = 1;  /* End symbol. */
+  ZopfliLZ77Counts(store->litlens, store->dists, 0, store->size, stats->litlens, stats->dists);
 
   CalculateStatistics(stats);
 }

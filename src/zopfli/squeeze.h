@@ -45,9 +45,7 @@ If instart is larger than 0, it uses values before instart as starting
 dictionary.
 */
 
-    void ZopfliLZ77Optimal2(ZopfliBlockState *s,
-                           const unsigned char* in, size_t instart, size_t inend,
-                           ZopfliLZ77Store* store, unsigned char first);
+void ZopfliLZ77Optimal2(ZopfliBlockState *s, const unsigned char* in, size_t instart, size_t inend, ZopfliLZ77Store* store, unsigned char first);
 
 /*
 Does the same as ZopfliLZ77Optimal, but optimized for the fixed tree of the
@@ -59,10 +57,7 @@ using with a fixed tree.
 If instart is larger than 0, it uses values before instart as starting
 dictionary.
 */
-void ZopfliLZ77OptimalFixed(ZopfliBlockState *s,
-                            const unsigned char* in,
-                            size_t instart, size_t inend,
-                            ZopfliLZ77Store* store);
+void ZopfliLZ77OptimalFixed(ZopfliBlockState *s, const unsigned char* in, size_t instart, size_t inend, ZopfliLZ77Store* store);
 
 #ifdef __cplusplus
 }
