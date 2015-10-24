@@ -3,7 +3,7 @@ CXX = g++
 CFLAGS = -Ofast -std=gnu11
 CXXFLAGS= -Ofast -std=gnu++11
 
-OBJECTS = blocksplitter.o cache.o codec.o hash.o image.o katajainen.o lz77.o opngreduc.o squeeze.o trans.o util.o
+OBJECTS = blocksplitter.o cache.o codec.o hash.o image.o katajainen.o lz77.o opngreduc.o squeeze.o util.o
 CXXSRC = support.cpp zlibWrapper.cpp zopflipng.cpp zopfli/deflate.cpp zopfli/zopfli_gzip.cpp\
 lodepng/lodepng.cpp lodepng/lodepng_util.cpp optipng/optipng.cpp jpegtran.cpp gztools.cpp
 
@@ -11,7 +11,7 @@ lodepng/lodepng.cpp lodepng/lodepng_util.cpp optipng/optipng.cpp jpegtran.cpp gz
 all: deps bin
 
 bin:
-	$(CC) -c $(CFLAGS) optipng/codec.c optipng/image.c optipng/trans.c zopfli//util.c zopfli/squeeze.c zopfli/lz77.c zopfli/katajainen.c \
+	$(CC) -c $(CFLAGS) optipng/codec.c optipng/image.c zopfli//util.c zopfli/squeeze.c zopfli/lz77.c zopfli/katajainen.c \
 	zopfli/blocksplitter.c zopfli/cache.c zopfli/hash.c optipng/opngreduc/opngreduc.c
 	$(CXX) $(CXXFLAGS) main.cpp $(OBJECTS) $(CXXSRC) mozjpeg/.libs/libjpeg.a libpng/libpng.a zlib/libz.a -o ../ECT
 clean:

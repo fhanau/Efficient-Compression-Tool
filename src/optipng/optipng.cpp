@@ -26,6 +26,7 @@
 #include <string>
 #include <unistd.h>
 
+#include "trans.h"
 #include "opngcore.h"
 #include "codec.h"
 #include "image.h"
@@ -36,7 +37,7 @@
 struct opng_options
 {
     int fix;
-    int nb, nc, np, nz;
+    int nda, nz;
     unsigned optim_level;
 };
 
@@ -64,6 +65,27 @@ struct opng_session
 static opng_optimizer * opng_create_optimizer()
 {
     return (opng_optimizer *)calloc(1, sizeof(struct opng_optimizer));
+}
+
+/*
+ * Creates a transformer object.
+ */
+static opng_transformer_t * opng_create_transformer()
+{
+  opng_transformer_t * result = (opng_transformer_t *)calloc(1, sizeof(struct opng_transformer));
+  if (!result)
+    exit(1);
+
+  return result;
+}
+
+static void opng_strip(opng_transformer_t *transformer, int level){
+  if (level){
+    transformer->strip_chunks = 1;
+  }
+  if (level == 2){
+    transformer->strip_apng = 1;
+  }
 }
 
 /*
@@ -104,13 +126,8 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
         // Do not reduce files with PNG datastreams under -nz, signed files or files with APNG chunks.
         reductions = OPNG_REDUCE_NONE;
     }
-    else {
-    if (options->nb)
-        reductions &= ~OPNG_REDUCE_BIT_DEPTH;
-    if (options->nc)
-        reductions &= ~OPNG_REDUCE_COLOR_TYPE;
-    if (options->np)
-        reductions &= ~OPNG_REDUCE_PALETTE;
+    else if (options->nda){
+        reductions &= ~OPNG_REDUCE_DIRTY_ALPHA;
     }
     // Try to reduce the image.
     if (reductions != OPNG_REDUCE_NONE){
@@ -167,14 +184,9 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
     // Check the error flag. This must be the first check.
     if (session->flags & OPNG_HAS_ERRORS)
     {
-        if (options->fix)
-        {
-            //printf("Recoverable errors found in input. Fixing...\n");
-        }
-        else
-        {
-            return -1;
-        }
+      if (!options->fix){
+        return -1;
+      }
     }
     
     // Check the digital signature flag.
@@ -263,40 +275,38 @@ static int opng_optimize_file(opng_optimizer *optimizer, const char *Infile, boo
     memset(&session, 0, sizeof(session));
     session.options = options;
     session.transformer = optimizer->transformer;
-    session.Infile = Infile;
+  session.Infile = Infile;
     opng_init_image(&session.image);
     int optimal_filter = opng_optimize_impl(&session, Infile, force_no_palette);
     opng_clear_image(&session.image);
     return optimal_filter;
 }
 
-static struct opng_options options;
-
-int Optipng(unsigned level, const char * Infile, bool force_no_palette)
+int Optipng(unsigned level, const char * Infile, bool force_no_palette, int nda)
 {
-    memset(&options, 0, sizeof(options));
-    opng_optimizer *the_optimizer = opng_create_optimizer();
-    if (!the_optimizer){
-        exit(1);
-    }
-    opng_transformer_t *the_transformer = opng_create_transformer();
-    //Logging works only if NDEBUG is not defined and should be used only for testing
-    //logging = true;
+  struct opng_options options;
+  memset(&options, 0, sizeof(options));
+  opng_optimizer *the_optimizer = opng_create_optimizer();
+  if (!the_optimizer){
+    exit(1);
+  }
+  opng_transformer_t *the_transformer = opng_create_transformer();
 
-    if (level == 0){
-        options.nz=1;
-        //Strip chunks
-        opng_transform_chunk (the_transformer, "all", 1);
-        //Strip APNG chunks
-        //opng_transform_chunk (the_transformer, "apngc", 1);
-    }
-    else{
-        options.optim_level = level;
-    }
-    the_optimizer->options = options;
-    the_optimizer->transformer = opng_seal_transformer(the_transformer);
-    int val = opng_optimize_file(the_optimizer, Infile, force_no_palette);
-    free(the_optimizer);
-    opng_destroy_transformer(the_transformer);
-    return val;
+  if (level == 0){
+    options.nz=1;
+    //Strip chunks
+    opng_strip(the_transformer, 1);
+    //Strip APNG chunks
+    //opng_strip(the_transformer, 2);
+  }
+  else{
+    options.optim_level = level;
+  }
+  options.nda = nda;
+  the_optimizer->options = options;
+  the_optimizer->transformer = the_transformer;
+  int val = opng_optimize_file(the_optimizer, Infile, force_no_palette);
+  free(the_optimizer);
+  free(the_transformer);
+  return val;
 }

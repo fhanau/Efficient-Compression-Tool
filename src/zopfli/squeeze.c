@@ -273,7 +273,7 @@ static void GetBestLengths(ZopfliBlockState *s,
         }
       }
       float broadcast = costs[j] + disttable[sublen[10]];
-      for (unsigned short k = (leng > 257 ?  leng - 18 : 11); k <= leng; k++) {
+      for (unsigned short k = (leng == 258 ?  leng - 18 : 11); k <= leng; k++) {
         newCost = litlentable[k] + broadcast;
         if (newCost < costs[j + k]) {
           costs[j + k] = newCost;

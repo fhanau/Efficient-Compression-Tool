@@ -43,6 +43,28 @@ static const png_byte opng_sig_fcTL[4] = { 0x66, 0x63, 0x54, 0x4c };
 static const png_byte opng_sig_fdAT[4] = { 0x66, 0x64, 0x41, 0x54 };
 
 /*
+ * Returns a positive value if the given chunk ought to be stripped, or 0 otherwise.
+ */
+static int opng_transform_query_strip_chunk(const opng_transformer_t *transformer, png_byte *chunk_sig)
+{
+  if (opng_is_image_chunk(chunk_sig))
+  {
+    /* Image chunks (i.e. critical chunks and tRNS) are never stripped. */
+    return 0;
+  }
+  if (opng_is_apng_chunk(chunk_sig))
+  {
+    /* Although APNG chunks are encoded as ancillary chunks,
+     * they are not metadata, and the regular strip/protect policies
+     * do not apply to them.
+     */
+    return transformer->strip_apng;
+  }
+  return transformer->strip_chunks;
+}
+
+
+/*
  * Tests whether the given chunk is an image chunk.
  */
 int opng_is_image_chunk(const png_byte *chunk_type)
@@ -496,7 +518,7 @@ int opng_encode_image(struct opng_codec_context *context, int filtered, FILE *st
 int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const char *Infile, FILE *out_stream, const char *Outfile)
 {
     volatile png_bytep buf;  /* volatile is required by cexcept */
-    const png_uint_32 buf_size_incr = 0x1000;
+    const png_uint_32 buf_size_incr = 4096;
     png_uint_32 length;
     png_byte chunk_hdr[8];
     const char * volatile err_msg;

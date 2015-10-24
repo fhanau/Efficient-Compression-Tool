@@ -16,7 +16,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "opngtrans.h"
+#include "trans.h"
 #include "opngreduc/opngreduc.h"
 
 #ifndef __STDC_LIMIT_MACROS
