@@ -23,10 +23,8 @@ zlib:
 	ar rcs libz.a adler32.o crc32.o deflate.o infback.o inffast.o inflate.o inftrees.o trees.o zutil.o gzclose.o gzlib.o gzread.o gzwrite.o
 libpng:
 	cd libpng/; \
-	$(CC) -c -I../zlib $(CFLAGS) png.c pngerror.c pngget.c pngmem.c pngpread.c pngread.c pngrio.c pngrtran.c pngrutil.c pngset.c pngtrans.c pngwio.c pngwrite.c \
-	pngwtran.c pngwutil.c; \
-	ar rcs libpng.a png.o pngerror.o pngget.o pngmem.o pngpread.o pngread.o pngrio.o pngrtran.o pngrutil.o pngset.o pngtrans.o pngwio.o pngwrite.o \
-	pngwtran.o pngwutil.o
+	$(CC) -c -I../zlib $(CFLAGS) png.c pngerror.c pngget.c pngmem.c pngread.c pngrio.c pngrtran.c pngrutil.c pngset.c pngtrans.c pngwio.c pngwrite.c pngwutil.c; \
+	ar rcs libpng.a png.o pngerror.o pngget.o pngmem.o pngread.o pngrio.o pngrtran.o pngrutil.o pngset.o pngtrans.o pngwio.o pngwrite.o pngwutil.o
 mozjpeg:
 	cd mozjpeg/; \
 	./configure --disable-shared --without-turbojpeg CC="$(CC)" CFLAGS="$(CFLAGS)"; \
