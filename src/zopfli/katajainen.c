@@ -190,6 +190,9 @@ Comparator for sorting the leaves. Has the function signature for qsort.
 static int LeafComparator(const void* a, const void* b) {
   int wa = ((const Node*)a)->weight;
   int wb = ((const Node*)b)->weight;
+  return wa - wb;
+
+  //This helps on PNGs, but not on enwik8
   if(wa < wb) return -1;
   if(wa > wb) return 1;
   /*make the qsort a stable sort*/
