@@ -4415,7 +4415,7 @@ unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h,
                 State& state,
                 const unsigned char* in, size_t insize)
 {
-  unsigned char* buffer = NULL;
+  unsigned char* buffer = 0;
   unsigned error = lodepng_decode(&buffer, &w, &h, &state, in, insize);
   if(buffer && !error)
   {
