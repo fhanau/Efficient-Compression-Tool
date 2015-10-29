@@ -95,10 +95,6 @@ static inline const unsigned char* GetMatch(const unsigned char* scan,
                                      const unsigned char* match,
                                      const unsigned char* end
                                      , const unsigned char* safe_end) {
-  //Workaround for Windows bug
-  if (scan > end){
-    return end;
-  }
 #ifdef __GNUC__
   /* Optimized Function based on cloudflare's zlib fork. Using AVX for 32 Checks at once may be even faster but currently there is no ctz function for vectors so the old approach would be neccesary again. */
   if (sizeof(size_t) == 8) {
@@ -406,12 +402,11 @@ void ZopfliFindLongestMatch2(ZopfliBlockState* s, const ZopfliHash* h,
 
 
       while (dist < ZOPFLI_WINDOW_SIZE) {
-        scan = new + h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
-        scan = GetMatch(scan, scan - dist, arrayend
-                        , arrayend_safe
-                        );
-        unsigned short currentlength = scan - new;
+        unsigned short currentlength = h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
         if (currentlength > bestlength) {
+          if (currentlength > limit){
+            currentlength = limit;
+          }
 
           //TODO: This looks buggy and possibly degrades compression
           if (sizeof(size_t) == 8){
