@@ -145,7 +145,7 @@ static int FindLargestSplittableBlock(
     if (!done[start] && end - start > longest) {
       int st = (*lstart == start);
       int en = (*lend == end);
-      found = 1 + st + en;// + *lstart == start + 2 * (*lend == end);
+      found = 1 + st + en;
       *lstart = start;
       *lend = end;
       longest = end - start;
