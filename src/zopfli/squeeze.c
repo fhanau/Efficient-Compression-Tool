@@ -237,21 +237,23 @@ static void GetBestLengths(ZopfliBlockState *s,
     ZOPFLI_MAX_MATCH characters before and after our position. */
     if (h->same[i & ZOPFLI_WINDOW_MASK] > ZOPFLI_MAX_MATCH * 2
         && i > instart + ZOPFLI_MAX_MATCH + 1
-        && i + ZOPFLI_MAX_MATCH * 2 + 1 < inend
         && h->same[(i - ZOPFLI_MAX_MATCH) & ZOPFLI_WINDOW_MASK]
             > ZOPFLI_MAX_MATCH) {
+
+      unsigned short match = h->same[i & ZOPFLI_WINDOW_MASK] - ZOPFLI_MAX_MATCH - 1;
+      match -= match % ZOPFLI_MAX_MATCH;
+
       float symbolcost = costcontext ? costcontext->ll_symbols[285] + costcontext->d_symbols[16] : 13;
       /* Set the length to reach each one to ZOPFLI_MAX_MATCH, and the cost to
       the cost corresponding to that length. Doing this, we skip
       ZOPFLI_MAX_MATCH values to avoid calling ZopfliFindLongestMatch. */
-      i++;
-      LoopedUpdateHash(in, i, inend, h, ZOPFLI_MAX_MATCH);
-      for (unsigned short k = 0; k < ZOPFLI_MAX_MATCH; k++) {
+      LoopedUpdateHash(in, ++i, inend, h, match);
+      for (unsigned short k = 0; k < match; k++) {
         costs[j + ZOPFLI_MAX_MATCH] = costs[j] + symbolcost;
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH;
         j++;
       }
-      i += (ZOPFLI_MAX_MATCH - 1);
+      i += (match - 1);
     }
 #endif
     ZopfliFindLongestMatch2(s, h, in, i, inend, sublen, &leng, storeincache);
