@@ -684,35 +684,28 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
   ZopfliCleanHash(h);
 }
 
-void ZopfliLZ77Counts(const unsigned short* litlens,
-                      const unsigned short* dists,
-                      size_t start, size_t end,
-                      size_t* ll_count, size_t* d_count) {
-  size_t i;
-
-  for (i = 0; i < 288; i++) {
+void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists, size_t start, size_t end, size_t* ll_count, size_t* d_count) {
+  for (unsigned i = 0; i < 288; i++) {
     ll_count[i] = 0;
   }
-  for (i = 0; i < 32; i++) {
+  for (unsigned i = 0; i < 32; i++) {
     d_count[i] = 0;
   }
-  size_t ll_count2[259];
-  for (i = 0; i < 259; i++) {
-    ll_count2[i] = 0;
-  }
+
+  size_t i;
+  size_t lenarrything[515] = {0};
+
 
   for (i = start; i < end; i++) {
-    if (dists[i] == 0) {
-      ll_count[litlens[i]]++;
-    } else {
-      ll_count2[litlens[i]]++;
-      d_count[disttable[dists[i]]]++;
-    }
+    lenarrything[litlens[i] + !dists[i] * 259]++;
+    d_count[disttable[dists[i]]]++;
   }
 
+  memcpy(ll_count, &lenarrything[259], 256 * sizeof(size_t));
   for (i = 3; i < 259; i++){
-    ll_count[ZopfliGetLengthSymbol(i)] += ll_count2[i];
+    ll_count[ZopfliGetLengthSymbol(i)] += lenarrything[i];
   }
+  d_count[30] = 0;
 
   ll_count[256] = 1;  /* End symbol. */
 }
