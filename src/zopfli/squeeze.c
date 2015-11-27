@@ -596,7 +596,7 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
   if (!length_array) exit(1); /* Allocation failed. */
   LZ77OptimalRun(s, in, instart, inend, length_array, s->options->reuse_costmodel ? &st : &stats, store, 0);
   if (s->options->reuse_costmodel){
-    GetStatistics(store, &st, 0);
+    GetStatistics(store, &st);
   }
   free(length_array);
 }
