@@ -175,7 +175,7 @@ static void GetBestLengths(ZopfliBlockState *s,
     }
   }
   else {
-    literals = malloc(256 * sizeof(float));
+    literals = (float*)malloc(256 * sizeof(float));
     if (!literals){
       exit(1);
     }
@@ -520,7 +520,9 @@ static void ZopfliLZ77Optimal(ZopfliBlockState *s,
   }
 
   free(length_array);
-  CopyStats(&beststats, &st);
+  if (s->options->reuse_costmodel){
+    CopyStats(&beststats, &st);
+  }
   ZopfliCleanLZ77Store(&currentstore);
 }
 
@@ -593,7 +595,9 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
   unsigned short* length_array = (unsigned short*)malloc(sizeof(unsigned short) * (inend - instart + 1));
   if (!length_array) exit(1); /* Allocation failed. */
   LZ77OptimalRun(s, in, instart, inend, length_array, s->options->reuse_costmodel ? &st : &stats, store, 0);
-  GetStatistics(store, &st);
+  if (s->options->reuse_costmodel){
+    GetStatistics(store, &st, 0);
+  }
   free(length_array);
 }
 
