@@ -241,9 +241,8 @@ static void GetBestLengths(ZopfliBlockState *s,
             > ZOPFLI_MAX_MATCH) {
 
       unsigned short match = h->same[i & ZOPFLI_WINDOW_MASK] - ZOPFLI_MAX_MATCH - 1;
-      match -= match % ZOPFLI_MAX_MATCH;
 
-      float symbolcost = costcontext ? costcontext->ll_symbols[285] + costcontext->d_symbols[16] : 13;
+      float symbolcost = costcontext ? costcontext->ll_symbols[285] + costcontext->d_symbols[0] : 13;
       /* Set the length to reach each one to ZOPFLI_MAX_MATCH, and the cost to
       the cost corresponding to that length. Doing this, we skip
       ZOPFLI_MAX_MATCH values to avoid calling ZopfliFindLongestMatch. */
