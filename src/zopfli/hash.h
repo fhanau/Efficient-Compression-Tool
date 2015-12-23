@@ -26,6 +26,10 @@ The hash for ZopfliFindLongestMatch of lz77.c.
 #ifndef ZOPFLI_HASH_H_
 #define ZOPFLI_HASH_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "util.h"
 
 typedef struct ZopfliHash {
@@ -70,5 +74,9 @@ Fills in the initial values in the hash, before ZopfliUpdateHash can be used
 correctly.
 */
 void ZopfliWarmupHash(const unsigned char* array, size_t pos, ZopfliHash* h);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  /* ZOPFLI_HASH_H_ */

@@ -12,7 +12,6 @@
 #include <string.h>
 
 //TODO: BUFFER!
-
 #define BUFFER_SIZE 8000000
 
 //Based on zlib's compress2().

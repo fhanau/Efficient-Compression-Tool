@@ -360,8 +360,8 @@ static void AddLZ77Data(const unsigned short* litlens,
       unsigned lls = ZopfliGetLengthSymbol(litlen);
       unsigned ds = ZopfliGetDistSymbol(dist);
       assert(litlen >= 3 && litlen <= 288);
-      assert(ll_lengths[lls] > 0);
-      assert(d_lengths[ds] > 0);
+      assert(ll_lengths[lls]);
+      assert(d_lengths[ds]);
       AddHuffmanBits(ll_symbols[lls], ll_lengths[lls], bp, out, outsize);
       AddBits(ZopfliGetLengthExtraBitsValue(litlen),
               ZopfliGetLengthExtraBits(litlen),
@@ -386,7 +386,7 @@ static void AddLZ77Data(const unsigned short* litlens,
 static void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
   // Let's make the Huffman code more compatible with rle encoding.
   for (;; --length) {
-    if (length == 0) {
+    if (!length) {
       return;  // All zeros.
     }
     if (counts[length - 1] != 0) {
@@ -416,9 +416,7 @@ static void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
         }
       }
       stride = 1;
-      if (i != length) {
-        symbol = counts[i];
-      }
+      symbol = counts[i];
     } else {
       ++stride;
     }

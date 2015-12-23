@@ -66,11 +66,8 @@ static void ZopfliStoreLitLenDist(unsigned short length, unsigned short dist,
 #ifndef NDEBUG
 void ZopfliVerifyLenDist(const unsigned char* data, size_t datasize, size_t pos,
                          unsigned short dist, unsigned short length) {
-
-  size_t i;
-
   assert(pos + length <= datasize);
-  for (i = 0; i < length; i++) {
+  for (size_t i = 0; i < length; i++) {
     if (data[pos - dist + i] != data[pos + i]) {
       assert(data[pos - dist + i] == data[pos + i]);
       break;

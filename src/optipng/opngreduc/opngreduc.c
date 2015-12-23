@@ -1203,7 +1203,6 @@ static png_uint_32 opng_reduce_dirty_alpha(png_structp png_ptr, png_infop info_p
   {
     sample_ptr = *row_ptr;
     opng_get_alpha_row(&row_info, trans_color,  *row_ptr, alpha_row);
-    //static void opng_get_alpha_row(png_row_infop row_info_ptr, png_color_16p trans_color, png_bytep row, png_bytep alpha_row)
 
     if (color_type & PNG_COLOR_MASK_COLOR)
     {
