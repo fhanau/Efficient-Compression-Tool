@@ -426,21 +426,17 @@ static void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
   // Math here is in 24.8 fixed point representation.
   const int streak_limit = 1240;
   stride = 0;
-  int limit = 256 * (counts[0] + counts[1] + counts[2]) / 3 + 420;
+  long limit = 256 * (counts[0] + counts[1] + counts[2]) / 3 + 420;
   int sum = 0;
   for (i = 0; i < length + 1; ++i) {
     if (i == length || good_for_rle[i] ||
         (i && good_for_rle[i - 1]) ||
-        abs(((int)(256 * counts[i])) - limit) >= streak_limit) {
+        labs(((long)(256 * counts[i])) - limit) >= streak_limit) {
       if (stride >= 4 || (stride >= 3 && sum == 0)) {
         // The stride must end, collapse what we have, if we have enough (4).
         int count = (sum + stride / 2) / stride;
         if (count < 1 && sum) {
           count = 1;
-        }
-        if (sum == 0) {
-          // Don't make an all zeros stride to be upgraded to ones.
-          count = 0;
         }
         for (int k = 0; k < stride; ++k) {
           // We don't want to change value at counts[i],
