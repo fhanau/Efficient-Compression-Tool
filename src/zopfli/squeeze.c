@@ -29,6 +29,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "blocksplitter.h"
 #include "deflate.h"
 #include "util.h"
+#include "../LzFind.h"
 
 typedef struct SymbolStats {
   /* The literal and length symbols. */
@@ -211,11 +212,6 @@ static void GetBestLengths(ZopfliBlockState *s,
 
   /* Best cost to get here so far. */
   size_t blocksize = inend - instart;
-  unsigned short leng;
-  unsigned short sublen[259];
-  size_t windowstart = instart > ZOPFLI_WINDOW_SIZE ? instart - ZOPFLI_WINDOW_SIZE : 0;
-  ZopfliHash hash;
-  ZopfliHash* h = &hash;
 
   if (instart == inend) return;
 
@@ -224,79 +220,59 @@ static void GetBestLengths(ZopfliBlockState *s,
   costs[0] = 0;  /* Because it's the start. */
   memset(costs + 1, 127, sizeof(float) * blocksize);
 
-  ZopfliInitHash(h);
-  ZopfliWarmupHash(in, windowstart, h);
-  LoopedUpdateHash(in, windowstart, inend, h, instart - windowstart);
+  size_t windowstart = instart > ZOPFLI_WINDOW_SIZE ? instart - ZOPFLI_WINDOW_SIZE : 0;
+
+  CMatchFinder p;
+  p.buffer = &in[windowstart];
+  p.cutValue = 32768;
+  p.directInputRem = inend - windowstart;
+  MatchFinder_Create(&p);
+
+  if (instart - windowstart){
+    Bt3Zip_MatchFinder_Skip(&p, instart - windowstart);
+  }
+  unsigned matches[ZOPFLI_MAX_MATCH * 2];
 
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
-    ZopfliUpdateHash(in, i, inend, h);
 
-#ifdef ZOPFLI_SHORTCUT_LONG_REPETITIONS
-    /* If we're in a long repetition of the same character and have more than
-    ZOPFLI_MAX_MATCH characters before and after our position. */
-    if (h->same[i & ZOPFLI_WINDOW_MASK] > ZOPFLI_MAX_MATCH * 2
-        && i > instart + ZOPFLI_MAX_MATCH + 1
-        && h->same[(i - ZOPFLI_MAX_MATCH) & ZOPFLI_WINDOW_MASK]
-            > ZOPFLI_MAX_MATCH) {
+    int numPairs = Bt3Zip_MatchFinder_GetMatches(&p, matches);
+    if (numPairs){
+      const unsigned * mend = matches + numPairs;
 
-      unsigned short match = h->same[i & ZOPFLI_WINDOW_MASK] - ZOPFLI_MAX_MATCH - 1;
+      //printf("%d pairs\n", numPairs);
+      float price = costs[j];
+      unsigned* mp = matches;
+      
+      unsigned curr = ZOPFLI_MIN_MATCH;
+      while (mp < mend){
 
-      float symbolcost = costcontext ? costcontext->ll_symbols[285] + costcontext->d_symbols[0] : 13;
-      /* Set the length to reach each one to ZOPFLI_MAX_MATCH, and the cost to
-      the cost corresponding to that length. Doing this, we skip
-      ZOPFLI_MAX_MATCH values to avoid calling ZopfliFindLongestMatch. */
-      LoopedUpdateHash(in, ++i, inend, h, match);
-      for (unsigned short k = 0; k < match; k++) {
-        costs[j + ZOPFLI_MAX_MATCH] = costs[j] + symbolcost;
-        length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (1 << 9);
-        j++;
+        unsigned len = *mp++;
+        unsigned dist = *mp++;
+        float price2 = price + disttable[dist];
+        for (; curr<=len; curr++) {
+          float x = price2 + litlentable[curr];
+          if (x < costs[j + curr]){
+            costs[j + curr] = x;
+            length_array[j + curr] = curr + (dist << 9);
+          }
+        }
       }
-      i += (match - 1);
     }
-#endif
-    ZopfliFindLongestMatch2(s, h, in, i, inend, sublen, &leng, storeincache);
 
     /* Literal. */
-    float newCost = costs[j] + literals[in[i]];
+    float newCost = costs[j] + literals[*(p.buffer - 1)];
+    assert((p.buffer - 1) == &in[i]);
     if (newCost < costs[j + 1]) {
       costs[j + 1] = newCost;
       length_array[j + 1] = 1;
     }
-
-    if (leng > 40 && sublen[10] == sublen[leng]){
-      for (unsigned short k = 3; k <= 10; k++) {
-        newCost = costs[j] + litlentable[k] + disttable[sublen[k]];
-        if (newCost < costs[j + k]) {
-          costs[j + k] = newCost;
-          length_array[j + k] = k + (sublen[k] << 9);
-        }
-      }
-      float broadcast = costs[j] + disttable[sublen[10]];
-      for (unsigned short k = (leng == 258 ?  leng - 18 : 11); k <= leng; k++) {
-        newCost = litlentable[k] + broadcast;
-        if (newCost < costs[j + k]) {
-          costs[j + k] = newCost;
-          length_array[j + k] = k + (sublen[10] << 9);
-        }
-      }
-
-    }
-    else{
-      for (unsigned short k = 3; k <= leng; k++) {
-        newCost = costs[j] + litlentable[k] + disttable[sublen[k]];
-        if (newCost < costs[j + k]) {
-          costs[j + k] = newCost;
-          length_array[j + k] = k + (sublen[k] << 9);
-        }
-      }
-    }
   }
+  MatchFinder_Free(&p);
 
   if (!costcontext){
     free(literals);
   }
-  ZopfliCleanHash(h);
   free(disttable);
   free(costs);
 }
