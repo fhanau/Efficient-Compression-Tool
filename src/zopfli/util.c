@@ -205,33 +205,38 @@ unsigned ZopfliGetLengthSymbol(unsigned l) {
 
 void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithreading, unsigned isPNG) {
   if (mode < 3) {
+    options->skipdynamic = 180;
     options->numiterations = 1;
     options->chain_length = 415;
     options->noblocksplitlz = 512;
     options->noblocksplit = 3000;
+    options->trystatic = 0;
   }
   else if (mode < 4) {
+    options->skipdynamic = 180;
     options->numiterations = 4;
     options->chain_length = 1000;
     options->noblocksplitlz = 200;
     options->noblocksplit = 2000;
+    options->trystatic = 0;
   }
   else {
+    options->skipdynamic = 80;
     options->noblocksplitlz = 100;
     options->noblocksplit = 1400;
     if (mode < 5) {
-    options->numiterations = 15;
-    options->chain_length = 8192;
+      options->trystatic = 800;
+      options->numiterations = 15;
+      options->chain_length = 8192;
     }
     else {
+      options->trystatic = 2000;
       options->numiterations = 60;
       options->chain_length = 32768;
     }
   }
   options->num = mode < 3 ? 3 : 9;
-  options->skipdynamic = mode > 3 ? 80 : 180;
   options->blocksplittingmax = mode > 2 || isPNG ? 0 : multithreading > 15 ? multithreading : 15;
-  options->trystatic = mode > 3 ? 800 : 0;
   options->multithreading = multithreading;
   options->isPNG = isPNG;
   options->reuse_costmodel = (!isPNG) && (!multithreading);
