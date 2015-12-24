@@ -3791,7 +3791,17 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
     ucvector attempt[5]; /*five filtering attempts, one for each filter type*/
     size_t smallest = 0;
     unsigned type = 0, bestType = 0;
-    unsigned char* dummy;
+
+    z_stream stream;
+    stream.zalloc = 0;
+    stream.zfree = 0;
+    stream.opaque = 0;
+
+    int err = deflateInit2(&stream, 3, Z_DEFLATED, linebytes < 2048 ? -11 : -15, 8, Z_FILTERED);
+    if (err != Z_OK) exit(1);
+    deflateTune(&stream, 256, 258, 258, settings->chain_length);
+    unsigned char* dummy = (unsigned char *)malloc(deflateBound(&stream, linebytes));
+
     for(type = 0; type != 5; ++type)
     {
       ucvector_init(&attempt[type]);
@@ -3801,11 +3811,19 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
     {
       for(type = 0; type != 5; ++type)
       {
-        unsigned testsize = attempt[type].size;
-
         filterScanline(attempt[type].data, &in[y * linebytes], prevline, linebytes, bytewidth, type);
-        zlibcompress(&dummy, &size[type], attempt[type].data, testsize, 3, settings->chain_length);
-        lodepng_free(dummy);
+
+        deflateTune(&stream, 256, 258, 258, settings->chain_length);
+        stream.next_in = (z_const unsigned char *)attempt[type].data;
+        stream.avail_in = linebytes;
+        stream.avail_out = UINT_MAX;
+        stream.next_out = dummy;
+
+        deflate(&stream, Z_FINISH);
+
+        size[type] = stream.total_out;
+        deflateReset(&stream);
+
         /*check if this is smallest size (or if type == 0 it's the first case so always store the values)*/
         if(type == 0 || size[type] < smallest)
         {
@@ -3817,6 +3835,9 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
       for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType].data[x];
     }
+    lodepng_free(dummy);
+    deflateEnd(&stream);
+
     for(type = 0; type != 5; ++type) ucvector_cleanup(&attempt[type]);
   }
 
