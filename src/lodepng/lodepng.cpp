@@ -3789,6 +3789,9 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
     if (err != Z_OK) exit(1);
     deflateTune(&stream, 256, 258, 258, settings->chain_length);
     unsigned char* dummy = (unsigned char *)malloc(deflateBound(&stream, linebytes));
+    if(!dummy){
+      exit(1);
+    }
 
     for(type = 0; type != 5; ++type)
     {
