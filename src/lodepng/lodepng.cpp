@@ -43,11 +43,6 @@ Rename this file to lodepng.cpp to use it for C++, or to lodepng.c to use it for
 #include <fstream>
 #endif /*LODEPNG_COMPILE_CPP*/
 
-#if defined(_MSC_VER) && (_MSC_VER >= 1310) /*Visual Studio: A few warning types are not desired here.*/
-#pragma warning( disable : 4244 ) /*implicit conversions: not warned by gcc -Wall -Wextra and requires too much casts*/
-#pragma warning( disable : 4996 ) /*VS does not like fopen, but fopen_s is not standard C so unusable here*/
-#endif /*_MSC_VER */
-
 /*
 This source file is built up in the following large parts. The code sections
 with the "LODEPNG_COMPILE_" #defines divide this up further in an intermixed way.
@@ -1122,16 +1117,10 @@ static unsigned zlib_compress(unsigned char** out, size_t* outsize, const unsign
 
 #ifdef LODEPNG_COMPILE_ENCODER
 
-/*this is a good tradeoff between speed and compression ratio*/
-#define DEFAULT_WINDOWSIZE 32768
-
-
 void lodepng_compress_settings_init(LodePNGCompressSettings* settings)
 {
   /*compress with dynamic huffman tree (not in the mathematical sense, just not the predefined one)*/
   settings->btype = 2;
-  settings->use_lz77 = 1;
-  settings->windowsize = DEFAULT_WINDOWSIZE;
   settings->minmatch = 3;
   settings->nicematch = 128;
   settings->lazymatching = 1;
@@ -4250,7 +4239,6 @@ void lodepng_encoder_settings_init(LodePNGEncoderSettings* settings)
   settings->force_palette = 0;
   settings->predefined_filters = 0;
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-  settings->add_id = 0;
   settings->text_compression = 1;
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
 }

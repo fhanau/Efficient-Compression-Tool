@@ -170,8 +170,6 @@ struct LodePNGCompressSettings /*deflate = compress*/
 {
   /*LZ77 related settings*/
   unsigned btype; /*the block type for LZ (0, 1, 2 or 3, see zlib standard). Should be 2 for proper compression.*/
-  unsigned use_lz77; /*whether or not to use LZ77. Should be 1 for proper compression.*/
-  unsigned windowsize; /*must be a power of two <= 32768. higher compresses more but is slower. Default value: 2048.*/
   unsigned minmatch; /*mininum lz77 length. 3 is normally best, 6 can be better for some PNGs. Default: 0*/
   unsigned nicematch; /*stop searching if >= this length found. Set to 258 for best compression. Default: 128*/
   unsigned lazymatching; /*use lazy matching: better compression but a bit slower. Default: true*/
@@ -451,8 +449,6 @@ typedef struct LodePNGEncoderSettings
   If colortype is 3, PLTE is _always_ created.*/
   unsigned force_palette;
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-  /*add LodePNG identifier and version as a text chunk, for debugging*/
-  unsigned add_id;
   /*encode text chunks as zTXt chunks instead of tEXt chunks, and use compression in iTXt chunks*/
   unsigned text_compression;
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
@@ -942,14 +938,9 @@ can encode the colors of all pixels without information loss.
 *) btype: the block type for LZ77. 0 = uncompressed, 1 = fixed huffman tree,
    2 = dynamic huffman tree (best compression). Should be 2 for proper
    compression.
-*) use_lz77: whether or not to use LZ77 for compressed block types. Should be
-   true for proper compression.
-*) windowsize: the window size used by the LZ77 encoder (1 - 32768). Has value
-   2048 by default, but can be set to 32768 for better, but slow, compression.
 *) force_palette: if colortype is 2 or 6, you can make the encoder write a PLTE
    chunk if force_palette is true. This can used as suggested palette to convert
    to by viewers that don't support more than 256 colors (if those still exist)
-*) add_id: add text chunk "Encoder: LodePNG <version>" to the image.
 *) text_compression: default 1. If 1, it'll store texts as zTXt instead of tEXt chunks.
   zTXt chunks use zlib compression on the text. This gives a smaller result on
   large texts but a larger result on small texts (such as a single program name).
