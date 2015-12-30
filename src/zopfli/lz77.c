@@ -241,17 +241,10 @@ static void StoreInLongestMatchCache(ZopfliBlockState* s,
 }
 #endif
 
-void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
+static void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
                             const unsigned char* array,
-                            size_t pos, size_t size, unsigned short limit,
-                            unsigned short* sublen, unsigned short* distance, unsigned short* length, unsigned char try) {
-#ifdef ZOPFLI_LONGEST_MATCH_CACHE
-  if (try){
-      if (TryGetFromLongestMatchCache(s, pos, &limit, distance, length)) {
-          return;
-      }
-  }
-#endif
+                            size_t pos, size_t size,
+                            unsigned short* distance, unsigned short* length) {
   if (size - pos < ZOPFLI_MIN_MATCH) {
     /* The rest of the code assumes there are at least ZOPFLI_MIN_MATCH bytes to
      try. */
@@ -261,6 +254,7 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
   }
   unsigned short chain_counter = s->options->chain_length;   /*For quitting early. */
 
+  unsigned limit = ZOPFLI_MAX_MATCH;
   if (pos + limit > size) {
     limit = size - pos;
   }
@@ -279,6 +273,8 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
   const unsigned char* scan;
   const unsigned char* match;
   const unsigned char* new = &array[pos];
+  unsigned short same0 = h->same[hpos];
+  if (same0 > limit) same0 = limit;
   /* Go through all distances. */
   while (dist < ZOPFLI_WINDOW_SIZE) {
     scan = new;
@@ -287,11 +283,9 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
     /* Testing the byte at position bestlength first, goes slightly faster. */
     if (unlikely(*(unsigned short*)(scan + bestlength - 1) == *(unsigned short*)(match + bestlength - 1))) {
 #ifdef ZOPFLI_HASH_SAME
-      unsigned short same0 = h->same[hpos];
       if (same0 > 2) {
         unsigned short same1 = h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
         unsigned short same = same0 < same1 ? same0 : same1;
-        if (same > limit) same = limit;
         scan += same;
         match += same;
       }
@@ -301,16 +295,6 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
                       );
       unsigned short currentlength = scan - new;  /* The found length. */
       if (currentlength > bestlength) {
-        if (sublen) {
-#ifdef __APPLE__
-          unsigned broadcast = dist + (dist << 16);
-          memset_pattern4(sublen + bestlength + 1, &broadcast, (currentlength - bestlength) * 2);
-#else
-          for (unsigned short j = bestlength + 1; j <= currentlength; j++) {
-            sublen[j] = dist;
-          }
-#endif
-        }
         bestdist = dist;
         bestlength = currentlength;
         if (currentlength >= limit) break;
@@ -334,10 +318,6 @@ void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
     chain_counter--;
     if (!chain_counter) break;
   }
-
-#ifdef ZOPFLI_LONGEST_MATCH_CACHE
-  StoreInLongestMatchCache(s, pos, limit, sublen, bestdist, bestlength);
-#endif
 
   *distance = bestdist;
   *length = bestlength;
@@ -371,8 +351,7 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
   for (i = instart; i < inend; i++) {
     ZopfliUpdateHash(in, i, inend, h);
 
-    ZopfliFindLongestMatch(s, h, in, i, inend, ZOPFLI_MAX_MATCH, dummysublen,
-                           &dist, &leng, 0);
+    ZopfliFindLongestMatch(s, h, in, i, inend, &dist, &leng);
 
     lengthscore = leng;
     /*TODO: Tuned for M2. Other values(likely higher) will be better for higher modes*/
