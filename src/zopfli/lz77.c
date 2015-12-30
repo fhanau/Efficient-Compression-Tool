@@ -86,21 +86,13 @@ end is the last possible byte, beyond which to stop looking.
 safe_end is a few (8) bytes before end, for comparing multiple bytes at once.
 */
 #ifdef __GNUC__
-#ifndef __MINGW32__
-#ifndef __MINGW64__
-#define CTZ
-#endif
-#endif
-#endif
-
-#ifdef __GNUC__
 __attribute__ ((always_inline))
 #endif
 static inline const unsigned char* GetMatch(const unsigned char* scan,
                                      const unsigned char* match,
                                      const unsigned char* end
                                      , const unsigned char* safe_end) {
-#ifdef CTZ
+#if defined(__GNUC__) && !defined(__MINGW32__) && !defined(__MINGW64__)
   /* Optimized Function based on cloudflare's zlib fork. Using AVX for 32 Checks at once may be even faster but currently there is no ctz function for vectors so the old approach would be neccesary again. */
   if (sizeof(size_t) == 8) {
     do {
