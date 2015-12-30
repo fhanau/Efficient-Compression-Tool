@@ -285,8 +285,19 @@ the amount of lz77 symbols.
 */
 static void TraceBackwards(size_t size, const unsigned* length_array,
                            unsigned** path, size_t* pathsize) {
+  size_t osize = size * sizeof(unsigned);
+  size_t allocsize = size / 258 + 50;
+  *path = (unsigned*)malloc(allocsize * sizeof(unsigned));
   for (;size;) {
-    ZOPFLI_APPEND_DATA(length_array[size], path, pathsize);
+    (*path)[*pathsize] = length_array[size];
+    (*pathsize)++;
+    if(*pathsize == allocsize){
+      allocsize *= 2;
+      if (allocsize > osize){
+        allocsize = osize;
+      }
+      *path = (unsigned*)realloc(*path, allocsize * sizeof(unsigned));
+    }
     assert((length_array[size] & 511) <= size);
     assert((length_array[size] & 511) <= ZOPFLI_MAX_MATCH);
     assert(length_array[size]);
