@@ -32,7 +32,6 @@ Rename this file to lodepng.cpp to use it for C++, or to lodepng.c to use it for
 /*Modified by Felix Hanau to remove unused functions*/
 
 #include "lodepng.h"
-#include "../zlibWrapper.h"
 #include "../zlib/zlib.h"
 
 #include <math.h>

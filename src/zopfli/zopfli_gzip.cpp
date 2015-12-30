@@ -44,7 +44,8 @@ static void ZopfliGzipCompress(const ZopfliOptions* options,
   ZOPFLI_APPEND_DATA(8, out, outsize);  /* CM */
   ZOPFLI_APPEND_DATA(0, out, outsize);  /* FLG */
 
-  ZOPFLI_APPEND_DATA(time % 256, out, outsize); /* MTIME */
+  /* MTIME */
+  ZOPFLI_APPEND_DATA(time % 256, out, outsize);
   ZOPFLI_APPEND_DATA((time >> 8) % 256, out, outsize);
   ZOPFLI_APPEND_DATA((time >> 16) % 256, out, outsize);
   ZOPFLI_APPEND_DATA((time >> 24) % 256, out, outsize);
