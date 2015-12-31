@@ -187,51 +187,21 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
     ZopfliFindLongestMatch(s, h, in, i, inend, &dist, &leng);
 
     lengthscore = leng;
-    /*TODO: Tuned for M2. Other values(likely higher) will be better for higher modes*/
-    if (blocksplitting){
-      if (lengthscore == 3 && dist > 256){/*M3 1024+*/
-        --lengthscore;
-      }
-      else if (lengthscore == 4 && dist > 256){
-        --lengthscore;
-      }
-      else if (lengthscore == 5 && dist > 1024){
-        --lengthscore;
-      }
-      else if (lengthscore == 6 && dist > 16384){
-        --lengthscore;
-      }
+    if (lengthscore == 3 && dist > 1024){
+      --lengthscore;
     }
-    else {
-      if (lengthscore == 3 && dist > 1024){
-        --lengthscore;
-      }
+    if (lengthscore == 4 && dist > 2048){
+      --lengthscore;
+    }
+    if (lengthscore == 5 && dist > 4096){
+      --lengthscore;
     }
 
     /* Lazy matching. */
 
     prevlengthscore = prev_length;
-    if (blocksplitting){
-      if (prevlengthscore == 3 && prev_match > 64){
-        --prevlengthscore;
-      }
-      else if (prevlengthscore == 4 && prev_match > 2048){
-        --prevlengthscore;
-      }
-    }
-    else {
-      if (prevlengthscore == 3 && prev_match > 64){
-        --prevlengthscore;
-      }
-      else if (prevlengthscore == 4 && prev_match > 16){
-        --prevlengthscore;
-      }
-      else if (prevlengthscore == 5 && prev_match > 4096){
-        --prevlengthscore;
-      }
-      else if (prevlengthscore == 6 && prev_match > 16384){
-        --prevlengthscore;
-      }
+    if (prevlengthscore == 3 && prev_match > 8192){
+      --prevlengthscore;
     }
 
     if (match_available) {
