@@ -27,7 +27,6 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 
 #include "deflate.h"
 #include "lz77.h"
-#include "squeeze.h"
 #include "util.h"
 
 typedef struct SplitCostContext {
@@ -230,9 +229,6 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
   s.options = options;
   s.blockstart = instart;
   s.blockend = inend;
-#ifdef ZOPFLI_LONGEST_MATCH_CACHE
-  s.lmc = 0;
-#endif
 
   *npoints = 0;
   *splitpoints = 0;

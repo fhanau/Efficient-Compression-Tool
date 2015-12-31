@@ -32,16 +32,6 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "match.h"
 #include "../LzFind.h"
 
-typedef struct SymbolStats {
-  /* The literal and length symbols. */
-  size_t litlens[288];
-  /* The 32 unique dist symbols, not the 32768 possible dists. */
-  size_t dists[32];
-
-  float ll_symbols[288];  /* Length of each lit/len symbol in bits. */
-  float d_symbols[32];  /* Length of each dist symbol in bits. */
-} SymbolStats;
-
 static void CopyStats(SymbolStats* source, SymbolStats* dest) {
   memcpy(dest->litlens, source->litlens, 288 * sizeof(dest->litlens[0]));
   memcpy(dest->dists, source->dists, 32 * sizeof(dest->dists[0]));
@@ -211,7 +201,6 @@ static void GetBestLengths(ZopfliBlockState *s,
     }
   }
 
-  /* Best cost to get here so far. */
   size_t blocksize = inend - instart;
 
   if (instart == inend) return;
@@ -500,7 +489,7 @@ static void ZopfliLZ77Optimal(ZopfliBlockState *s,
     }
     CopyStats(&stats, &laststats);
     GetStatistics(&currentstore, &stats);
-    if (lastrandomstep != -1) {
+    if (lastrandomstep) {
       /* This makes it converge slower but better. Do it only once the
       randomness kicks in so that if the user does few iterations, it gives a
       better result sooner. */
@@ -541,7 +530,7 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
       /*TODO:Corrections for cost model inaccuracies. There is still much potential here
        Enable this in Mode 3, too, though less aggressive*/
       for (unsigned i = 0; i < 256; i++){
-        stats.ll_symbols[i] -= 0.4;
+        stats.ll_symbols[i] -= .2;
       }
       if (inend - instart < 1000){
         for (unsigned i = 0; i < 256; i++){
@@ -559,11 +548,6 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
       stats.ll_symbols[282] += 0.2;
       stats.ll_symbols[283] += 0.2;
       stats.ll_symbols[284] += 0.4;
-      if (inend - instart < 32768 && inend - instart > 100){
-        for (unsigned i = ZopfliGetDistSymbol(inend - instart) - 1; i < 30; i++){
-          stats.d_symbols[i] += 0.5;
-        }
-      }
       for (unsigned i = 0; i < 286; i++){
         if (stats.ll_symbols[i] < 1){
           stats.ll_symbols[i] = 1;

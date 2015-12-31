@@ -80,7 +80,7 @@ Update the sliding hash value with the given byte. All calls to this function
 must be made on consecutive input characters. Since the hash value exists out
 of multiple input bytes, a few warmups with this function are needed initially.
 */
-static void UpdateHashValue(ZopfliHash* h, unsigned char c) {
+static void UpdateHashval(ZopfliHash* h, unsigned char c) {
   h->val = (((h->val) << HASH_SHIFT) ^ (c)) & HASH_MASK;
 }
 
@@ -174,6 +174,6 @@ void LoopedUpdateHash(const unsigned char* array, size_t pos, size_t end,
 }
 
 void ZopfliWarmupHash(const unsigned char* array, size_t pos, ZopfliHash* h) {
-  UpdateHashValue(h, array[pos]);
-  UpdateHashValue(h, array[pos + 1]);
+  UpdateHashval(h, array[pos]);
+  UpdateHashval(h, array[pos + 1]);
 }

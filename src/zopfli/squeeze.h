@@ -39,6 +39,18 @@ solution.
 extern "C" {
 #endif
 
+typedef struct SymbolStats {
+  /* The literal and length symbols. */
+  size_t litlens[288];
+  /* The 32 unique dist symbols, not the 32768 possible dists. */
+  size_t dists[32];
+
+  float ll_symbols[288];  /* Length of each lit/len symbol in bits. */
+  float d_symbols[32];  /* Length of each dist symbol in bits. */
+} SymbolStats;
+
+void GetStatistics(const ZopfliLZ77Store* store, SymbolStats* stats);
+
 /*
 Calculates lit/len and dist pairs for given data.
 If instart is larger than 0, it uses values before instart as starting

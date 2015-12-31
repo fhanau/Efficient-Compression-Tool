@@ -32,6 +32,7 @@ ones that enhance it.
 
 
 #include "zopfli.h"
+#include "squeeze.h"
 
 #ifdef __cplusplus
 extern "C" {

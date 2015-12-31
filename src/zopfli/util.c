@@ -207,7 +207,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   if (mode < 3) {
     options->skipdynamic = 180;
     options->numiterations = 1;
-    options->chain_length = 415;
+    options->chain_length = 1000;
     options->noblocksplitlz = 512;
     options->noblocksplit = 3000;
     options->trystatic = 0;
