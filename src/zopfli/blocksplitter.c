@@ -217,7 +217,7 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
 
 void ZopfliBlockSplit(const ZopfliOptions* options,
                       const unsigned char* in, size_t instart, size_t inend,
-                      size_t** splitpoints, size_t* npoints) {
+                      size_t** splitpoints, size_t* npoints, SymbolStats** stats) {
   size_t pos = 0;
   size_t i;
   ZopfliBlockState s;
@@ -236,9 +236,22 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
 
   /* Unintuitively, Using a simple LZ77 method here instead of ZopfliLZ77Optimal
   results in better blocks. */
-  ZopfliLZ77Greedy(&s, in, instart, inend, &store, 1);
+  ZopfliLZ77Greedy(&s, in, instart, inend, &store);
+
+  /* Blocksplitting likely wont improve compression on small files */
+  if (inend - instart < options->noblocksplit){
+    SymbolStats* statsp = (SymbolStats*)malloc(sizeof(SymbolStats));
+    GetStatistics(&store, &statsp[0]);
+    *stats = statsp;
+    return;
+  }
 
   ZopfliBlockSplitLZ77(store.litlens, store.dists, store.size, &lz77splitpoints, &nlz77points, options);
+
+  SymbolStats* statsp = (SymbolStats*)malloc((nlz77points + 1) * sizeof(SymbolStats));
+  if (!(statsp)){
+    exit(1);
+  }
 
   /* Convert LZ77 positions to positions in the uncompressed input. */
   pos = instart;
@@ -246,6 +259,15 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
     for (i = 0; i < store.size; i++) {
       size_t length = store.dists[i] == 0 ? 1 : store.litlens[i];
       if (lz77splitpoints[*npoints] == i) {
+        size_t temp = store.size;
+        size_t shift = *npoints ? lz77splitpoints[*npoints - 1] : 0;
+        store.size = i - shift;
+        store.dists += shift;
+        store.litlens += shift;
+        GetStatistics(&store, &statsp[*npoints]);
+        store.size = temp;
+        store.dists -= shift;
+        store.litlens -= shift;
         ZOPFLI_APPEND_DATA(pos, splitpoints, npoints);
         if (*npoints == nlz77points) break;
       }
@@ -254,6 +276,17 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
   }
   assert(*npoints == nlz77points);
 
+  size_t shift = *npoints ? lz77splitpoints[*npoints - 1] : 0;
+  store.size -= shift;
+  store.dists += shift;
+  store.litlens += shift;
+
+  GetStatistics(&store, &statsp[*npoints]);
+  store.size += shift;
+  store.dists -= shift;
+  store.litlens -= shift;
+
   free(lz77splitpoints);
   ZopfliCleanLZ77Store(&store);
+  *stats = statsp;
 }

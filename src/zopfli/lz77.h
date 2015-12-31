@@ -99,7 +99,7 @@ dictionary.
 */
 void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
                       size_t instart, size_t inend,
-                      ZopfliLZ77Store* store, unsigned char blocksplitting);
+                      ZopfliLZ77Store* store);
 
 #ifdef __cplusplus
 }

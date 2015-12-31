@@ -53,7 +53,7 @@ npoints: pointer to amount of splitpoints, for the dynamic array. The amount of
   blocks is the amount of splitpoitns + 1.
 */
 void ZopfliBlockSplit(const ZopfliOptions* options, const unsigned char* in, size_t instart,
-                      size_t inend, size_t** splitpoints, size_t* npoints);
+                      size_t inend, size_t** splitpoints, size_t* npoints, SymbolStats** stats);
 
 #ifdef __cplusplus
 }

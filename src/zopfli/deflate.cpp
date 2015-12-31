@@ -639,7 +639,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
                                 const unsigned char* in,
                                 size_t instart, size_t inend,
                                 unsigned char* bp,
-                                unsigned char** out, size_t* outsize, unsigned char* costmodelnotinited) {
+                                unsigned char** out, size_t* outsize, unsigned char* costmodelnotinited, SymbolStats* statsp) {
   ZopfliBlockState s;
   size_t blocksize = inend - instart;
   ZopfliLZ77Store store;
@@ -655,7 +655,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
     ZopfliLZ77OptimalFixed(&s, in, instart, inend, &store);
   }
   else{
-    ZopfliLZ77Optimal2(&s, in, instart, inend, &store, *costmodelnotinited);
+    ZopfliLZ77Optimal2(&s, in, instart, inend, &store, *costmodelnotinited, statsp);
   }
   *costmodelnotinited = 0;
 
@@ -691,7 +691,7 @@ struct BlockData {
 };
 
 static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned char* in,
-                                 size_t instart, size_t inend, BlockData* store) {
+                                 size_t instart, size_t inend, BlockData* store, SymbolStats* statsp) {
   ZopfliBlockState s;
   size_t blocksize = inend - instart;
   store->btype = 2;
@@ -706,7 +706,7 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
     ZopfliLZ77OptimalFixed(&s, in, instart, inend, &store->store);
   }
   else{
-    ZopfliLZ77Optimal2(&s, in, instart, inend, &store->store, 1);
+    ZopfliLZ77Optimal2(&s, in, instart, inend, &store->store, 1, statsp);
   }
 
   /* For small block, encoding with fixed tree can be smaller. For large block,
@@ -737,7 +737,8 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
   std::vector<std::thread> multi (threads);
   size_t* splitpoints = 0;
   size_t npoints = 0;
-  ZopfliBlockSplit(options, in, instart, inend , &splitpoints, &npoints);
+  SymbolStats* statsp;
+  ZopfliBlockSplit(options, in, instart, inend , &splitpoints, &npoints, &statsp);
   std::vector<BlockData> d (npoints + 1);
   size_t i;
 
@@ -745,7 +746,7 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
     size_t start = i == 0 ? instart : splitpoints[i - 1];
     size_t end = i == npoints ? inend : splitpoints[i];
     d[i].blocksize = end - start;
-    multi[i % threads] = std::thread(DeflateDynamicBlock2,options, in, start, end, &d[i]);
+    multi[i % threads] = std::thread(DeflateDynamicBlock2,options, in, start, end, &d[i], &statsp[i]);
 
     if (i % threads == threads - 1){
       for (size_t j = 0; j < threads; j++){
@@ -761,11 +762,12 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
   for (i = 0; i <= npoints; i++) {
     AddLZ77Block(d[i].btype, i == npoints && final,
                  d[i].store.litlens, d[i].store.dists, 0, d[i].store.size,
-                 d[i].blocksize, bp, out, outsize);
+                 d[i].blocksize, bp, out, outsize, options->searchext);
     ZopfliCleanLZ77Store(&d[i].store);
   }
 
   free(splitpoints);
+  free(statsp);
 }
 #endif
 
@@ -782,16 +784,18 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
                                   unsigned char** out, size_t* outsize, unsigned char* costmodelnotinited) {
   size_t* splitpoints = 0;
   size_t npoints = 0;
-  ZopfliBlockSplit(options, in, instart, inend, &splitpoints, &npoints);
+  SymbolStats* statsp = 0;
+  ZopfliBlockSplit(options, in, instart, inend, &splitpoints, &npoints, &statsp);
 
   for (size_t i = 0; i <= npoints; i++) {
     size_t start = i == 0 ? instart : splitpoints[i - 1];
     size_t end = i == npoints ? inend : splitpoints[i];
     DeflateDynamicBlock(options, i == npoints && final, in, start, end,
-                        bp, out, outsize, costmodelnotinited);
+                        bp, out, outsize, costmodelnotinited, &(statsp[i]));
   }
 
   free(splitpoints);
+  free(statsp);
 }
 
 /*
@@ -807,18 +811,16 @@ static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
                        const unsigned char* in, size_t instart, size_t inend,
                        unsigned char* bp, unsigned char** out,
                        size_t* outsize, unsigned char* costmodelnotinited) {
-  /* Blocksplitting likely wont improve compression on small files */
-  if (inend - instart < options->noblocksplit){
-    DeflateDynamicBlock(options, final, in, instart, inend, bp, out, outsize, costmodelnotinited);
-  }
 #ifndef NOMULTI
-  else if (options->multithreading > 1){
+  if (options->multithreading > 1){
     DeflateSplittingFirst2(options, final, in, instart, inend, bp, out, outsize, options->multithreading);
   }
-#endif
   else {
+#endif
     DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize, costmodelnotinited);
+#ifndef NOMULTI
   }
+#endif
 }
 
 void ZopfliDeflate(const ZopfliOptions* options, int final,

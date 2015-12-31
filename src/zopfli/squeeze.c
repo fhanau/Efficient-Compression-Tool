@@ -41,6 +41,15 @@ static void CopyStats(SymbolStats* source, SymbolStats* dest) {
   memcpy(dest->d_symbols, source->d_symbols, 32 * sizeof(dest->d_symbols[0]));
 }
 
+static void MixCostmodels(SymbolStats* src, SymbolStats* prod, float share){
+  for (unsigned i = 0; i < 288; i++) {
+    prod->ll_symbols[i] = prod->ll_symbols[i] * (1.0 - share) + src->ll_symbols[i] * share;
+  }
+  for (unsigned i = 0; i < 32; i++) {
+    prod->d_symbols[i] = prod->d_symbols[i] * (1.0 - share) + src->d_symbols[i] * share;
+  }
+}
+
 /* Adds the bit lengths. */
 static void AddWeighedStatFreqs(const SymbolStats* stats1, float w1,
                                 const SymbolStats* stats2, float w2,
@@ -405,7 +414,7 @@ static void CalculateStatistics(SymbolStats* stats) {
 }
 
 /* Appends the symbol statistics from the store. */
-static void GetStatistics(const ZopfliLZ77Store* store, SymbolStats* stats) {
+void GetStatistics(const ZopfliLZ77Store* store, SymbolStats* stats) {
   memset(stats->litlens, 0, 288 * sizeof(stats->litlens[0]));
   memset(stats->dists, 0, 32 * sizeof(stats->dists[0]));
   ZopfliLZ77Counts(store->litlens, store->dists, 0, store->size, stats->litlens, stats->dists);
@@ -443,7 +452,7 @@ static SymbolStats st;
 
 static void ZopfliLZ77Optimal(ZopfliBlockState *s,
                        const unsigned char* in, size_t instart, size_t inend,
-                       ZopfliLZ77Store* store, unsigned char first) {
+                       ZopfliLZ77Store* store, unsigned char first, SymbolStats* statsp) {
   /* Dist to get to here with smallest cost. */
   unsigned* length_array = (unsigned*)malloc(sizeof(unsigned) * (inend - instart + 1));
   ZopfliLZ77Store currentstore;
@@ -465,8 +474,8 @@ static void ZopfliLZ77Optimal(ZopfliBlockState *s,
 
   /* Initial run. */
   if (first || (!s->options->reuse_costmodel)){
-    ZopfliLZ77Greedy(s, in, instart, inend, &currentstore, 0);
-    GetStatistics(&currentstore, &stats);
+    SymbolStats fromBlocksplitting = *statsp;
+    CopyStats(&fromBlocksplitting, &stats);
   }
   else{
     CopyStats(&st, &stats);
@@ -513,17 +522,16 @@ static void ZopfliLZ77Optimal(ZopfliBlockState *s,
 
 void ZopfliLZ77Optimal2(ZopfliBlockState *s,
                         const unsigned char* in, size_t instart, size_t inend,
-                        ZopfliLZ77Store* store, unsigned char costmodelnotinited) {
+                        ZopfliLZ77Store* store, unsigned char costmodelnotinited, SymbolStats* statsp) {
   SymbolStats stats;
   if (s->options->numiterations != 1){
-    ZopfliLZ77Optimal(s, in, instart, inend, store, costmodelnotinited);
+    ZopfliLZ77Optimal(s, in, instart, inend, store, costmodelnotinited, statsp);
     return;
   }
 
-  if (costmodelnotinited || (!s->options->reuse_costmodel)){
-    ZopfliLZ77Greedy(s, in, instart, inend, store, 0);
-    GetStatistics(store, &stats);
-    ZopfliCleanLZ77Store(store);
+  if (costmodelnotinited || !s->options->reuse_costmodel){
+    SymbolStats fromBlocksplitting = *statsp;
+    CopyStats(&fromBlocksplitting, &stats);
 
     if (s->options->isPNG){
       /*TODO:Corrections for cost model inaccuracies. There is still much potential here
@@ -568,6 +576,11 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
         }
       }
     }
+    //MixCostmodels(&st, &stats, .2);
+  }
+  else{
+    //SymbolStats fromBlocksplitting = *statsp;
+    //MixCostmodels(&fromBlocksplitting, &st, .3);
   }
 
   ZopfliInitLZ77Store(store);
