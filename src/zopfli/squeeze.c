@@ -232,38 +232,72 @@ static void GetBestLengths(ZopfliBlockState *s,
   if (instart - windowstart){
     Bt3Zip_MatchFinder_Skip(&p, instart - windowstart);
   }
-  unsigned matches[ZOPFLI_MAX_MATCH * 2];
+  unsigned matches[(ZOPFLI_MAX_MATCH - ZOPFLI_MIN_MATCH) * 2];
 
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
+
+#ifdef ZOPFLI_SHORTCUT_LONG_REPETITIONS
+    if (i < inend - ZOPFLI_MAX_MATCH - 1 && *(long*)&in[i] == *(long*)&in[i + 1]){
+      unsigned same = GetMatch(&in[i + 1], &in[i], &in[inend], &in[inend] - 8) - &in[i];
+      /* If we're in a long repetition of the same character and have more than
+       ZOPFLI_MAX_MATCH characters before and after our position. */
+      if (same > ZOPFLI_MAX_MATCH/* * 2*/
+          && i > instart + ZOPFLI_MAX_MATCH + 1
+          && GetMatch(&in[i + 1 - ZOPFLI_MAX_MATCH], &in[i - ZOPFLI_MAX_MATCH], &in[i + 1], &in[i] - 7) - &in[i - ZOPFLI_MAX_MATCH]
+          > ZOPFLI_MAX_MATCH) {
+
+        unsigned match = same - ZOPFLI_MAX_MATCH/* - 1*/;
+
+        float symbolcost = costcontext ? costcontext->ll_symbols[285] + costcontext->d_symbols[0] : 13;
+        /* Set the length to reach each one to ZOPFLI_MAX_MATCH, and the cost to
+         the cost corresponding to that length. Doing this, we skip
+         ZOPFLI_MAX_MATCH values to avoid calling ZopfliFindLongestMatch. */
+        for (unsigned k = 0; k < match; k++) {
+          costs[j + ZOPFLI_MAX_MATCH] = costs[j] + symbolcost;
+          length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (1 << 9);
+          j++;
+        }
+
+        //You think ECT will choke on files with minimum entropy? Think again!
+        Bt3Zip_MatchFinder_Skip(&p, match);
+        i += match;
+      }
+    }
+#endif
 
     int numPairs = Bt3Zip_MatchFinder_GetMatches(&p, matches);
     if (numPairs){
       const unsigned * mend = matches + numPairs;
 
-      //printf("%d pairs\n", numPairs);
-      float price = costs[j];
-      unsigned* mp = matches;
-      
-      unsigned curr = ZOPFLI_MIN_MATCH;
-      while (mp < mend){
+      if (*(mend - 2) == ZOPFLI_MAX_MATCH && numPairs == 2){
+        unsigned dist = matches[1];
+        costs[j + ZOPFLI_MAX_MATCH] = costs[j] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
+        length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (dist << 9);
+      }
+      else{
+        float price = costs[j];
+        unsigned* mp = matches;
+        unsigned curr = ZOPFLI_MIN_MATCH;
 
-        unsigned len = *mp++;
-        unsigned dist = *mp++;
-        float price2 = price + disttable[dist];
-        for (; curr<=len; curr++) {
-          float x = price2 + litlentable[curr];
-          if (x < costs[j + curr]){
-            costs[j + curr] = x;
-            length_array[j + curr] = curr + (dist << 9);
+        while (mp < mend){
+          unsigned len = *mp++;
+          unsigned dist = *mp++;
+          float price2 = price + disttable[dist];
+          for (; curr <= len; curr++) {
+            float x = price2 + litlentable[curr];
+            if (x < costs[j + curr]){
+              costs[j + curr] = x;
+              length_array[j + curr] = curr + (dist << 9);
+            }
           }
         }
       }
     }
 
     /* Literal. */
-    float newCost = costs[j] + literals[*(p.buffer - 1)];
     assert((p.buffer - 1) == &in[i]);
+    float newCost = costs[j] + literals[in[i]];
     if (newCost < costs[j + 1]) {
       costs[j + 1] = newCost;
       length_array[j + 1] = 1;
