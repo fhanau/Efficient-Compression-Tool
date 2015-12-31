@@ -19,7 +19,6 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 
 /*Modified by Felix Hanau*/
 
-#include "squeeze.h"
 
 #include <assert.h>
 #include <math.h>
@@ -29,6 +28,8 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "blocksplitter.h"
 #include "deflate.h"
 #include "util.h"
+#include "squeeze.h"
+#include "match.h"
 #include "../LzFind.h"
 
 typedef struct SymbolStats {
