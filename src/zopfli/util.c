@@ -203,7 +203,9 @@ unsigned ZopfliGetLengthSymbol(unsigned l) {
   return table[l];
 }
 
+//TODO: Rename ZopfliOptions to ZSettings?
 void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithreading, unsigned isPNG) {
+  /*TODO: Put all tuning values here*/
   if (mode < 3) {
     options->skipdynamic = 180;
     options->numiterations = 1;
@@ -211,6 +213,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
     options->noblocksplitlz = 512;
     options->noblocksplit = 3000;
     options->trystatic = 0;
+    options->searchext = 1;
   }
   else if (mode < 4) {
     options->skipdynamic = 180;
@@ -219,11 +222,13 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
     options->noblocksplitlz = 200;
     options->noblocksplit = 2000;
     options->trystatic = 0;
+    options->searchext = 1;
   }
   else {
     options->skipdynamic = 80;
     options->noblocksplitlz = 100;
     options->noblocksplit = 1400;
+    options->searchext = 2;
     if (mode < 5) {
       options->trystatic = 800;
       options->numiterations = 15;

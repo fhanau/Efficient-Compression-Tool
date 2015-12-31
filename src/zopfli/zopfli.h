@@ -68,10 +68,15 @@ typedef struct ZopfliOptions {
   /* Don't blocksplit under this size (LZ77'd data). */
   unsigned noblocksplitlz;
 
-  /* Number of parralel block split point searches*/
+  /* Number of parallel block split point searches*/
   unsigned num;
 
-  /* Use extended cheap splitpoint search*/
+  /* Search longer for best huffman header compression:
+     Value outstream important less important
+     0:    1         1         1
+     1:    10        10        1
+     2:    32        32        32
+   */
   unsigned searchext;
 
   /*Use per block multithreading*/
@@ -81,6 +86,9 @@ typedef struct ZopfliOptions {
   unsigned isPNG;
 
   unsigned reuse_costmodel;
+
+  /*When using more than one iteration, this will save the found matches on the first run so they don't need to be found again. Uses large amounts of memory.*/
+  unsigned useCache;
 
 } ZopfliOptions;
 

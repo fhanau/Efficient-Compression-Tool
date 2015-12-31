@@ -147,7 +147,7 @@ is a null pointer, only returns the size and runs faster.
 */
 static size_t EncodeTree(const unsigned* ll_lengths,
                          const unsigned* d_lengths,
-                         int use_16, int use_17, int use_18,
+                         int use_16, int use_17, int use_18, int fuse_8, int fuse_7,
                          unsigned char* bp,
                          unsigned char** out, size_t* outsize) {
   /* Runlength encoded version of lengths of litlen and dist trees. */
@@ -222,13 +222,33 @@ static size_t EncodeTree(const unsigned* ll_lengths,
         ZOPFLI_APPEND_DATA(0, &rle_bits, &rle_bits_size);
       }
       while (count >= 3) {
-        unsigned count2 = count > 6 ? 6 : count;
-        if (!size_only) {
-          ZOPFLI_APPEND_DATA(16, &rle, &rle_size);
-          ZOPFLI_APPEND_DATA(count2 - 3, &rle_bits, &rle_bits_size);
-        }
-        clcounts[16]++;
-        count -= count2;
+				if (fuse_8 && count == 8) { /* record 8 as 4+4 not as 6+single+single */
+					if (!size_only) {
+						ZOPFLI_APPEND_DATA(16, &rle, &rle_size);
+						ZOPFLI_APPEND_DATA(1, &rle_bits, &rle_bits_size);
+						ZOPFLI_APPEND_DATA(16, &rle, &rle_size);
+						ZOPFLI_APPEND_DATA(1, &rle_bits, &rle_bits_size);
+					}
+					clcounts[16] += 2;
+					count = 0;
+				} else if (fuse_7 && count == 7) { /* record 7 as 4+3 not as 6+single */
+					if (!size_only) {
+						ZOPFLI_APPEND_DATA(16, &rle, &rle_size);
+						ZOPFLI_APPEND_DATA(1, &rle_bits, &rle_bits_size);
+						ZOPFLI_APPEND_DATA(16, &rle, &rle_size);
+						ZOPFLI_APPEND_DATA(0, &rle_bits, &rle_bits_size);
+					}
+					clcounts[16] += 2;
+					count = 0;
+				} else {
+					unsigned count2 = count > 6 ? 6 : count;
+					if (!size_only) {
+						ZOPFLI_APPEND_DATA(16, &rle, &rle_size);
+						ZOPFLI_APPEND_DATA(count2 - 3, &rle_bits, &rle_bits_size);
+					}
+					clcounts[16]++;
+					count -= count2;
+				}
       }
     }
 
@@ -289,14 +309,13 @@ static size_t EncodeTree(const unsigned* ll_lengths,
 static void AddDynamicTree(const unsigned* ll_lengths,
                            const unsigned* d_lengths,
                            unsigned char* bp,
-                           unsigned char** out, size_t* outsize) {
-  int i;
-  int best = 0;
+                           unsigned char** out, size_t* outsize, unsigned hq) {
+  int best = 7;
   size_t bestsize = 0;
 
-  for(i = 0; i < 8; i++) {
+  for(unsigned i = 0; i < (hq ? hq == 2 ? 32 : 10 : 0); i++) {
     size_t size = EncodeTree(ll_lengths, d_lengths,
-                             i & 1, i & 2, i & 4,
+                             i & 1, i & 2, i & 4, i & 8, i & 16 || (hq == 1 && i == 9),
                              0, 0, 0);
     if (bestsize == 0 || size < bestsize) {
       bestsize = size;
@@ -305,7 +324,7 @@ static void AddDynamicTree(const unsigned* ll_lengths,
   }
 
   EncodeTree(ll_lengths, d_lengths,
-             best & 1, best & 2, best & 4,
+             best & 1, best & 2, best & 4, best & 8 , best & 16 || (hq == 1 && best == 9),
              bp, out, outsize);
 }
 
@@ -315,12 +334,10 @@ Gives the exact size of the tree, in bits, as it will be encoded in DEFLATE.
 static size_t CalculateTreeSize(const unsigned* ll_lengths,
                                 const unsigned* d_lengths, unsigned char hq) {
   size_t result = 0;
-  int i;
-
     if (hq){
-        for(i = 0; i < 8; i++) {
+			for(unsigned i = 0; i < (hq == 2 ? 32 : 10); i++) {
             size_t size = EncodeTree(ll_lengths, d_lengths,
-                                     i & 1, i & 2, i & 4,
+                                     i & 1, i & 2, i & 4, i & 8, i & 16 || (hq == 1 && i == 9),
                                      0, 0, 0);
             if (result == 0 || size < result) result = size;
         }
@@ -328,7 +345,7 @@ static size_t CalculateTreeSize(const unsigned* ll_lengths,
         return result;
     }
     else {
-        return EncodeTree(ll_lengths, d_lengths,1, 1, 1, 0, 0, 0);
+        return EncodeTree(ll_lengths, d_lengths, 1, 1, 1, 0, 0, 0, 0, 0);
     }
 }
 
@@ -377,7 +394,6 @@ static void AddLZ77Data(const unsigned short* litlens,
 }
 
 //From brotli.
-
 /*
  Change the population counts in a way that the consequent Hufmann tree
  compression, especially its rle-part will be more likely to compress this data
@@ -588,7 +604,7 @@ static void AddLZ77Block(int btype, int final,
                          size_t lstart, size_t lend,
                          size_t expected_data_size,
                          unsigned char* bp,
-                         unsigned char** out, size_t* outsize) {
+                         unsigned char** out, size_t* outsize, unsigned hq) {
   unsigned ll_lengths[288];
   unsigned d_lengths[32];
   unsigned ll_symbols[288];
@@ -608,7 +624,7 @@ static void AddLZ77Block(int btype, int final,
   } else {
     /* Dynamic block. */
     GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, 0);
-    AddDynamicTree(ll_lengths, d_lengths, bp, out, outsize);
+    AddDynamicTree(ll_lengths, d_lengths, bp, out, outsize, hq);
   }
   ZopfliLengthsToSymbols(ll_lengths, 288, 15, ll_symbols);
   ZopfliLengthsToSymbols(d_lengths, 32, 15, d_symbols);
@@ -649,8 +665,8 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
     ZopfliLZ77Store fixedstore;
     ZopfliInitLZ77Store(&fixedstore);
     ZopfliLZ77OptimalFixed(&s, in, instart, inend, &fixedstore);
-    double dyncost = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, 1);
-    double fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, 1);
+    double dyncost = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, options->searchext);
+    double fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, options->searchext);
     if (fixedcost <= dyncost) {
       btype = 1;
       ZopfliCleanLZ77Store(&store);
@@ -662,7 +678,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
 
   AddLZ77Block(btype, final,
                store.litlens, store.dists, 0, store.size,
-               blocksize, bp, out, outsize);
+               blocksize, bp, out, outsize, options->searchext);
 
   ZopfliCleanLZ77Store(&store);
 }
@@ -700,8 +716,8 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
     ZopfliLZ77Store fixedstore;
     ZopfliInitLZ77Store(&fixedstore);
     ZopfliLZ77OptimalFixed(&s, in, instart, inend, &fixedstore);
-    dyncost = ZopfliCalculateBlockSize(store->store.litlens, store->store.dists, 0, store->store.size, 2, 1);
-    fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, 1);
+    dyncost = ZopfliCalculateBlockSize(store->store.litlens, store->store.dists, 0, store->store.size, 2, options->searchext);
+    fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, options->searchext);
     if (fixedcost <= dyncost) {
       store->btype = 1;
       ZopfliCleanLZ77Store(&store->store);

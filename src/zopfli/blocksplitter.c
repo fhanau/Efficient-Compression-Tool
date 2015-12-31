@@ -41,9 +41,10 @@ typedef struct SplitCostContext {
  Gets the cost which is the sum of the cost of the left and the right section
  of the data.
  */
-static double SplitCost(size_t i, SplitCostContext* c, double* first, double* second) {
-  *first = ZopfliCalculateBlockSize(c->litlens, c->dists, c->start, i, 2, 0);
-  *second = ZopfliCalculateBlockSize(c->litlens, c->dists, i, c->end, 2, 0);
+static double SplitCost(size_t i, SplitCostContext* c, double* first, double* second, unsigned char searchext) {
+  *first = ZopfliCalculateBlockSize(c->litlens, c->dists, c->start, i, 2, searchext);
+  *second = ZopfliCalculateBlockSize(c->litlens, c->dists, i, c->end, 2, searchext);
+  }
   return *first + *second;
 }
 
@@ -77,7 +78,7 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, d
         vp[i] = best;
         continue;
       }
-      vp[i] = SplitCost(p[i], context, &first, &second);
+      vp[i] = SplitCost(p[i], context, &first, &second, options->searchext & 2);
     }
     besti = 0;
     best = vp[0];
@@ -186,7 +187,7 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
     assert(llpos < lend);
 
     if (prevcost == ZOPFLI_LARGE_FLOAT || splittingleft == 1){
-    origcost = ZopfliCalculateBlockSize(litlens, dists, lstart, lend, 2, 0);
+    origcost = ZopfliCalculateBlockSize(litlens, dists, lstart, lend, 2, options->searchext & 2);
     }
     else {
       origcost = prevcost;

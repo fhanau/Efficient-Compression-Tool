@@ -479,8 +479,7 @@ static void ZopfliLZ77Optimal(ZopfliBlockState *s,
     ZopfliInitLZ77Store(&currentstore);
     LZ77OptimalRun(s, in, instart, inend, length_array, &stats, &currentstore, i == 1 && i != s->options->numiterations);
 
-    cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists,
-                                    0, currentstore.size, 2, 1);
+    cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists, 0, currentstore.size, 2, s->options->searchext);
     if (cost < bestcost) {
       /* Copy to the output store. */
       ZopfliCopyLZ77Store(&currentstore, store);
