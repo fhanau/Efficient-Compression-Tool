@@ -6,6 +6,8 @@
 #include "main.h"
 #include "support.h"
 
+#include <unistd.h>
+
 #ifndef NOMULTI
 #include <thread>
 #endif
