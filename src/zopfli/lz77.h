@@ -27,8 +27,6 @@ compression.
 #ifndef ZOPFLI_LZ77_H_
 #define ZOPFLI_LZ77_H_
 
-
-#include "cache.h"
 #include "hash.h"
 #include "zopfli.h"
 
@@ -64,11 +62,6 @@ but is kept for easy future expansion.
 */
 typedef struct ZopfliBlockState {
   const ZopfliOptions* options;
-
-#ifdef ZOPFLI_LONGEST_MATCH_CACHE
-  /* Cache for length/distance pairs found so far. */
-  ZopfliLongestMatchCache* lmc;
-#endif
 
   /* The start (inclusive) and end (not inclusive) of the current block. */
   size_t blockstart;

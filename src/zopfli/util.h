@@ -66,21 +66,6 @@ Used to initialize costs for example
 #define ZOPFLI_LARGE_FLOAT 1e30
 
 /*
-For longest match cache. max 256. Uses huge amounts of memory but makes it
-faster. Uses this many times three bytes per single byte of the input data.
-This is so because longest match finding has to find the exact distance
-that belongs to each length for the best lz77 strategy.
-Good values: e.g. 5, 8.
-*/
-#define ZOPFLI_CACHE_LENGTH 8
-
-/*
-Whether to use the longest match cache for ZopfliFindLongestMatch. This cache
-consumes a lot of memory but speeds it up. No effect on compression size.
-*/
-#define ZOPFLI_LONGEST_MATCH_CACHE
-
-/*
 Enable to remember amount of successive identical bytes in the hash chain for
 finding longest match
 required for ZOPFLI_HASH_SAME_HASH and ZOPFLI_SHORTCUT_LONG_REPETITIONS

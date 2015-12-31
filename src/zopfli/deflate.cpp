@@ -634,13 +634,6 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
   s.options = options;
   s.blockstart = instart;
   s.blockend = inend;
-#ifdef ZOPFLI_LONGEST_MATCH_CACHE
-  s.lmc = (ZopfliLongestMatchCache*)malloc(sizeof(ZopfliLongestMatchCache));
-  if (!s.lmc){
-    exit(1);
-  }
-  ZopfliInitCache(blocksize, s.lmc);
-#endif
   if (blocksize <= options->skipdynamic){
     btype = 1;
     ZopfliLZ77OptimalFixed(&s, in, instart, inend, &store);
@@ -666,9 +659,6 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
       ZopfliCleanLZ77Store(&fixedstore);
     }
   }
-#ifdef ZOPFLI_LONGEST_MATCH_CACHE
-  ZopfliCleanCache(s.lmc);
-#endif
 
   AddLZ77Block(btype, final,
                store.litlens, store.dists, 0, store.size,
@@ -695,13 +685,6 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
   s.options = options;
   s.blockstart = instart;
   s.blockend = inend;
-#ifdef ZOPFLI_LONGEST_MATCH_CACHE
-  s.lmc = (ZopfliLongestMatchCache*)malloc(sizeof(ZopfliLongestMatchCache));
-  if (!s.lmc){
-    exit(1);
-  }
-  ZopfliInitCache(blocksize, s.lmc);
-#endif
   if (blocksize <= options->skipdynamic){
     store->btype = 1;
     ZopfliLZ77OptimalFixed(&s, in, instart, inend, &store->store);
@@ -727,10 +710,6 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
       ZopfliCleanLZ77Store(&fixedstore);
     }
   }
-
-#ifdef ZOPFLI_LONGEST_MATCH_CACHE
-  ZopfliCleanCache(s.lmc);
-#endif
 }
 
 static void DeflateSplittingFirst2(const ZopfliOptions* options,
