@@ -44,7 +44,6 @@ typedef struct SplitCostContext {
 static double SplitCost(size_t i, SplitCostContext* c, double* first, double* second, unsigned char searchext) {
   *first = ZopfliCalculateBlockSize(c->litlens, c->dists, c->start, i, 2, searchext);
   *second = ZopfliCalculateBlockSize(c->litlens, c->dists, i, c->end, 2, searchext);
-  }
   return *first + *second;
 }
 
