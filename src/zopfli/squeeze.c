@@ -579,8 +579,8 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
     //MixCostmodels(&st, &stats, .2);
   }
   else{
-    //SymbolStats fromBlocksplitting = *statsp;
-    //MixCostmodels(&fromBlocksplitting, &st, .3);
+    SymbolStats fromBlocksplitting = *statsp;
+    MixCostmodels(&fromBlocksplitting, &st, .3);
   }
 
   ZopfliInitLZ77Store(store);
