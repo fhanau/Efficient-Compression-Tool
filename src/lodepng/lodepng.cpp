@@ -3787,7 +3787,6 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
 
     int err = deflateInit2(&stream, 3, Z_DEFLATED, linebytes < 2048 ? -11 : -15, 8, Z_FILTERED);
     if (err != Z_OK) exit(1);
-    deflateTune(&stream, 256, 258, 258, settings->chain_length);
     unsigned char* dummy = (unsigned char *)malloc(deflateBound(&stream, linebytes));
     if(!dummy){
       exit(1);
@@ -3804,7 +3803,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       {
         filterScanline(attempt[type].data, &in[y * linebytes], prevline, linebytes, bytewidth, type);
 
-        deflateTune(&stream, 256, 258, 258, settings->chain_length);
+        deflateTune(&stream, 258, 258, 258, settings->chain_length);
         stream.next_in = (z_const unsigned char *)attempt[type].data;
         stream.avail_in = linebytes;
         stream.avail_out = UINT_MAX;
