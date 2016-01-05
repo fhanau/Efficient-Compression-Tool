@@ -298,13 +298,13 @@ static void GetBestLengths(ZopfliBlockState *s,
     }
 
     /* Literal. */
-    assert((p.buffer - 1) == &in[i]);
     float newCost = costs[j] + literals[in[i]];
     if (newCost < costs[j + 1]) {
       costs[j + 1] = newCost;
       length_array[j + 1] = 1;
     }
   }
+
   MatchFinder_Free(&p);
 
   if (!costcontext){
@@ -419,8 +419,6 @@ static void CalculateStatistics(SymbolStats* stats) {
 
 /* Appends the symbol statistics from the store. */
 void GetStatistics(const ZopfliLZ77Store* store, SymbolStats* stats) {
-  memset(stats->litlens, 0, 288 * sizeof(stats->litlens[0]));
-  memset(stats->dists, 0, 32 * sizeof(stats->dists[0]));
   ZopfliLZ77Counts(store->litlens, store->dists, 0, store->size, stats->litlens, stats->dists);
 
   CalculateStatistics(stats);
