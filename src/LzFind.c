@@ -9,9 +9,6 @@
 #include "zopfli/util.h"
 #include "zopfli/match.h"
 
-#define WINDOWSIZE 32768U
-#define MAX_MATCH 258U
-
 void MatchFinder_Free(CMatchFinder *p)
 {
   free(p->hash);
@@ -19,21 +16,21 @@ void MatchFinder_Free(CMatchFinder *p)
 
 static void MatchFinder_SetLimits(CMatchFinder *p)
 {
-  UInt32 limit = WINDOWSIZE - p->cyclicBufferPos;
+  UInt32 limit = ZOPFLI_WINDOW_SIZE - p->cyclicBufferPos;
   UInt32 limit2 = p->streamPos - p->pos;
-  if (limit2 <= MAX_MATCH)
+  if (limit2 <= ZOPFLI_MAX_MATCH)
   {
     if (limit2 > 0)
       limit2 = 1;
   }
   else
-    limit2 -= MAX_MATCH;
+    limit2 -= ZOPFLI_MAX_MATCH;
   if (limit2 < limit)
     limit = limit2;
   {
     UInt32 lenLimit = p->streamPos - p->pos;
-    if (lenLimit > MAX_MATCH) 
-      lenLimit = MAX_MATCH;
+    if (lenLimit > ZOPFLI_MAX_MATCH) 
+      lenLimit = ZOPFLI_MAX_MATCH;
     p->lenLimit = lenLimit;
   }
   p->posLimit = p->pos + limit;
@@ -51,14 +48,14 @@ void MatchFinder_Create(CMatchFinder *p)
 
   memset(p->hash, 0, 65536 * sizeof(unsigned));
   p->cyclicBufferPos = 0;
-  p->pos = p->streamPos = WINDOWSIZE;
+  p->pos = p->streamPos = ZOPFLI_WINDOW_SIZE;
   p->streamPos += p->directInputRem;
   MatchFinder_SetLimits(p);
 }
 
 static void MatchFinder_CheckLimits(CMatchFinder *p)
 {
-  if (p->cyclicBufferPos == WINDOWSIZE)
+  if (p->cyclicBufferPos == ZOPFLI_WINDOW_SIZE)
     p->cyclicBufferPos = 0;
   MatchFinder_SetLimits(p);
 }
@@ -73,53 +70,53 @@ static UInt32 * GetMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const B
   for (;;)
   {
     UInt32 delta = pos - curMatch;
-    if (cutValue-- == 0 || delta >= WINDOWSIZE)
+    if (cutValue-- == 0 || delta >= ZOPFLI_WINDOW_SIZE || curMatch == 0)
     {
       *ptr0 = *ptr1 = 0;
       return distances;
     }
-      UInt32 *pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? WINDOWSIZE : 0)) << 1);
-      const Byte *pb = cur - delta;
-      UInt32 len = (len0 < len1 ? len0 : len1);
-      if (pb[len] == cur[len])
+    UInt32 *pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? ZOPFLI_WINDOW_SIZE : 0)) << 1);
+    const Byte *pb = cur - delta;
+    UInt32 len = (len0 < len1 ? len0 : len1);
+    if (pb[len] == cur[len])
+    {
+      ++len;
+      if (len != lenLimit && pb[len] == cur[len])
       {
-        ++len;
-        if (len != lenLimit && pb[len] == cur[len])
-        {
-          len = GetMatch(&cur[len], &pb[len], cur + lenLimit, cur + lenLimit - 8) - cur;
-        }
+        len = GetMatch(&cur[len], &pb[len], cur + lenLimit, cur + lenLimit - 8) - cur;
+      }
 
-        if (maxLen < len)
+      if (maxLen < len)
+      {
+        *distances++ = maxLen = len;
+        *distances++ = delta;
+        if (len == lenLimit)
         {
-          *distances++ = maxLen = len;
-          *distances++ = delta;
-          if (len == lenLimit)
-          {
-            *ptr1 = pair[0];
-            *ptr0 = pair[1];
-            return distances;
-          }
+          *ptr1 = pair[0];
+          *ptr0 = pair[1];
+          return distances;
         }
       }
-      if (pb[len] < cur[len])
-      {
-        *ptr1 = curMatch;
-        ptr1 = pair + 1;
-        curMatch = *ptr1;
-        len1 = len;
-      }
-      else
-      {
-        *ptr0 = curMatch;
-        ptr0 = pair;
-        curMatch = *ptr0;
-        len0 = len;
-      }
+    }
+    if (pb[len] < cur[len])
+    {
+      *ptr1 = curMatch;
+      ptr1 = pair + 1;
+      curMatch = *ptr1;
+      len1 = len;
+    }
+    else
+    {
+      *ptr0 = curMatch;
+      ptr0 = pair;
+      curMatch = *ptr0;
+      len0 = len;
+    }
   }
 }
 
 static void SkipMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const Byte *cur, UInt32 *son,
-    UInt32 _cyclicBufferPos, UInt32 cutValue)
+                        UInt32 _cyclicBufferPos, UInt32 cutValue)
 {
   UInt32 *ptr0 = son + (_cyclicBufferPos << 1) + 1;
   UInt32 *ptr1 = son + (_cyclicBufferPos << 1);
@@ -127,43 +124,41 @@ static void SkipMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const Byte
   for (;;)
   {
     UInt32 delta = pos - curMatch;
-    if (cutValue-- == 0 || delta >= WINDOWSIZE)
+    if (cutValue-- == 0 || delta >= ZOPFLI_WINDOW_SIZE || curMatch == 0)
     {
       *ptr0 = *ptr1 = 0;
       return;
     }
+    UInt32 *pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? (ZOPFLI_WINDOW_SIZE) : 0)) << 1);
+    const Byte *pb = cur - delta;
+    UInt32 len = (len0 < len1 ? len0 : len1);
+    if (pb[len] == cur[len])
     {
-      UInt32 *pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? (WINDOWSIZE) : 0)) << 1);
-      const Byte *pb = cur - delta;
-      UInt32 len = (len0 < len1 ? len0 : len1);
-      if (pb[len] == cur[len])
+      if (len != lenLimit && pb[len] == cur[len])
       {
-        if (len != lenLimit && pb[len] == cur[len])
-        {
-          len = GetMatch(&cur[len], &pb[len], cur + lenLimit, cur + lenLimit - 8) - cur;
-        }
+        len = GetMatch(&cur[len], &pb[len], cur + lenLimit, cur + lenLimit - 8) - cur;
+      }
 
-        if (len == lenLimit)
-        {
-          *ptr1 = pair[0];
-          *ptr0 = pair[1];
-          return;
-        }
-      }
-      if (pb[len] < cur[len])
+      if (len == lenLimit)
       {
-        *ptr1 = curMatch;
-        ptr1 = pair + 1;
-        curMatch = *ptr1;
-        len1 = len;
+        *ptr1 = pair[0];
+        *ptr0 = pair[1];
+        return;
       }
-      else
-      {
-        *ptr0 = curMatch;
-        ptr0 = pair;
-        curMatch = *ptr0;
-        len0 = len;
-      }
+    }
+    if (pb[len] < cur[len])
+    {
+      *ptr1 = curMatch;
+      ptr1 = pair + 1;
+      curMatch = *ptr1;
+      len1 = len;
+    }
+    else
+    {
+      *ptr0 = curMatch;
+      ptr0 = pair;
+      curMatch = *ptr0;
+      len0 = len;
     }
   }
 }
@@ -174,7 +169,7 @@ static void SkipMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const Byte
   if (++p->pos == p->posLimit) MatchFinder_CheckLimits(p);
 
 #define GET_MATCHES_HEADER2(ret_op) \
-  UInt32 lenLimit = p->lenLimit; { if (lenLimit < 3) { MOVE_POS; ret_op; }} \
+  UInt32 lenLimit = p->lenLimit; { if (lenLimit < ZOPFLI_MIN_MATCH) { MOVE_POS; ret_op; }} \
   const Byte *cur = p->buffer;
 
 #define MF_PARAMS(p) p->pos, p->buffer, p->son, p->cyclicBufferPos, p->cutValue
