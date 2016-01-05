@@ -524,7 +524,7 @@ static size_t GetDynamicLengths(const unsigned short* litlens,
     for (i = 269; i < 273; i++){
       result += ll_counts2[i] * 2;
     }
-    for (i = 269; i < 277; i++){
+    for (i = 273; i < 277; i++){
       result += ll_counts2[i] * 3;
     }
     for (i = 277; i < 281; i++){
