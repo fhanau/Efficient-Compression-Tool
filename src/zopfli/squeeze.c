@@ -232,11 +232,13 @@ static void GetBestLengths(ZopfliBlockState *s,
   }
   unsigned matches[(ZOPFLI_MAX_MATCH - ZOPFLI_MIN_MATCH) * 2];
 
+  unsigned notenoughsame = 0;
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
 
 #ifdef ZOPFLI_SHORTCUT_LONG_REPETITIONS
-    if (i < inend - ZOPFLI_MAX_MATCH - 1 && *(long*)&in[i] == *(long*)&in[i + 1]){
+    //You think ECT will choke on files with minimum entropy? Think again!
+    if (i < inend - ZOPFLI_MAX_MATCH - 1 && *(long*)&in[i] == *(long*)&in[i + 1] && i > notenoughsame){
       unsigned same = GetMatch(&in[i + 1], &in[i], &in[inend], &in[inend] - 8) - &in[i];
       /* If we're in a long repetition of the same character and have more than
        ZOPFLI_MAX_MATCH characters before and after our position. */
@@ -245,7 +247,7 @@ static void GetBestLengths(ZopfliBlockState *s,
           && GetMatch(&in[i + 1 - ZOPFLI_MAX_MATCH], &in[i - ZOPFLI_MAX_MATCH], &in[i + 1], &in[i] - 7) - &in[i - ZOPFLI_MAX_MATCH]
           > ZOPFLI_MAX_MATCH) {
 
-        unsigned match = same - ZOPFLI_MAX_MATCH/* - 1*/;
+        unsigned match = same - ZOPFLI_MAX_MATCH;
 
         float symbolcost = costcontext ? costcontext->ll_symbols[285] + costcontext->d_symbols[0] : 13;
         /* Set the length to reach each one to ZOPFLI_MAX_MATCH, and the cost to
@@ -257,9 +259,11 @@ static void GetBestLengths(ZopfliBlockState *s,
           j++;
         }
 
-        //You think ECT will choke on files with minimum entropy? Think again!
         Bt3Zip_MatchFinder_Skip(&p, match);
         i += match;
+      }
+      else if (same <= ZOPFLI_MAX_MATCH){
+        notenoughsame = i + same - 1;
       }
     }
 #endif
