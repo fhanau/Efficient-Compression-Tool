@@ -497,11 +497,15 @@ static void ZopfliLZ77Optimal(ZopfliBlockState *s,
     }
     CopyStats(&stats, &laststats);
     GetStatistics(&currentstore, &stats);
+    if (i == 4 && s->options->reuse_costmodel){
+      CopyStats(&beststats, &st);
+      stinit = 1;
+    }
     if (lastrandomstep) {
       /* This makes it converge slower but better. Do it only once the
       randomness kicks in so that if the user does few iterations, it gives a
       better result sooner. */
-      AddWeighedStatFreqs(&stats, 1.0, &laststats, 0.5, &stats);
+      AddWeighedStatFreqs(&stats, 1.0, &laststats, .5, &stats);
       CalculateStatistics(&stats);
     }
     if (i > 6 && cost == lastcost) {
@@ -514,7 +518,7 @@ static void ZopfliLZ77Optimal(ZopfliBlockState *s,
   }
 
   free(length_array);
-  if (s->options->reuse_costmodel){
+  if (s->options->reuse_costmodel && !stinit){
     CopyStats(&beststats, &st);
   }
   ZopfliCleanLZ77Store(&currentstore);
