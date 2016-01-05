@@ -269,17 +269,46 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
   size_t i;
   size_t lenarrything[515] = {0};
 
+  if (start - end < 1024){
+    for (i = start; i < end; i++) {
+      lenarrything[litlens[i] + !dists[i] * 259]++;
+      d_count[disttable[dists[i]]]++;
+    }
+    memcpy(ll_count, &lenarrything[259], 256 * sizeof(size_t));
 
-  for (i = start; i < end; i++) {
-    lenarrything[litlens[i] + !dists[i] * 259]++;
-    d_count[disttable[dists[i]]]++;
+    for (i = 3; i < 259; i++){
+      ll_count[ZopfliGetLengthSymbol(i)] += lenarrything[i];
+    }
+  }
+  else{
+    size_t lenarrything2[515] = {0};
+    size_t d_count2[32] = {0};
+
+    if ((start - end) % 2){
+      lenarrything[litlens[start] + !dists[start] * 259]++;
+      d_count[disttable[dists[start]]]++;
+      start++;
+    }
+    for (i = start; i < end; i++) {
+      lenarrything[litlens[i] + !dists[i] * 259]++;
+      d_count[disttable[dists[i]]]++;
+      i++;
+      lenarrything2[litlens[i] + !dists[i] * 259]++;
+      d_count2[disttable[dists[i]]]++;
+    }
+
+    for (i = 0; i < 256; i++){
+      ll_count[i] = lenarrything[i + 259] + lenarrything2[i + 259];
+    }
+
+    for (i = 3; i < 259; i++){
+      ll_count[ZopfliGetLengthSymbol(i)] += lenarrything[i] + lenarrything2[i];
+    }
+    for (i = 0; i < 32; i++){
+      d_count[i] += d_count2[i];
+    }
   }
 
-  memcpy(ll_count, &lenarrything[259], 256 * sizeof(size_t));
-  for (i = 3; i < 259; i++){
-    ll_count[ZopfliGetLengthSymbol(i)] += lenarrything[i];
-  }
   d_count[30] = 0;
-
   ll_count[256] = 1;  /* End symbol. */
 }
