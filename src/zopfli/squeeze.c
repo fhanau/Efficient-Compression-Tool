@@ -104,10 +104,29 @@ length_array: output array of size (inend - instart) which will receive the best
     length to reach this byte from a previous byte.
 */
 
+typedef struct _LZCache{
+  unsigned* cache;
+  size_t size;
+  size_t pointer;
+} LZCache;
+
+static void CreateCache(size_t len, LZCache* c){
+  c->size = len + (ZOPFLI_MAX_MATCH - ZOPFLI_MIN_MATCH + 1) * 2;
+  c->cache = (unsigned*)malloc(c->size * sizeof(unsigned));
+  if (!c->cache){
+    exit(1);
+  }
+  c->pointer = 0;
+}
+
+static void CleanCache(LZCache* c){
+  free(c->cache);
+}
+
 static void GetBestLengths(ZopfliBlockState *s,
                              const unsigned char* in,
                              size_t instart, size_t inend,
-                             SymbolStats* costcontext, unsigned* length_array, unsigned char storeincache) {
+                             SymbolStats* costcontext, unsigned* length_array, unsigned char storeincache, LZCache* c) {
   size_t i;
 
   /*TODO: Put this in seperate function*/
@@ -222,15 +241,22 @@ static void GetBestLengths(ZopfliBlockState *s,
   size_t windowstart = instart > ZOPFLI_WINDOW_SIZE ? instart - ZOPFLI_WINDOW_SIZE : 0;
 
   CMatchFinder p;
-  p.buffer = &in[windowstart];
-  p.cutValue = 32768;
-  p.directInputRem = inend - windowstart;
-  MatchFinder_Create(&p);
-
-  if (instart - windowstart){
-    Bt3Zip_MatchFinder_Skip(&p, instart - windowstart);
+  p.hash = 0;
+  if (storeincache != 2){
+    p.buffer = &in[windowstart];
+    p.cutValue = 32768;
+    p.directInputRem = inend - windowstart;
+    MatchFinder_Create(&p);
+    if (instart - windowstart){
+      Bt3Zip_MatchFinder_Skip(&p, instart - windowstart);
+    }
   }
-  unsigned matches[(ZOPFLI_MAX_MATCH - ZOPFLI_MIN_MATCH) * 2];
+
+  unsigned* matches;
+  if (!storeincache){
+    unsigned matchesarr[(ZOPFLI_MAX_MATCH - ZOPFLI_MIN_MATCH + 1) * 2];
+    matches = matchesarr;
+  }
 
   unsigned notenoughsame = 0;
   for (i = instart; i < inend; i++) {
@@ -259,7 +285,9 @@ static void GetBestLengths(ZopfliBlockState *s,
           j++;
         }
 
-        Bt3Zip_MatchFinder_Skip(&p, match);
+        if (storeincache != 2){
+          Bt3Zip_MatchFinder_Skip(&p, match);
+        }
         i += match;
       }
       else if (same <= ZOPFLI_MAX_MATCH){
@@ -268,7 +296,29 @@ static void GetBestLengths(ZopfliBlockState *s,
     }
 #endif
 
-    int numPairs = Bt3Zip_MatchFinder_GetMatches(&p, matches);
+    int numPairs;
+    if (!storeincache){
+      numPairs = Bt3Zip_MatchFinder_GetMatches(&p, matches);
+    }
+    else{
+      if (storeincache == 2){
+        matches = c->cache + c->pointer;
+        numPairs = *matches;
+        matches++;
+        c->pointer += numPairs + 1;
+      }
+      else{
+        if (c->size < c->pointer + (ZOPFLI_MAX_MATCH - ZOPFLI_MIN_MATCH + 1) * 2 + 1){
+          c->size *= 2;
+          c->cache = realloc(c->cache, c->size * sizeof(unsigned));
+        }
+        matches = c->cache + c->pointer + 1;
+        numPairs = Bt3Zip_MatchFinder_GetMatches(&p, matches);
+        *(matches - 1) = numPairs;
+        c->pointer += numPairs + 1;
+      }
+    }
+
     if (numPairs){
       const unsigned * mend = matches + numPairs;
 
@@ -280,9 +330,10 @@ static void GetBestLengths(ZopfliBlockState *s,
       else{
         float price = costs[j];
         unsigned* mp = matches;
-        unsigned curr = ZOPFLI_MIN_MATCH;
 
+        unsigned curr = ZOPFLI_MIN_MATCH;
         while (mp < mend){
+
           unsigned len = *mp++;
           unsigned dist = *mp++;
           float price2 = price + disttable[dist];
@@ -306,6 +357,9 @@ static void GetBestLengths(ZopfliBlockState *s,
   }
 
   MatchFinder_Free(&p);
+  if (storeincache){
+    c->pointer = 0;
+  }
 
   if (!costcontext){
     free(literals);
@@ -440,8 +494,8 @@ store: place to output the LZ77 data
 returns the cost that was, according to the costmodel, needed to get to the end.
     This is not the actual cost.
 */
-static void LZ77OptimalRun(ZopfliBlockState* s, const unsigned char* in, size_t instart, size_t inend, unsigned* length_array, SymbolStats* costcontext, ZopfliLZ77Store* store, unsigned char storeincache) {
-  GetBestLengths(s, in, instart, inend, costcontext, length_array, storeincache);
+static void LZ77OptimalRun(ZopfliBlockState* s, const unsigned char* in, size_t instart, size_t inend, unsigned* length_array, SymbolStats* costcontext, ZopfliLZ77Store* store, unsigned char storeincache, LZCache* c) {
+  GetBestLengths(s, in, instart, inend, costcontext, length_array, storeincache, c);
   unsigned* path = 0;
   size_t pathsize = 0;
   TraceBackwards(inend - instart, length_array, &path, &pathsize);
@@ -483,12 +537,17 @@ static void ZopfliLZ77Optimal(ZopfliBlockState *s,
     CopyStats(&st, &stats);
   }
 
+  LZCache c;
+  int stinit = 0;
+  if (s->options->useCache){
+    CreateCache(inend - instart, &c);
+  }
   /* Repeat statistics with each time the cost model from the previous stat
   run. */
   for (int i = 1; i < s->options->numiterations+1; i++) {
     ZopfliCleanLZ77Store(&currentstore);
     ZopfliInitLZ77Store(&currentstore);
-    LZ77OptimalRun(s, in, instart, inend, length_array, &stats, &currentstore, i == 1 && i != s->options->numiterations);
+    LZ77OptimalRun(s, in, instart, inend, length_array, &stats, &currentstore, s->options->useCache ? i == 1 ? 1 : 2 : 0, &c);
 
     cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists, 0, currentstore.size, 2, s->options->searchext);
     if (cost < bestcost) {
@@ -519,6 +578,9 @@ static void ZopfliLZ77Optimal(ZopfliBlockState *s,
     lastcost = cost;
   }
 
+  if (s->options->useCache){
+    CleanCache(&c);
+  }
   free(length_array);
   if (s->options->reuse_costmodel && !stinit){
     CopyStats(&beststats, &st);
@@ -595,11 +657,12 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
   /* Dist to get to here with smallest cost. */
   unsigned* length_array = (unsigned*)malloc(sizeof(unsigned) * (inend - instart + 1));
   if (!length_array) exit(1); /* Allocation failed. */
-  LZ77OptimalRun(s, in, instart, inend, length_array, s->options->reuse_costmodel ? &st : &stats, store, 0);
-  if (s->options->reuse_costmodel){
+  LZ77OptimalRun(s, in, instart, inend, length_array, s->options->reuse_costmodel ? &st : &stats, store, 0, 0);
+  free(length_array);
+
+  if (!s->options->multithreading){
     GetStatistics(store, &st);
   }
-  free(length_array);
 }
 
 void ZopfliLZ77OptimalFixed(ZopfliBlockState *s,
@@ -613,7 +676,7 @@ void ZopfliLZ77OptimalFixed(ZopfliBlockState *s,
 
   /* Shortest path for fixed tree This one should give the shortest possible
   result for fixed tree, no repeated runs are needed since the tree is known. */
-  LZ77OptimalRun(s, in, instart, inend, length_array, 0, store, 0);
+  LZ77OptimalRun(s, in, instart, inend, length_array, 0, store, 0, 0);
 
   free(length_array);
 }
