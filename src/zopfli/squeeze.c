@@ -580,7 +580,9 @@ void ZopfliLZ77Optimal2(ZopfliBlockState *s,
         }
       }
     }
-    //MixCostmodels(&st, &stats, .2);
+    if (!costmodelnotinited && !s->options->multithreading){
+      MixCostmodels(&st, &stats, .2);
+    }
   }
   else{
     SymbolStats fromBlocksplitting = *statsp;
