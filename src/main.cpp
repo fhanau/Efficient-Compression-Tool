@@ -42,7 +42,7 @@ static void Usage() {
 #endif
             "\n"
             "Options:\n"
-            " -1 to -9     Set compression level (Default: 2)\n"
+            " -1 to -9       Set compression level (Default: 2)\n"
             " -strip         Strip metadata\n"
             " -progressive   Use progressive encoding for JPEGs\n"
 #ifdef BOOST_SUPPORTED
