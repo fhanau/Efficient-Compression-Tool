@@ -24,7 +24,7 @@ static void Usage() {
     printf (
             "Efficient Compression Tool\n"
             "(C) 2014-2015 Felix Hanau.\n"
-            "Version 0.1"
+            "Version 0.2"
 #ifdef __DATE__
             " compiled on %s\n"
 #endif
