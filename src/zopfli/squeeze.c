@@ -244,7 +244,7 @@ static void GetBestLengths(ZopfliBlockState *s,
   p.hash = 0;
   if (storeincache != 2){
     p.buffer = &in[windowstart];
-    p.cutValue = 32768;
+    p.cutValue = s->options->cutValue;
     p.directInputRem = inend - windowstart;
     MatchFinder_Create(&p);
     if (instart - windowstart){
@@ -529,7 +529,7 @@ static void ZopfliLZ77Optimal(ZopfliBlockState *s,
   the statistics of the previous run. */
 
   /* Initial run. */
-  if (first || (!s->options->reuse_costmodel)){
+  if (first || !s->options->reuse_costmodel){
     SymbolStats fromBlocksplitting = *statsp;
     CopyStats(&fromBlocksplitting, &stats);
   }

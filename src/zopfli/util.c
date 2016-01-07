@@ -203,46 +203,40 @@ unsigned ZopfliGetLengthSymbol(unsigned l) {
   return table[l];
 }
 
+ZopfliOptionsMin opt[8] =
+{
+  { 1, 0,  400,  10000,    0, 180, 2500},/* 2 */
+  { 1, 1, 1000,   3000,    0, 180,  512},/* 3 */
+  { 2, 1, 1000,   3000,    0, 180,  512},/* 4 */
+  { 4, 1, 1000,   2000,    0, 180,  200},/* 5 */
+  { 8, 1, 1000,    800,  800,  80,  100},/* 6 */
+  {16, 1, 1000,    800, 2000,  80,  100},/* 7 */
+  {60, 2, 1000,    800, 2000,  80,  100},/* 8 */
+  {60, 2, 1000,    800, 2000,  80,  100} /* 9 */
+};
+
 //TODO: Rename ZopfliOptions to ZSettings?
 void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithreading, unsigned isPNG) {
-  /*TODO: Put all tuning values here*/
-  if (mode < 3) {
-    options->skipdynamic = 180;
-    options->numiterations = 1;
-    options->chain_length = 1000;
-    options->noblocksplitlz = 512;
-    options->noblocksplit = 3000;
-    options->trystatic = 0;
-    options->searchext = 1;
+  if (mode < 2){
+    mode = 2;
   }
-  else if (mode < 4) {
-    options->skipdynamic = 180;
-    options->numiterations = 4;
-    options->chain_length = 1000;
-    options->noblocksplitlz = 200;
-    options->noblocksplit = 2000;
-    options->trystatic = 0;
-    options->searchext = 1;
-  }
-  else {
-    options->skipdynamic = 80;
-    options->noblocksplitlz = 100;
-    options->noblocksplit = 1400;
-    options->searchext = 2;
-    if (mode < 5) {
-      options->trystatic = 800;
-      options->numiterations = 15;
-      options->chain_length = 8192;
-    }
-    else {
-      options->trystatic = 2000;
-      options->numiterations = 60;
-      options->chain_length = 32768;
-    }
-  }
-  options->num = mode < 3 ? 3 : 9;
-  options->blocksplittingmax = mode > 2 || isPNG ? 0 : multithreading > 15 ? multithreading : 15;
+
+  ZopfliOptionsMin min = opt[mode - 2];
+  options->numiterations = min.numiterations;
+  options->searchext = min.searchext;
+  options->chain_length = min.chain_length;
+  options->noblocksplit = min.noblocksplit;
+  options->skipdynamic = min.skipdynamic;
+  options->trystatic = min.trystatic;
+  options->noblocksplitlz = min.noblocksplitlz;
+
+  options->cutValue = mode == 2 ? 150 : 32768;
+  options->num = mode < 5 ? 3 : 9;
+  options->blocksplittingmax = mode > 3 || isPNG ? 0 : multithreading > 15 ? multithreading : 15;
+
   options->multithreading = multithreading;
   options->isPNG = isPNG;
   options->reuse_costmodel = (!isPNG) && (!multithreading);
+  options->useCache = 1;
+  options->midsplit = mode == 2;
 }

@@ -52,12 +52,20 @@ Finds minimum of function f(i) where is is of type size_t, f(i) is of type
 double, i is in range start-end (excluding end).
 */
 static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, double* size, double* biggersize, const ZopfliOptions* options) {
+  double first, second;
+
+  if (options->midsplit){
+    *size = SplitCost(start + (end - start) / 2, context, &first, &second, options->searchext & 2);
+    *biggersize = end - start + (end - start) / 2 > start + (end - start) / 2 - start ? second : first;
+    return start + (end - start) / 2;
+  }
+
+
   size_t startsize = end - start;
   /* Try to find minimum by recursively checking multiple points. */
 #define NUM 9  /* Good value: 9. */
   size_t i;
   size_t p[NUM];
-  double first, second;
   double vp[NUM];
   double prevstore = -1;
   double prevpos = ZOPFLI_LARGE_FLOAT;

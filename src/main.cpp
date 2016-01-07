@@ -42,7 +42,7 @@ static void Usage() {
 #endif
             "\n"
             "Options:\n"
-            " -M1 to -M5     Set compression level (Default: 1)\n"
+            " -1 to -9     Set compression level (Default: 2)\n"
             " -strip         Strip metadata\n"
             " -progressive   Use progressive encoding for JPEGs\n"
 #ifdef BOOST_SUPPORTED
@@ -109,6 +109,7 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
     }
     if (!IsGzip(Infile)){
         if (exists(((std::string)Infile).append(".gz").c_str())){
+            printf("%s: Compressed file already exists\n", Infile);
             return 2;
         }
         ZopfliGzip(Infile, 0, Mode, multithreading);
@@ -138,8 +139,8 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
 static void OptimizePNG(const char * Infile, const ECTOptions& Options){
     int x = 1;
     long long size = filesize(Infile);
-    if(Options.Mode == 5){
-        x = Zopflipng(Options.strip, Infile, Options.Strict, 2, 0, Options.DeflateMultithreading);
+    if(Options.Mode == 9){
+        x = Zopflipng(Options.strip, Infile, Options.Strict, 3, 0, Options.DeflateMultithreading);
     }
     //Disabled as using this causes libpng warnings
     //int filter = Optipng(Options.Mode, Infile, true, Options.Strict || Options.Mode > 1);
@@ -149,8 +150,8 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
         return;
     }
     if (Options.Mode != 1){
-        if (Options.Mode == 5){
-            Zopflipng(Options.strip, Infile, Options.Strict, 5, filter, Options.DeflateMultithreading);}
+        if (Options.Mode == 9){
+            Zopflipng(Options.strip, Infile, Options.Strict, Options.Mode, filter, Options.DeflateMultithreading);}
         else {
             x = Zopflipng(Options.strip, Infile, Options.Strict, Options.Mode, filter, Options.DeflateMultithreading);}
     }
@@ -173,7 +174,7 @@ static void OptimizeJPEG(const char * Infile, const ECTOptions& Options){
     mozjpegtran(Options.Arithmetic, Options.Progressive, Options.strip, Infile, Infile);
     if (Options.Progressive){
         long long fs = filesize(Infile);
-        if((Options.Mode == 1 && fs < 6142) || (Options.Mode == 2 && fs < 8192) || (Options.Mode == 3 && fs < 15360) || (Options.Mode == 4 && fs < 30720) || (Options.Mode == 5 && fs < 51200)){
+        if((Options.Mode == 1 && fs < 6142) || (Options.Mode == 2 && fs < 8192) || (Options.Mode == 3 && fs < 15360) || (Options.Mode == 4 && fs < 30720) || (Options.Mode == 5 && fs < 51200) || Options.Mode > 5){
             mozjpegtran(Options.Arithmetic, false, Options.strip, Infile, Infile);
         }
     }
@@ -224,7 +225,7 @@ static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
             printf("%s: bad file\n", Infile);
             return;
         }
-        bool statcompressedfile = 0;
+        int statcompressedfile = 0;
         if (size < 1200000000) {//completely random value
             if (x == "PNG" || x == "png"){
                 OptimizePNG(Infile, Options);
@@ -235,6 +236,9 @@ static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
             else if (Options.Gzip){
                 //if (!size)
                 statcompressedfile = ECTGzip(Infile, Options.Mode, Options.DeflateMultithreading, size);
+                if (statcompressedfile == 2){
+                    return;
+                }
             }
             if(Options.SavingsCounter){
                 processedfiles++;
@@ -275,11 +279,15 @@ int main(int argc, const char * argv[]) {
         for (int i = 1; i < argc-1; i++) {
             if (strncmp(argv[i], "-strip", 2) == 0){Options.strip = true;}
             else if (strncmp(argv[i], "-progressive", 2) == 0) {Options.Progressive = true;}
-            else if (strcmp(argv[i], "-M1") == 0) {Options.Mode = 1;}
-            else if (strcmp(argv[i], "-M2") == 0) {Options.Mode = 2;}
-            else if (strcmp(argv[i], "-M3") == 0) {Options.Mode = 3;}
-            else if (strcmp(argv[i], "-M4") == 0) {Options.Mode = 4;}
-            else if (strcmp(argv[i], "-M5") == 0) {Options.Mode = 5;}
+            else if (strcmp(argv[i], "-1") == 0) {Options.Mode = 1;}
+            else if (strcmp(argv[i], "-2") == 0) {Options.Mode = 2;}
+            else if (strcmp(argv[i], "-3") == 0) {Options.Mode = 3;}
+            else if (strcmp(argv[i], "-4") == 0) {Options.Mode = 4;}
+            else if (strcmp(argv[i], "-5") == 0) {Options.Mode = 5;}
+            else if (strcmp(argv[i], "-6") == 0) {Options.Mode = 6;}
+            else if (strcmp(argv[i], "-7") == 0) {Options.Mode = 7;}
+            else if (strcmp(argv[i], "-8") == 0) {Options.Mode = 8;}
+            else if (strcmp(argv[i], "-9") == 0) {Options.Mode = 9;}
             else if (strncmp(argv[i], "-gzip", 2) == 0) {Options.Gzip = true;}
             else if (strncmp(argv[i], "-help", 2) == 0) {Usage(); return 0;}
             else if (strncmp(argv[i], "-quiet", 2) == 0) {Options.SavingsCounter = false;}
