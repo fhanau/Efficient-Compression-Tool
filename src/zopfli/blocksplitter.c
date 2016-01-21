@@ -227,23 +227,18 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
                       size_t** splitpoints, size_t* npoints, SymbolStats** stats) {
   size_t pos = 0;
   size_t i;
-  ZopfliBlockState s;
   size_t* lz77splitpoints = 0;
   size_t nlz77points = 0;
   ZopfliLZ77Store store;
 
   ZopfliInitLZ77Store(&store);
 
-  s.options = options;
-  s.blockstart = instart;
-  s.blockend = inend;
-
   *npoints = 0;
   *splitpoints = 0;
 
   /* Unintuitively, Using a simple LZ77 method here instead of ZopfliLZ77Optimal
   results in better blocks. */
-  ZopfliLZ77Greedy(&s, in, instart, inend, &store);
+  ZopfliLZ77Greedy(options, in, instart, inend, &store);
 
   /* Blocksplitting likely wont improve compression on small files */
   if (inend - instart < options->noblocksplit){

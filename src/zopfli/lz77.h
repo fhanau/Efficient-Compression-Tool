@@ -56,19 +56,6 @@ void ZopfliCleanLZ77Store(ZopfliLZ77Store* store);
 void ZopfliCopyLZ77Store(const ZopfliLZ77Store* source, ZopfliLZ77Store* dest);
 
 /*
-Some state information for compressing a block.
-This is currently a bit under-used (with mainly only the longest match cache),
-but is kept for easy future expansion.
-*/
-typedef struct ZopfliBlockState {
-  const ZopfliOptions* options;
-
-  /* The start (inclusive) and end (not inclusive) of the current block. */
-  size_t blockstart;
-  size_t blockend;
-} ZopfliBlockState;
-
-/*
 Verifies if length and dist are indeed valid, only used for assertion.
 */
 void ZopfliVerifyLenDist(const unsigned char* data, size_t datasize, size_t pos,
@@ -97,7 +84,7 @@ The result is placed in the ZopfliLZ77Store.
 If instart is larger than 0, it uses values before instart as starting
 dictionary.
 */
-void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
+void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
                       size_t instart, size_t inend,
                       ZopfliLZ77Store* store);
 

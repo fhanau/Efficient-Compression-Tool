@@ -638,22 +638,18 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
                                 size_t instart, size_t inend,
                                 unsigned char* bp,
                                 unsigned char** out, size_t* outsize, unsigned char* costmodelnotinited, SymbolStats* statsp) {
-  ZopfliBlockState s;
   size_t blocksize = inend - instart;
   ZopfliLZ77Store store;
   int btype = 2;
 
   ZopfliInitLZ77Store(&store);
 
-  s.options = options;
-  s.blockstart = instart;
-  s.blockend = inend;
   if (blocksize <= options->skipdynamic){
     btype = 1;
-    ZopfliLZ77OptimalFixed(&s, in, instart, inend, &store);
+    ZopfliLZ77OptimalFixed(options, in, instart, inend, &store);
   }
   else{
-    ZopfliLZ77Optimal2(&s, in, instart, inend, &store, *costmodelnotinited, statsp);
+    ZopfliLZ77Optimal2(options, in, instart, inend, &store, *costmodelnotinited, statsp);
   }
   *costmodelnotinited = 0;
 
@@ -662,7 +658,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
   if (blocksize > options->skipdynamic && store.size < options->trystatic){
     ZopfliLZ77Store fixedstore;
     ZopfliInitLZ77Store(&fixedstore);
-    ZopfliLZ77OptimalFixed(&s, in, instart, inend, &fixedstore);
+    ZopfliLZ77OptimalFixed(options, in, instart, inend, &fixedstore);
     double dyncost = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, options->searchext);
     double fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, options->searchext);
     if (fixedcost <= dyncost) {
@@ -690,21 +686,17 @@ struct BlockData {
 
 static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned char* in,
                                  size_t instart, size_t inend, BlockData* store, SymbolStats* statsp) {
-  ZopfliBlockState s;
   size_t blocksize = inend - instart;
   store->btype = 2;
 
   ZopfliInitLZ77Store(&store->store);
 
-  s.options = options;
-  s.blockstart = instart;
-  s.blockend = inend;
   if (blocksize <= options->skipdynamic){
     store->btype = 1;
-    ZopfliLZ77OptimalFixed(&s, in, instart, inend, &store->store);
+    ZopfliLZ77OptimalFixed(options, in, instart, inend, &store->store);
   }
   else{
-    ZopfliLZ77Optimal2(&s, in, instart, inend, &store->store, 1, statsp);
+    ZopfliLZ77Optimal2(options, in, instart, inend, &store->store, 1, statsp);
   }
 
   /* For small block, encoding with fixed tree can be smaller. For large block,
@@ -713,7 +705,7 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
     double dyncost, fixedcost;
     ZopfliLZ77Store fixedstore;
     ZopfliInitLZ77Store(&fixedstore);
-    ZopfliLZ77OptimalFixed(&s, in, instart, inend, &fixedstore);
+    ZopfliLZ77OptimalFixed(options, in, instart, inend, &fixedstore);
     dyncost = ZopfliCalculateBlockSize(store->store.litlens, store->store.dists, 0, store->store.size, 2, options->searchext);
     fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, options->searchext);
     if (fixedcost <= dyncost) {

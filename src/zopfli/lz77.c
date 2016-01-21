@@ -77,7 +77,7 @@ void ZopfliVerifyLenDist(const unsigned char* data, size_t datasize, size_t pos,
 }
 #endif
 
-static void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
+static void ZopfliFindLongestMatch(const ZopfliOptions* options, const ZopfliHash* h,
                             const unsigned char* array,
                             size_t pos, size_t size,
                             unsigned short* distance, unsigned short* length) {
@@ -88,7 +88,7 @@ static void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
     *distance = 0;
     return;
   }
-  unsigned short chain_counter = s->options->chain_length;   /*For quitting early. */
+  unsigned short chain_counter = options->chain_length;   /*For quitting early. */
 
   unsigned limit = ZOPFLI_MAX_MATCH;
   if (pos + limit > size) {
@@ -157,7 +157,7 @@ static void ZopfliFindLongestMatch(ZopfliBlockState* s, const ZopfliHash* h,
   *length = bestlength;
 }
 
-void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
+void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
                       size_t instart, size_t inend,
                       ZopfliLZ77Store* store) {
   size_t i = 0, j;
@@ -182,7 +182,7 @@ void ZopfliLZ77Greedy(ZopfliBlockState* s, const unsigned char* in,
   for (i = instart; i < inend; i++) {
     ZopfliUpdateHash(in, i, inend, h);
 
-    ZopfliFindLongestMatch(s, h, in, i, inend, &dist, &leng);
+    ZopfliFindLongestMatch(options, h, in, i, inend, &dist, &leng);
 
     lengthscore = leng;
     if (lengthscore == 3 && dist > 1024){
