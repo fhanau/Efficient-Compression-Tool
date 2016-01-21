@@ -44,20 +44,36 @@ whole byte. It is: (bp == 0) ? (bytesize * 8) : ((bytesize - 1) * 8 + bp)
 */
 static void AddBit(int bit,
                    unsigned char* bp, unsigned char** out, size_t* outsize) {
-  if (*bp == 0) ZOPFLI_APPEND_DATA(0, out, outsize);
+  if (*bp == 0) {(*out)[*outsize] = 0; (*outsize)++;}
   (*out)[*outsize - 1] |= bit << *bp;
   *bp = (*bp + 1) & 7;
 }
 
 static void AddBits(unsigned symbol, unsigned length,
-                    unsigned char* bp, unsigned char** out, size_t* outsize) {
+                    unsigned char* bp, unsigned char* out, size_t* outsize) {
+//Needs:
+  //1. 32-bit arch
+  //2. 32-bit unaligned read/write
+  //3. Little endian architecture
+//As this code is not that much faster it should be ok to only enable it on x86 with MSVC, GCC and clang
+#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)
+  if (length){
+    //Zero 4 bytes and write data
+
+    *(unsigned*)(&(out[*outsize])) = 0;
+    *(unsigned*)(&(out[*outsize - (!!(*bp))])) |= (symbol << (*bp));
+    (*outsize) += ((*bp) + length - 1) / 8 + (!(*bp));
+    *bp = (((*bp) + length) & 7);
+  }
+#else
   /* TODO(lode): make more efficient (add more bits at once). */
   for (unsigned i = 0; i < length; i++) {
     unsigned bit = (symbol >> i) & 1;
-    if (*bp == 0) ZOPFLI_APPEND_DATA(0, out, outsize);
-    (*out)[*outsize - 1] |= bit << *bp;
+    if (*bp == 0) {out[*outsize] = 0; (*outsize)++;}
+    out[*outsize - 1] |= bit << *bp;
     *bp = (*bp + 1) & 7;
   }
+#endif
 }
 
 /*
@@ -65,13 +81,13 @@ Adds bits, like AddBits, but the order is inverted. The deflate specification
 uses both orders in one standard.
 */
 static void AddHuffmanBits(unsigned symbol, unsigned length,
-                           unsigned char* bp, unsigned char** out,
+                           unsigned char* bp, unsigned char* out,
                            size_t* outsize) {
   /* TODO(lode): make more efficient (add more bits at once). */
   for (unsigned i = 0; i < length; i++) {
     unsigned bit = (symbol >> (length - i - 1)) & 1;
-    if (*bp == 0) ZOPFLI_APPEND_DATA(0, out, outsize);
-    (*out)[*outsize - 1] |= bit << *bp;
+    if (*bp == 0) {out[*outsize] = 0; (*outsize)++;}
+    out[*outsize - 1] |= bit << *bp;
     *bp = (*bp + 1) & 7;
   }
 }
@@ -149,7 +165,7 @@ static size_t EncodeTree(const unsigned* ll_lengths,
                          const unsigned* d_lengths,
                          int use_16, int use_17, int use_18, int fuse_8, int fuse_7,
                          unsigned char* bp,
-                         unsigned char** out, size_t* outsize) {
+                         unsigned char* out, size_t* outsize) {
   /* Runlength encoded version of lengths of litlen and dist trees. */
   unsigned* rle = 0;
   unsigned* rle_bits = 0;  /* Extra bits for rle values 16, 17 and 18. */
@@ -304,47 +320,29 @@ static size_t EncodeTree(const unsigned* ll_lengths,
   return result_size;
 }
 
-static void AddDynamicTree(const unsigned* ll_lengths,
-                           const unsigned* d_lengths,
-                           unsigned char* bp,
-                           unsigned char** out, size_t* outsize, unsigned hq) {
-  int best = 7;
-  size_t bestsize = 0;
-
-  for(unsigned i = 0; i < (hq ? hq == 2 ? 32 : 10 : 0); i++) {
-    size_t size = EncodeTree(ll_lengths, d_lengths,
-                             i & 1, i & 2, i & 4, i & 8, i & 16 || (hq == 1 && i == 9),
-                             0, 0, 0);
-    if (bestsize == 0 || size < bestsize) {
-      bestsize = size;
-      best = i;
-    }
-  }
-
-  EncodeTree(ll_lengths, d_lengths,
-             best & 1, best & 2, best & 4, best & 8 , best & 16 || (hq == 1 && best == 9),
-             bp, out, outsize);
-}
-
 /*
 Gives the exact size of the tree, in bits, as it will be encoded in DEFLATE.
 */
 static size_t CalculateTreeSize(const unsigned* ll_lengths,
-                                const unsigned* d_lengths, unsigned char hq) {
+                                const unsigned* d_lengths, unsigned char hq, unsigned* best) {
   size_t result = 0;
-    if (hq){
-			for(unsigned i = 0; i < (hq == 2 ? 32 : 10); i++) {
-            size_t size = EncodeTree(ll_lengths, d_lengths,
-                                     i & 1, i & 2, i & 4, i & 8, i & 16 || (hq == 1 && i == 9),
-                                     0, 0, 0);
-            if (result == 0 || size < result) result = size;
-        }
-        
-        return result;
+  if (hq){
+    for(unsigned i = 0; i < (hq == 2 ? 32 : 10); i++) {
+      size_t size = EncodeTree(ll_lengths, d_lengths,
+                               i & 1, i & 2, i & 4, i & 8, i & 16 || (hq == 1 && i == 9),
+                               0, 0, 0);
+      if (result == 0 || size < result){
+        result = size;
+        *best = i;
+      }
     }
-    else {
-        return EncodeTree(ll_lengths, d_lengths, 1, 1, 1, 0, 0, 0, 0, 0);
-    }
+
+    return result;
+  }
+  else {
+    *best = 7;
+    return EncodeTree(ll_lengths, d_lengths, 1, 1, 1, 0, 0, 0, 0, 0);
+  }
 }
 
 /*
@@ -356,32 +354,77 @@ static void AddLZ77Data(const unsigned short* litlens,
                         const unsigned short* dists,
                         size_t lstart, size_t lend,
                         size_t expected_data_size,
-                        const unsigned* ll_symbols, const unsigned* ll_lengths,
-                        const unsigned* d_symbols, const unsigned* d_lengths,
+                        /*const */unsigned* ll_symbols, const unsigned* ll_lengths,
+                        /*const */unsigned* d_symbols, const unsigned* d_lengths,
                         unsigned char* bp,
-                        unsigned char** out, size_t* outsize) {
+                        unsigned char* out, size_t* outsize) {
   size_t testlength = 0;
   size_t i;
+  //Revert some codes so we can choose the fast AddBits() function
+#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)
 
+  for (i = 0; i < 30; i++){
+    for (unsigned j = 0; j < d_lengths[i] / 2; j++){
+      unsigned bit = d_symbols[i] & (1 << j);
+      unsigned bit2 = d_symbols[i] & (1 << (d_lengths[i] - j - 1));
+      d_symbols[i] &= UINT_MAX - (1 << j) - (1 << (d_lengths[i] - j - 1));
+      d_symbols[i] |= (!!bit) << (d_lengths[i] - j - 1);
+      d_symbols[i] |= (!!bit2) << j;
+    }
+  }
+  for (i = 0; i < 286; i++){
+    for (unsigned j = 0; j < ll_lengths[i] / 2; j++){
+      unsigned bit = ll_symbols[i] & (1 << j);
+      unsigned bit2 = ll_symbols[i] & (1 << (ll_lengths[i] - j - 1));
+      ll_symbols[i] &= UINT_MAX - (1 << j) - (1 << (ll_lengths[i] - j - 1));
+      ll_symbols[i] |= (!!bit) << (ll_lengths[i] - j - 1);
+      ll_symbols[i] |= (!!bit2) << j;
+    }
+  }
+  unsigned len_symbols[259];
+  unsigned len_lengths[259];
+  for (i = 3; i < 259; i++){
+    unsigned lls = ZopfliGetLengthSymbol(i);
+    if(ll_lengths[lls]){
+      unsigned bitlen = ll_lengths[lls];
+      len_lengths[i] = bitlen + ZopfliGetLengthExtraBits(i);
+      assert(len_lengths[i] <= 25);
+      len_symbols[i] = ll_symbols[lls] + (ZopfliGetLengthExtraBitsValue(i) << bitlen);
+    }
+  }
+#define setbits AddBits
+#else
+#define setbits AddHuffmanBits
+#endif
   for (i = lstart; i < lend; i++) {
     unsigned dist = dists[i];
     unsigned litlen = litlens[i];
     if (dist == 0) {
       assert(litlen < 256);
       assert(ll_lengths[litlen] > 0);
-      AddHuffmanBits(ll_symbols[litlen], ll_lengths[litlen], bp, out, outsize);
+      setbits(ll_symbols[litlen], ll_lengths[litlen], bp, out, outsize);
       testlength++;
     } else {
-      unsigned lls = ZopfliGetLengthSymbol(litlen);
+      assert(litlen >= 3 && litlen <= ZOPFLI_MAX_MATCH);
       unsigned ds = ZopfliGetDistSymbol(dist);
-      assert(litlen >= 3 && litlen <= 288);
-      assert(ll_lengths[lls]);
       assert(d_lengths[ds]);
+
+#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)
+      AddBits(len_symbols[litlen],
+              len_lengths[litlen],
+              bp, out, outsize);
+#else
+      unsigned lls = ZopfliGetLengthSymbol(litlen);
+      assert(ll_lengths[lls]);
+
       AddHuffmanBits(ll_symbols[lls], ll_lengths[lls], bp, out, outsize);
       AddBits(ZopfliGetLengthExtraBitsValue(litlen),
               ZopfliGetLengthExtraBits(litlen),
               bp, out, outsize);
-      AddHuffmanBits(d_symbols[ds], d_lengths[ds], bp, out, outsize);
+
+#endif
+
+      setbits(d_symbols[ds], d_lengths[ds], bp, out, outsize);
       AddBits(ZopfliGetDistExtraBitsValue(dist),
               ZopfliGetDistExtraBits(dist),
               bp, out, outsize);
@@ -572,8 +615,9 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
 
   } else {
     unsigned d_lengths[32];
+    unsigned dummy = 0;
     result += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, 1);
-    result += CalculateTreeSize(ll_lengths, d_lengths, hq);
+    result += CalculateTreeSize(ll_lengths, d_lengths, hq, &dummy);
 
     return result;
   }
@@ -607,10 +651,10 @@ static void AddLZ77Block(int btype, int final,
   unsigned d_lengths[32];
   unsigned ll_symbols[288];
   unsigned d_symbols[32];
-  AddBit(final, bp, out, outsize);
-  AddBit(btype & 1, bp, out, outsize);
-  AddBit((btype & 2) >> 1, bp, out, outsize);
+  unsigned best = 0;
 
+  //Calculate final outsize, symbols and huffman tree
+  size_t outpred;
   if (btype == 1) {
     /* Fixed block. */
     size_t i;
@@ -619,18 +663,38 @@ static void AddLZ77Block(int btype, int final,
     for (i = 256; i < 280; i++) ll_lengths[i] = 7;
     for (i = 280; i < 288; i++) ll_lengths[i] = 8;
     for (i = 0; i < 32; i++) d_lengths[i] = 5;
+    outpred = ZopfliCalculateBlockSize(litlens, dists, lstart, lend, btype, hq);
   } else {
     /* Dynamic block. */
-    GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, 0);
-    AddDynamicTree(ll_lengths, d_lengths, bp, out, outsize, hq);
+    outpred = 3;
+    outpred += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, 1);
+    outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
   }
+  outpred += *outsize * 8 + *bp -((*bp != 0) * 8);
+  (*out) = (unsigned char*)realloc(*out, outpred / 8 + 1 + 8);
+  if (!(*out)){
+    exit(1);
+  }
+  AddBit(final, bp, out, outsize);
+  AddBit(btype & 1, bp, out, outsize);
+  AddBit((btype & 2) >> 1, bp, out, outsize);
+
   ZopfliLengthsToSymbols(ll_lengths, 288, 15, ll_symbols);
   ZopfliLengthsToSymbols(d_lengths, 32, 15, d_symbols);
+
+  if (btype == 2){
+    EncodeTree(ll_lengths, d_lengths,
+               best & 1, best & 2, best & 4, best & 8 , best & 16 || (hq == 1 && best == 9),
+               bp, *out, outsize);
+  }
   AddLZ77Data(litlens, dists, lstart, lend
               , expected_data_size
               , ll_symbols, ll_lengths, d_symbols, d_lengths,
-              bp, out, outsize);
-  AddHuffmanBits(ll_symbols[256], ll_lengths[256], bp, out, outsize);
+              bp, *out, outsize);
+  setbits(ll_symbols[256], ll_lengths[256], bp, *out, outsize);
+#undef setbits
+
+  assert(outpred == *outsize * 8 + *bp -((*bp != 0) * 8));
 }
 
 static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
@@ -821,6 +885,7 @@ void ZopfliDeflate(const ZopfliOptions* options, int final,
     AddBit(1, bp, out, outsize);
     AddBits(1, 2, bp, *out, outsize);  // btype 01
     AddBits(0, 7, bp, *out, outsize);
+    return;
   }
   unsigned char costmodelnotinited = 1;
 #if ZOPFLI_MASTER_BLOCK_SIZE == 0

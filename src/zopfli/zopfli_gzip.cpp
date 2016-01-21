@@ -37,33 +37,26 @@ static void ZopfliGzipCompress(const ZopfliOptions* options,
   unsigned crcvalue = crc32(0, in, insize);
   unsigned char bp = 0;
 
-  ZOPFLI_APPEND_DATA(31, out, outsize);  /* ID1 */
-  ZOPFLI_APPEND_DATA(139, out, outsize);  /* ID2 */
-  ZOPFLI_APPEND_DATA(8, out, outsize);  /* CM */
-  ZOPFLI_APPEND_DATA(0, out, outsize);  /* FLG */
+  (*out) = (unsigned char*)malloc(19);
+  (*out)[*outsize] = 31; (*outsize)++;  /* ID1 */
+  (*out)[*outsize] = 139; (*outsize)++; /* ID2 */
+  (*out)[*outsize] = 8; (*outsize)++;   /* CM  */
+  (*out)[*outsize] = 0; (*outsize)++;   /* FLG */
 
   /* MTIME */
-  ZOPFLI_APPEND_DATA(time % 256, out, outsize);
-  ZOPFLI_APPEND_DATA((time >> 8) % 256, out, outsize);
-  ZOPFLI_APPEND_DATA((time >> 16) % 256, out, outsize);
-  ZOPFLI_APPEND_DATA((time >> 24) % 256, out, outsize);
+  *(unsigned*)(&(*out)[*outsize]) = time & UINT_MAX; (*outsize) += 4;
 
-  ZOPFLI_APPEND_DATA(2, out, outsize);  /* XFL, 2 indicates best compression. */
-  ZOPFLI_APPEND_DATA(3, out, outsize);  /* OS follows Unix conventions. */
+  (*out)[*outsize] = 2; (*outsize)++;  /* XFL, 2 indicates best compression. */
+  (*out)[*outsize] = 3; (*outsize)++;  /* OS follows Unix conventions. */
 
   ZopfliDeflate(options, 1, in, insize, &bp, out, outsize);
+  (*out) = (unsigned char*)realloc(*out, *outsize + 8);
 
   /* CRC */
-  ZOPFLI_APPEND_DATA(crcvalue % 256, out, outsize);
-  ZOPFLI_APPEND_DATA((crcvalue >> 8) % 256, out, outsize);
-  ZOPFLI_APPEND_DATA((crcvalue >> 16) % 256, out, outsize);
-  ZOPFLI_APPEND_DATA((crcvalue >> 24) % 256, out, outsize);
+  *(unsigned*)(&(*out)[*outsize]) = crcvalue; (*outsize) += 4;
 
   /* ISIZE */
-  ZOPFLI_APPEND_DATA(insize % 256, out, outsize);
-  ZOPFLI_APPEND_DATA((insize >> 8) % 256, out, outsize);
-  ZOPFLI_APPEND_DATA((insize >> 16) % 256, out, outsize);
-  ZOPFLI_APPEND_DATA((insize >> 24) % 256, out, outsize);
+  *(unsigned*)(&(*out)[*outsize]) = insize % UINT_MAX; (*outsize) += 4;
 }
 
 static void ZopfliCompress(const ZopfliOptions* options, ZopfliFormat output_type,
