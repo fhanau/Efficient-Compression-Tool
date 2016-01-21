@@ -231,8 +231,6 @@ static void GetBestLengths(ZopfliBlockState *s,
 
   size_t blocksize = inend - instart;
 
-  if (instart == inend) return;
-
   float* costs = (float*)malloc(sizeof(float) * (blocksize + 1));
   if (!costs) exit(1); /* Allocation failed. */
   costs[0] = 0;  /* Because it's the start. */
@@ -397,8 +395,6 @@ static void TraceBackwards(size_t size, const unsigned* length_array,
 }
 
 static void FollowPath(const unsigned char* in, size_t instart, size_t inend, unsigned* path, size_t pathsize, ZopfliLZ77Store* store) {
-  if (instart == inend) return;
-
   store->litlens = (unsigned short*)malloc(pathsize * sizeof(unsigned short));
   store->dists = (unsigned short*)malloc(pathsize * sizeof(unsigned short));
   if (!store->litlens || !store->dists){

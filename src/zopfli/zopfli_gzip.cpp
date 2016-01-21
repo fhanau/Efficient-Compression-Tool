@@ -28,8 +28,6 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "zlib_container.h"
 #include "../main.h"
 
-//FIXME: This does NOT work for empty files.
-
 /*
 Compresses the data according to the gzip specification.
 */

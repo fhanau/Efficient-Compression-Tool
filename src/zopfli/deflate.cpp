@@ -824,6 +824,12 @@ static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
 void ZopfliDeflate(const ZopfliOptions* options, int final,
                    const unsigned char* in, size_t insize,
                    unsigned char* bp, unsigned char** out, size_t* outsize) {
+  if (!insize){
+    (*out) = (unsigned char*)realloc(*out, *outsize + 10);
+    AddBit(1, bp, out, outsize);
+    AddBits(1, 2, bp, *out, outsize);  // btype 01
+    AddBits(0, 7, bp, *out, outsize);
+  }
   unsigned char costmodelnotinited = 1;
 #if ZOPFLI_MASTER_BLOCK_SIZE == 0
   ZopfliDeflatePart(options, final, in, 0, insize, bp, out, outsize, &costmodelnotinited);
