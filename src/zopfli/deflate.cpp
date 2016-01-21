@@ -158,15 +158,13 @@ static size_t EncodeTree(const unsigned* ll_lengths,
   unsigned hlit = 29;  /* 286 - 257 */
   unsigned hdist = 29;  /* 32 - 1, but gzip does not like hdist > 29.*/
   size_t i, j;
-  size_t clcounts[19];
+  size_t clcounts[19] = {0};
   unsigned clcl[19];  /* Code length code lengths. */
   /* The order in which code length code lengths are encoded as per deflate. */
   static const unsigned order[19] = {
     16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
   };
   int size_only = !out;
-
-  for(i = 0; i < 19; i++) clcounts[i] = 0;
 
   /* Trim zeros. */
   while (hlit && ll_lengths[257 + hlit - 1] == 0) hlit--;
@@ -405,7 +403,7 @@ static void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
     if (!length) {
       return;  // All zeros.
     }
-    if (counts[length - 1] != 0) {
+    if (counts[length - 1]) {
       // Now counts[0..length - 1] does not have trailing zeros.
       break;
     }
