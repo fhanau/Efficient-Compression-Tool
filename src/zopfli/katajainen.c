@@ -213,7 +213,7 @@ void ZopfliLengthLimitedCodeLengths(const size_t* frequencies, int n, int maxbit
   }
 
   /* Initialize all bitlengths at 0. */
-  memset(bitlengths, 0, n * sizeof(int));
+  memset(bitlengths, 0, n * sizeof(unsigned));
 
   /* Count used symbols and place them in the leaves. */
   for (i = 0; i < n; i++) {
