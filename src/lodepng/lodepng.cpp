@@ -1466,7 +1466,7 @@ unsigned lodepng_can_have_alpha(const LodePNGColorMode* info)
 
 size_t lodepng_get_raw_size(unsigned w, unsigned h, const LodePNGColorMode* color)
 {
-  return (w * h * lodepng_get_bpp(color) + 7) / 8;
+  return ((unsigned long long) w * h * lodepng_get_bpp(color) + 7) / 8;
 }
 
 #ifdef LODEPNG_COMPILE_PNG
@@ -1474,7 +1474,10 @@ size_t lodepng_get_raw_size(unsigned w, unsigned h, const LodePNGColorMode* colo
 /*in an idat chunk, each scanline is a multiple of 8 bits, unlike the lodepng output buffer*/
 static size_t lodepng_get_raw_size_idat(unsigned w, unsigned h, const LodePNGColorMode* color)
 {
-  return h * ((w * lodepng_get_bpp(color) + 7) / 8);
+  /*will not overflow for any color type if roughly w * h < 268435455*/
+  int bpp = lodepng_get_bpp(color);
+  size_t line = ((w / 8) * bpp) + ((w & 7) * bpp + 7) / 8;
+  return h * line;
 }
 #endif /*LODEPNG_COMPILE_DECODER*/
 #endif /*LODEPNG_COMPILE_PNG*/
@@ -2185,7 +2188,7 @@ unsigned lodepng_convert(unsigned char* out, const unsigned char* in,
 {
   size_t i;
   ColorTree tree;
-  size_t numpixels = w * h;
+  size_t numpixels = (unsigned long long)w * h;
 
   if(lodepng_color_mode_equal(mode_out, mode_in))
   {
@@ -2269,7 +2272,7 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
                                    const LodePNGColorMode* mode)
 {
   size_t i;
-  size_t numpixels = w * h;
+  size_t numpixels = (unsigned long long)w * h;
 
   unsigned colored_done = lodepng_is_greyscale_type(mode) ? 1 : 0;
   unsigned alpha_done = lodepng_can_have_alpha(mode) ? 0 : 1;
@@ -2440,7 +2443,7 @@ unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out,
   if(error) return error;
   mode_out->key_defined = 0;
 
-  if(prof.key && w * h <= 49) {
+  if(prof.key && (unsigned long long)w * h <= 49) {
     prof.alpha = 1; /*too few pixels to justify tRNS chunk overhead*/
     if(prof.bits < 8) prof.bits = 8; /*PNG has no alphachannel modes with less than 8-bit per channel*/
   }
@@ -2448,7 +2451,7 @@ unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out,
   n = prof.numcolors;
   palettebits = n <= 2 ? 1 : (n <= 4 ? 2 : (n <= 16 ? 4 : 8));
   palette_ok = n <= 256 && prof.bits <= 8;
-  if(w * h < n * 2 || w * h < 10) {palette_ok = 0;} /*don't add palette overhead if image has only a few pixels*/
+  if((unsigned long long)w * h < n * 2 || (unsigned long long)w * h < 10) {palette_ok = 0;} /*don't add palette overhead if image has only a few pixels*/
   if(grey_ok && prof.bits <= palettebits) {palette_ok = 0;}  /*grey is less overhead*/
 
   if(palette_ok)
@@ -2580,7 +2583,11 @@ unsigned lodepng_inspect(unsigned* w, unsigned* h, LodePNGState* state,
   {
     CERROR_RETURN_ERROR(state->error, 28); /*error: the first 8 bytes are not the correct PNG signature*/
   }
-  if(in[12] != 'I' || in[13] != 'H' || in[14] != 'D' || in[15] != 'R')
+  if(lodepng_chunk_length(in + 8) != 13)
+  {
+    CERROR_RETURN_ERROR(state->error, 94); /*error: header size must be 13 bytes*/
+  }
+  if(!lodepng_chunk_type_equals(in + 8, "IHDR"))
   {
     CERROR_RETURN_ERROR(state->error, 29); /*error: it doesn't start with a IHDR chunk!*/
   }
@@ -4106,7 +4113,7 @@ unsigned lodepng_encode(unsigned char** out, size_t* outsize,
   if(!lodepng_color_mode_equal(&state->info_raw, &info.color))
   {
     unsigned char* converted;
-    size_t size = (w * h * lodepng_get_bpp(&info.color) + 7) / 8;
+    size_t size = ((unsigned long long)w * h * lodepng_get_bpp(&info.color) + 7) / 8;
 
     converted = (unsigned char*)lodepng_malloc(size);
     if(!converted && size) state->error = 83; /*alloc fail*/
@@ -4348,6 +4355,7 @@ const char* lodepng_error_text(unsigned code)
     case 91: return "invalid decompressed idat size";
     case 92: return "too many pixels, not supported";
     case 93: return "zero width or height is invalid";
+    case 94: return "header chunk must have a size of 13 bytes";
   }
   return "unknown error code";
 }
