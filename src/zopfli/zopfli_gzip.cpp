@@ -37,7 +37,7 @@ static void ZopfliGzipCompress(const ZopfliOptions* options,
   unsigned crcvalue = crc32(0, in, insize);
   unsigned char bp = 0;
 
-  (*out) = (unsigned char*)malloc(19);
+  (*out) = (unsigned char*)malloc(20);
   (*out)[*outsize] = 31; (*outsize)++;  /* ID1 */
   (*out)[*outsize] = 139; (*outsize)++; /* ID2 */
   (*out)[*outsize] = 8; (*outsize)++;   /* CM  */
@@ -137,11 +137,11 @@ static void CompressFile(const ZopfliOptions* options,
   stat(infilename, &st);
   time_t time = st.st_mtime;
   ZopfliCompress(options, output_type, in, insize, time, &out, &outsize);
+  free(in);
 
   SaveFile(outfilename, out, outsize);
 
   free(out);
-  free(in);
 }
 
 int ZopfliGzip(const char* filename, const char* outname, unsigned mode, unsigned multithreading) {
