@@ -148,7 +148,7 @@ static void ZopfliFindLongestMatch(const ZopfliOptions* options, const ZopfliHas
     pp = p;
     p = hprev[p];
 
-    dist += p < pp ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp);
+    dist += likely(p < pp) ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp);
     chain_counter--;
     if (!chain_counter) break;
   }
@@ -173,10 +173,10 @@ void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
   unsigned prev_length = 0;
   unsigned prev_match = 0;
   unsigned prevlengthscore;
-  int match_available = 0;
+  unsigned char match_available = 0;
 
   ZopfliInitHash(h);
-  ZopfliWarmupHash(in, windowstart, h);
+  ZopfliWarmupHash(in, windowstart, inend, h);
   LoopedUpdateHash(in, windowstart, inend, h, instart - windowstart);
 
   for (i = instart; i < inend; i++) {

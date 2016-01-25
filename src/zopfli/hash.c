@@ -173,7 +173,8 @@ void LoopedUpdateHash(const unsigned char* array, size_t pos, size_t end,
   free(hposstore);
 }
 
-void ZopfliWarmupHash(const unsigned char* array, size_t pos, ZopfliHash* h) {
+void ZopfliWarmupHash(const unsigned char* array, size_t pos, size_t end,
+                      ZopfliHash* h) {
   UpdateHashval(h, array[pos]);
-  UpdateHashval(h, array[pos + 1]);
+  if (pos + 1 < end) UpdateHashval(h, array[pos + 1]);
 }
