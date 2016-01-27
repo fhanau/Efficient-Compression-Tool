@@ -67,6 +67,8 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
                                 const unsigned short* dists,
                                 size_t lstart, size_t lend, int btype, unsigned char hq);
 
+void OptimizeHuffmanCountsForRle(int length, size_t* counts);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

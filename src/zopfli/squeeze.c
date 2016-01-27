@@ -27,6 +27,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 
 #include "blocksplitter.h"
 #include "deflate.h"
+#include "katajainen.h"
 #include "util.h"
 #include "squeeze.h"
 #include "match.h"
@@ -540,9 +541,28 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
   }
   /* Repeat statistics with each time the cost model from the previous stat
   run. */
-  for (int i = 1; i < options->numiterations+1; i++) {
+  for (int i = 1; i < options->numiterations + 1; i++) {
     ZopfliCleanLZ77Store(&currentstore);
     ZopfliInitLZ77Store(&currentstore);
+
+    //TODO: This is very powerful and needs additional tuning.
+    if ((i == options->numiterations - 1 && options->numiterations > 5)|| i == 9 || i == 30){
+      unsigned bl[288];
+
+      OptimizeHuffmanCountsForRle(32, beststats.dists);
+      OptimizeHuffmanCountsForRle(288, beststats.litlens);
+
+      ZopfliLengthLimitedCodeLengths(beststats.litlens, 288, 15, bl);
+      for (int j = 0; j < 288; j++){
+        stats.ll_symbols[j] = bl[j];
+      }
+      unsigned bld[32];
+      ZopfliLengthLimitedCodeLengths(beststats.dists, 32, 15, bld);
+      for (int j = 0; j < 32; j++){
+        stats.d_symbols[j] = bld[j];
+      }
+    }
+
     LZ77OptimalRun(options, in, instart, inend, length_array, &stats, &currentstore, options->useCache ? i == 1 ? 1 : 2 : 0, &c);
 
     cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists, 0, currentstore.size, 2, options->searchext);

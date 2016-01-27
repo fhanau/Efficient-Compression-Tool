@@ -440,7 +440,7 @@ static void AddLZ77Data(const unsigned short* litlens,
  compression, especially its rle-part will be more likely to compress this data
  more efficiently. length containts the size of the histogram.
  */
-static void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
+void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
   // Let's make the Huffman code more compatible with rle encoding.
   for (;; --length) {
     if (!length) {
