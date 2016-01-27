@@ -36,7 +36,6 @@ typedef struct SplitCostContext {
   size_t end;
 } SplitCostContext;
 
-
 /*
  Gets the cost which is the sum of the cost of the left and the right section
  of the data.
@@ -234,21 +233,28 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
 
 void ZopfliBlockSplit(const ZopfliOptions* options,
                       const unsigned char* in, size_t instart, size_t inend,
-                      size_t** splitpoints, size_t* npoints, SymbolStats** stats) {
+                      size_t** splitpoints, size_t* npoints, SymbolStats** stats, unsigned char twiceMode, ZopfliLZ77Store twiceStore) {
   size_t pos = 0;
   size_t i;
   size_t* lz77splitpoints = 0;
   size_t nlz77points = 0;
   ZopfliLZ77Store store;
 
-  ZopfliInitLZ77Store(&store);
 
   *npoints = 0;
   *splitpoints = 0;
 
   /* Unintuitively, Using a simple LZ77 method here instead of ZopfliLZ77Optimal
   results in better blocks. */
-  ZopfliLZ77Greedy(options, in, instart, inend, &store);
+  ZopfliInitLZ77Store(&store);
+  if (twiceMode != 2){
+    ZopfliLZ77Greedy(options, in, instart, inend, &store);
+  }
+  else{
+    store.size = twiceStore.size;
+    store.litlens = twiceStore.litlens;
+    store.dists = twiceStore.dists;
+  }
 
   /* Blocksplitting likely wont improve compression on small files */
   if (inend - instart < options->noblocksplit){

@@ -96,6 +96,9 @@ typedef struct ZopfliOptions {
 
   /*Replace short lengths with literals if that improves compression. Higher numbers mean more aggressive behaviour.*/
   unsigned replaceCodes;
+
+  /*Block split twice*/
+  unsigned twice;
 } ZopfliOptions;
 
 typedef struct ZopfliOptionsMin {

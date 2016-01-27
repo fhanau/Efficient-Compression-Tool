@@ -240,4 +240,5 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   options->useCache = 1;
   options->midsplit = mode == 2;
   options->replaceCodes = 2 * (mode > 5) + (mode == 9) * 18;
+  options->twice = mode == 9;
 }

@@ -532,9 +532,9 @@ symbols to have smallest output size. This are not necessarily the ideal Huffman
 bit lengths.
 */
 static size_t GetDynamicLengths(const unsigned short* litlens,
-                              const unsigned short* dists,
-                              size_t lstart, size_t lend,
-                              unsigned* ll_lengths, unsigned* d_lengths, unsigned count) {
+                                const unsigned short* dists,
+                                size_t lstart, size_t lend,
+                                unsigned* ll_lengths, unsigned* d_lengths, unsigned count) {
   size_t ll_counts[288];
   size_t d_counts[32];
   size_t ll_counts2[288];
@@ -786,7 +786,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
                                 const unsigned char* in,
                                 size_t instart, size_t inend,
                                 unsigned char* bp,
-                                unsigned char** out, size_t* outsize, unsigned char* costmodelnotinited, SymbolStats* statsp) {
+                                unsigned char** out, size_t* outsize, unsigned char* costmodelnotinited, SymbolStats* statsp, unsigned char twiceMode, ZopfliLZ77Store* twiceStore) {
   size_t blocksize = inend - instart;
   ZopfliLZ77Store store;
   int btype = 2;
@@ -819,12 +819,19 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
     }
   }
 
-  AddLZ77Block(btype, final,
-               store.litlens, store.dists, store.size,
-               blocksize, bp, out, outsize, options->searchext, in, instart, options->replaceCodes);
+  if (twiceMode == 1){
+    twiceStore->dists = store.dists;
+    twiceStore->litlens = store.litlens;
+    twiceStore->size = store.size;
+  }
+  else{
+    AddLZ77Block(btype, final,
+                 store.litlens, store.dists, store.size,
+                 blocksize, bp, out, outsize, options->searchext, in, instart, options->replaceCodes);
 
-  if (!options->replaceCodes){
-    ZopfliCleanLZ77Store(&store);
+    if (!options->replaceCodes){
+      ZopfliCleanLZ77Store(&store);
+    }
   }
 }
 
@@ -874,12 +881,12 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
                                   const unsigned char* in,
                                   size_t instart, size_t inend,
                                   unsigned char* bp,
-                                  unsigned char** out, size_t* outsize, unsigned threads) {
+                                  unsigned char** out, size_t* outsize, unsigned threads, unsigned char twiceMode, ZopfliLZ77Store* twiceStore) {
   std::vector<std::thread> multi (threads);
   size_t* splitpoints = 0;
   size_t npoints = 0;
   SymbolStats* statsp;
-  ZopfliBlockSplit(options, in, instart, inend , &splitpoints, &npoints, &statsp);
+  ZopfliBlockSplit(options, in, instart, inend , &splitpoints, &npoints, &statsp, twiceMode, *twiceStore);
   std::vector<BlockData> d (npoints + 1);
   size_t i;
 
@@ -900,12 +907,28 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
       }
     }
   }
-  for (i = 0; i <= npoints; i++) {
-    AddLZ77Block(d[i].btype, i == npoints && final,
-                 d[i].store.litlens, d[i].store.dists, d[i].store.size,
-                 d[i].blocksize, bp, out, outsize, options->searchext, in, instart, options->replaceCodes);
-    if (!options->replaceCodes){
-      ZopfliCleanLZ77Store(&d[i].store);
+
+  if (twiceMode == 1){
+    ZopfliInitLZ77Store(twiceStore);
+    for(int j = 0; j < npoints + 1; j++){
+
+      twiceStore->litlens = (unsigned short*)realloc(twiceStore->litlens, sizeof(unsigned short) * (twiceStore->size + d[j].store.size));
+      twiceStore->dists = (unsigned short*)realloc(twiceStore->dists, sizeof(unsigned short) * (twiceStore->size + d[j].store.size));
+      memcpy(twiceStore->litlens + twiceStore->size, d[j].store.litlens, d[j].store.size * sizeof(unsigned short));
+      memcpy(twiceStore->dists + twiceStore->size, d[j].store.dists, d[j].store.size * sizeof(unsigned short));
+      free(d[j].store.dists);
+      free(d[j].store.litlens);
+      twiceStore->size += d[j].store.size;
+    }
+  }
+  else{
+    for (i = 0; i <= npoints; i++) {
+      AddLZ77Block(d[i].btype, i == npoints && final,
+                   d[i].store.litlens, d[i].store.dists, d[i].store.size,
+                   d[i].blocksize, bp, out, outsize, options->searchext, in, instart, options->replaceCodes);
+      if (!options->replaceCodes){
+        ZopfliCleanLZ77Store(&d[i].store);
+      }
     }
   }
 
@@ -924,17 +947,37 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
                                   const unsigned char* in,
                                   size_t instart, size_t inend,
                                   unsigned char* bp,
-                                  unsigned char** out, size_t* outsize, unsigned char* costmodelnotinited) {
+                                  unsigned char** out, size_t* outsize, unsigned char* costmodelnotinited, unsigned char twiceMode, ZopfliLZ77Store* twiceStore) {
   size_t* splitpoints = 0;
   size_t npoints = 0;
   SymbolStats* statsp = 0;
-  ZopfliBlockSplit(options, in, instart, inend, &splitpoints, &npoints, &statsp);
+  ZopfliBlockSplit(options, in, instart, inend, &splitpoints, &npoints, &statsp, twiceMode, *twiceStore);
 
+  ZopfliLZ77Store* stores;
+  if (twiceMode == 1){
+    stores = (ZopfliLZ77Store*)malloc((npoints + 1) * sizeof(ZopfliLZ77Store));
+    if(!stores){
+      exit(1);
+    }
+  }
   for (size_t i = 0; i <= npoints; i++) {
     size_t start = i == 0 ? instart : splitpoints[i - 1];
     size_t end = i == npoints ? inend : splitpoints[i];
     DeflateDynamicBlock(options, i == npoints && final, in, start, end,
-                        bp, out, outsize, costmodelnotinited, &(statsp[i]));
+                        bp, out, outsize, costmodelnotinited, &(statsp[i]), twiceMode, stores + i);
+  }
+  if (twiceMode == 1){
+    ZopfliInitLZ77Store(twiceStore);
+    for(int i = 0; i < npoints + 1; i++){
+      twiceStore->litlens = (unsigned short*)realloc(twiceStore->litlens, sizeof(unsigned short) * (twiceStore->size + stores->size));
+      twiceStore->dists = (unsigned short*)realloc(twiceStore->dists, sizeof(unsigned short) * (twiceStore->size + stores->size));
+      memcpy(twiceStore->litlens + twiceStore->size, stores->litlens, stores->size * sizeof(unsigned short));
+      memcpy(twiceStore->dists + twiceStore->size, stores->dists, stores->size * sizeof(unsigned short));
+      free(stores->dists);
+      free(stores->litlens);
+      twiceStore->size += stores->size;
+      stores++;
+    }
   }
 
   free(splitpoints);
@@ -953,14 +996,14 @@ the final bit will be set on the last block.
 static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
                        const unsigned char* in, size_t instart, size_t inend,
                        unsigned char* bp, unsigned char** out,
-                       size_t* outsize, unsigned char* costmodelnotinited) {
+                       size_t* outsize, unsigned char* costmodelnotinited, unsigned char twiceMode, ZopfliLZ77Store* twiceStore) {
 #ifndef NOMULTI
   if (options->multithreading > 1){
-    DeflateSplittingFirst2(options, final, in, instart, inend, bp, out, outsize, options->multithreading);
+    DeflateSplittingFirst2(options, final, in, instart, inend, bp, out, outsize, options->multithreading, twiceMode, twiceStore);
   }
   else {
 #endif
-    DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize, costmodelnotinited);
+    DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize, costmodelnotinited, twiceMode, twiceStore);
 #ifndef NOMULTI
   }
 #endif
@@ -989,7 +1032,21 @@ void ZopfliDeflate(const ZopfliOptions* options, int final,
     int masterfinal = (i + msize >= insize);
     int final2 = final && masterfinal;
     size_t size = masterfinal ? insize - i : msize;
-    ZopfliDeflatePart(options, final2, in, i, i + size, bp, out, outsize, &costmodelnotinited);
+    ZopfliLZ77Store lf;
+    if (!options->twice){
+      ZopfliDeflatePart(options, final2, in, i, i + size, bp, out, outsize, &costmodelnotinited, 0, &lf);
+    }
+    else{
+      unsigned char cache = costmodelnotinited;
+      ZopfliDeflatePart(options, final2, in, i, i + size, bp, out, outsize, &costmodelnotinited, 1, &lf);
+      //Seems to worsen on png,
+      unsigned char set = costmodelnotinited;
+      costmodelnotinited = cache;
+
+      ZopfliDeflatePart(options, final2, in, i, i + size, bp, out, outsize, &costmodelnotinited, 2, &lf);
+      costmodelnotinited = set;
+    }
+
     i += size;
   }
 #endif
