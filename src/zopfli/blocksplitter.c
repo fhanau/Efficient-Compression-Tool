@@ -60,7 +60,6 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, d
     return start + (end - start) / 2;
   }
 
-
   size_t startsize = end - start;
   /* Try to find minimum by recursively checking multiple points. */
 #define NUM 9  /* Good value: 9. */
@@ -76,7 +75,18 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, d
   size_t ostart = start;
   size_t oend = end;
   for (;;) {
-    if (end - start <= options->num) break;
+    if (end - start <= options->num){
+      if (options->numiterations > 50){
+        for (unsigned j = 0; j < end - start; j++){
+          double cost = SplitCost(start + j, context, &first, &second, options->searchext & 2);
+          if (cost < best){
+            best = cost;
+            pos = start + j;
+          }
+        }
+      }
+      break;
+    }
     if (end - start <= startsize/100 && startsize > 600 && options->num == 3) break;
 
     for (i = 0; i < options->num; i++) {
@@ -193,7 +203,7 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
     assert(llpos > lstart);
     assert(llpos < lend);
 
-    if (prevcost == ZOPFLI_LARGE_FLOAT || splittingleft == 1){
+    if (prevcost == ZOPFLI_LARGE_FLOAT || splittingleft == 1 || options->num == 9){
     origcost = ZopfliCalculateBlockSize(litlens, dists, lstart, lend, 2, options->searchext & 2);
     }
     else {
