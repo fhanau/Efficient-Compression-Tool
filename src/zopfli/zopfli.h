@@ -93,6 +93,9 @@ typedef struct ZopfliOptions {
   unsigned isPNG;
 
   unsigned midsplit;
+
+  /*Replace short lengths with literals if that improves compression. Higher numbers mean more aggressive behaviour.*/
+  unsigned replaceCodes;
 } ZopfliOptions;
 
 typedef struct ZopfliOptionsMin {

@@ -540,7 +540,6 @@ static size_t GetDynamicLengths(const unsigned short* litlens,
   size_t ll_counts2[288];
   size_t d_counts2[32];
 
-
   ZopfliLZ77Counts(litlens, dists, lstart, lend, ll_counts, d_counts);
   if (count){
     memcpy(ll_counts2, ll_counts, 288 * sizeof(size_t));
@@ -623,6 +622,63 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
   }
 }
 
+static void ReplaceBadCodes(unsigned short** litlens,
+                            unsigned short** dists,
+                            size_t* lend, const unsigned char* in, size_t instart, unsigned* ll_lengths, unsigned* d_lengths){
+  size_t end = *lend;
+
+  unsigned short* litlens2 = (unsigned short*)malloc(end * 3 * sizeof(unsigned short));
+  unsigned short* dists2 = (unsigned short*)malloc(end * 3 * sizeof(unsigned short));
+  if (!(litlens2 && dists2)){
+    exit(1);
+  }
+
+  size_t pos = instart;
+  size_t k = 0;
+  for (size_t i = 0; i < end; i++){
+    unsigned char change = 0;
+    size_t length = (*dists)[i] == 0 ? 1 : (*litlens)[i];
+    if (length >= 3 && length <= 6){
+      //Check if the match is cheaper than several literals
+      const unsigned char* litplace = &in[pos - (*dists)[i]];
+      unsigned litprice = 0;
+      unsigned char cont = 1;
+      for(unsigned j = 0; j < length; j++){
+        if (!ll_lengths[*litplace]){
+          //Bail out.
+          cont = 0;
+          break;
+        }
+        litprice += ll_lengths[*litplace++];
+      }
+      if (cont){
+        unsigned char distprice = ll_lengths[ZopfliGetLengthSymbol(length)] + ZopfliGetLengthExtraBits(length) + ZopfliGetDistExtraBits((*dists)[i])
+          + d_lengths[ZopfliGetDistSymbol((*dists)[i])];
+        if (litprice < distprice){
+          litplace = &in[pos - (*dists)[i]];
+          change = 1;
+          for(unsigned j = 0; j < length; j++){
+            litlens2[i + k] = *litplace;
+            dists2[i + k] = 0;
+            k++;
+            litplace++;
+          }
+          k--;
+          (*lend) += length - 1;
+        }
+      }
+    }
+    if (!change){
+      litlens2[i + k] = (*litlens)[i];
+      dists2[i + k] = (*dists)[i];
+    }
+    pos += length;
+  }
+
+  (*litlens) = litlens2;
+  (*dists) = dists2;
+}
+
 /*
 Adds a deflate block with the given LZ77 data to the output.
 options: global program options
@@ -641,12 +697,13 @@ out: dynamic output array to append to
 outsize: dynamic output array size
 */
 static void AddLZ77Block(int btype, int final,
-                         const unsigned short* litlens,
-                         const unsigned short* dists,
-                         size_t lstart, size_t lend,
+                         unsigned short* litlens,
+                         unsigned short* dists,
+                         size_t lend,
                          size_t expected_data_size,
                          unsigned char* bp,
-                         unsigned char** out, size_t* outsize, unsigned hq) {
+                         unsigned char** out, size_t* outsize, unsigned hq, const unsigned char* in,
+                         size_t instart, unsigned replaceCodes) {
   unsigned ll_lengths[288];
   unsigned d_lengths[32];
   unsigned ll_symbols[288];
@@ -663,12 +720,34 @@ static void AddLZ77Block(int btype, int final,
     for (i = 256; i < 280; i++) ll_lengths[i] = 7;
     for (i = 280; i < 288; i++) ll_lengths[i] = 8;
     for (i = 0; i < 32; i++) d_lengths[i] = 5;
-    outpred = ZopfliCalculateBlockSize(litlens, dists, lstart, lend, btype, hq);
+    outpred = ZopfliCalculateBlockSize(litlens, dists, 0, lend, btype, hq);
   } else {
     /* Dynamic block. */
     outpred = 3;
-    outpred += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, 1);
+    outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 1);
     outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
+  }
+  if (btype == 2){
+
+    for (unsigned i = 0; i < replaceCodes; i++){
+      if (!(i & 1)){
+        unsigned short * free1 = litlens;
+        unsigned short * free2 = dists;
+        ReplaceBadCodes(&litlens, &dists, &lend, in, instart, ll_lengths, d_lengths);
+        free(free1);
+        free(free2);
+      }
+      else{
+        //TODO: This may make compression worse due to longer huffman headers.
+        outpred = 3;
+        outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 1);
+        if (replaceCodes == i + 1){
+          outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
+        }
+      }
+
+    }
+
   }
   outpred += *outsize * 8 + *bp -((*bp != 0) * 8);
   (*out) = (unsigned char*)realloc(*out, outpred / 8 + 1 + 8);
@@ -687,14 +766,20 @@ static void AddLZ77Block(int btype, int final,
                best & 1, best & 2, best & 4, best & 8 , best & 16 || (hq == 1 && best == 9),
                bp, *out, outsize);
   }
-  AddLZ77Data(litlens, dists, lstart, lend
+  AddLZ77Data(litlens, dists, 0, lend
               , expected_data_size
               , ll_symbols, ll_lengths, d_symbols, d_lengths,
               bp, *out, outsize);
   setbits(ll_symbols[256], ll_lengths[256], bp, *out, outsize);
 #undef setbits
 
-  assert(outpred == *outsize * 8 + *bp -((*bp != 0) * 8));
+  if (!(replaceCodes & 1)){
+    assert(outpred == *outsize * 8 + *bp - (*bp != 0) * 8);
+  }
+  if (replaceCodes){
+    free(litlens);
+    free(dists);
+  }
 }
 
 static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
@@ -735,17 +820,19 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
   }
 
   AddLZ77Block(btype, final,
-               store.litlens, store.dists, 0, store.size,
-               blocksize, bp, out, outsize, options->searchext);
+               store.litlens, store.dists, store.size,
+               blocksize, bp, out, outsize, options->searchext, in, instart, options->replaceCodes);
 
-  ZopfliCleanLZ77Store(&store);
+  if (!options->replaceCodes){
+    ZopfliCleanLZ77Store(&store);
+  }
 }
 
 #ifndef NOMULTI
 struct BlockData {
   int btype;
   ZopfliLZ77Store store;
-  size_t blocksize; //inend - instart
+  size_t blocksize;
 };
 
 static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned char* in,
@@ -815,9 +902,11 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
   }
   for (i = 0; i <= npoints; i++) {
     AddLZ77Block(d[i].btype, i == npoints && final,
-                 d[i].store.litlens, d[i].store.dists, 0, d[i].store.size,
-                 d[i].blocksize, bp, out, outsize, options->searchext);
-    ZopfliCleanLZ77Store(&d[i].store);
+                 d[i].store.litlens, d[i].store.dists, d[i].store.size,
+                 d[i].blocksize, bp, out, outsize, options->searchext, in, instart, options->replaceCodes);
+    if (!options->replaceCodes){
+      ZopfliCleanLZ77Store(&d[i].store);
+    }
   }
 
   free(splitpoints);
