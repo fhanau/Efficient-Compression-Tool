@@ -22,14 +22,13 @@ static inline const unsigned char* GetMatch(const unsigned char* scan,
                                             const unsigned char* match,
                                             const unsigned char* end
                                             , const unsigned char* safe_end) {
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__MINGW32__) && !defined(__MINGW64__)
   /* Optimized Function based on cloudflare's zlib fork. TODO: Can this be even faster with pcmpestri/pcmpestrm intrinsics?*/
-  //CHeck that this is right w/ mingw
   if (sizeof(size_t) == 8) {
     do {
-      size_t sv = *(size_t*)(void*)scan;
-      size_t mv = *(size_t*)(void*)match;
-      size_t xor = sv ^ mv;
+      unsigned long sv = *(unsigned long*)(void*)scan;
+      unsigned long mv = *(unsigned long*)(void*)match;
+      unsigned long xor = sv ^ mv;
       if (xor) {
         scan += __builtin_ctzl(xor) / 8;
         break;
