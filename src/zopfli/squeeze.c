@@ -33,7 +33,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "match.h"
 #include "../LzFind.h"
 
-static void CopyStats(SymbolStats* source, SymbolStats* dest) {
+static void CopyStats(const SymbolStats* source, SymbolStats* dest) {
   memcpy(dest->litlens, source->litlens, 288 * sizeof(dest->litlens[0]));
   memcpy(dest->dists, source->dists, 32 * sizeof(dest->dists[0]));
 
@@ -42,7 +42,7 @@ static void CopyStats(SymbolStats* source, SymbolStats* dest) {
   memcpy(dest->d_symbols, source->d_symbols, 32 * sizeof(dest->d_symbols[0]));
 }
 
-static void MixCostmodels(SymbolStats* src, SymbolStats* prod, float share){
+static void MixCostmodels(const SymbolStats* src, SymbolStats* prod, float share){
   for (unsigned i = 0; i < 288; i++) {
     prod->ll_symbols[i] = prod->ll_symbols[i] * (1.0 - share) + src->ll_symbols[i] * share;
   }
@@ -567,6 +567,49 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
 
     cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists, 0, currentstore.size, 2, options->searchext);
     if (cost < bestcost) {
+
+      bestcost = cost;
+
+      if (options->ultra && i == options->numiterations){
+
+        for (;;){
+          SymbolStats sta;
+          GetStatistics(&currentstore, &sta);
+
+          unsigned bl[288];
+
+          OptimizeHuffmanCountsForRle(32, sta.dists);
+          OptimizeHuffmanCountsForRle(288, sta.litlens);
+
+          ZopfliLengthLimitedCodeLengths(sta.litlens, 288, 15, bl);
+          for (int j = 0; j < 288; j++){
+            sta.ll_symbols[j] = bl[j];
+          }
+          unsigned bld[32];
+          ZopfliLengthLimitedCodeLengths(sta.dists, 32, 15, bld);
+          for (int j = 0; j < 32; j++){
+            sta.d_symbols[j] = bld[j];
+          }
+
+
+          ZopfliLZ77Store peace;
+          ZopfliInitLZ77Store(&peace);
+          LZ77OptimalRun(options, in, instart, inend, length_array, &sta, &peace, options->useCache ? i == 1 ? 1 : 2 : 0, &c);
+          double newcost = ZopfliCalculateBlockSize(peace.litlens, peace.dists, 0, peace.size, 2, options->searchext);
+          if (newcost < bestcost){
+            bestcost = newcost;
+            ZopfliCleanLZ77Store(&currentstore);
+            currentstore = peace;
+
+          }
+          else{
+            ZopfliCleanLZ77Store(&peace);
+            break;
+          }
+
+        }
+      }
+
       /* Copy to the output store. */
       ZopfliCopyLZ77Store(&currentstore, store);
       CopyStats(&stats, &beststats);

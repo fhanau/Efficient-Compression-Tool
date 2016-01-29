@@ -99,6 +99,9 @@ typedef struct ZopfliOptions {
 
   /*Block split twice*/
   unsigned twice;
+
+  /*Sorry, can't figure out a better name. Leads to better final LZ costmodel*/
+  unsigned ultra;
 } ZopfliOptions;
 
 typedef struct ZopfliOptionsMin {
