@@ -24,6 +24,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #ifndef NOMULTI
 #include <thread>
