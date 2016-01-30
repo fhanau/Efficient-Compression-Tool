@@ -535,13 +535,13 @@ bit lengths.
 static size_t GetDynamicLengths(const unsigned short* litlens,
                                 const unsigned short* dists,
                                 size_t lstart, size_t lend,
-                                unsigned* ll_lengths, unsigned* d_lengths, unsigned count) {
+                                unsigned* ll_lengths, unsigned* d_lengths, unsigned count, unsigned char symbols) {
   size_t ll_counts[288];
   size_t d_counts[32];
   size_t ll_counts2[288];
   size_t d_counts2[32];
 
-  ZopfliLZ77Counts(litlens, dists, lstart, lend, ll_counts, d_counts);
+  ZopfliLZ77Counts(litlens, dists, lstart, lend, ll_counts, d_counts, symbols);
   if (count){
     memcpy(ll_counts2, ll_counts, 288 * sizeof(size_t));
     memcpy(d_counts2, d_counts, 32 * sizeof(size_t));
@@ -588,7 +588,7 @@ static size_t GetDynamicLengths(const unsigned short* litlens,
 
 double ZopfliCalculateBlockSize(const unsigned short* litlens,
                                 const unsigned short* dists,
-                                size_t lstart, size_t lend, int btype, unsigned char hq) {
+                                size_t lstart, size_t lend, int btype, unsigned char hq, unsigned char symbols) {
   unsigned ll_lengths[288];
   double result = 3; /* bfinal and btype bits */
 
@@ -616,7 +616,7 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
   } else {
     unsigned d_lengths[32];
     unsigned dummy = 0;
-    result += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, 1);
+    result += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, 1, symbols);
     result += CalculateTreeSize(ll_lengths, d_lengths, hq, &dummy);
 
     return result;
@@ -704,7 +704,7 @@ static void AddLZ77Block(int btype, int final,
                          size_t expected_data_size,
                          unsigned char* bp,
                          unsigned char** out, size_t* outsize, unsigned hq, const unsigned char* in,
-                         size_t instart, unsigned replaceCodes) {
+                         size_t instart, unsigned replaceCodes, unsigned char symbols) {
   unsigned ll_lengths[288];
   unsigned d_lengths[32];
   unsigned ll_symbols[288];
@@ -721,11 +721,11 @@ static void AddLZ77Block(int btype, int final,
     for (i = 256; i < 280; i++) ll_lengths[i] = 7;
     for (i = 280; i < 288; i++) ll_lengths[i] = 8;
     for (i = 0; i < 32; i++) d_lengths[i] = 5;
-    outpred = ZopfliCalculateBlockSize(litlens, dists, 0, lend, btype, hq);
+    outpred = ZopfliCalculateBlockSize(litlens, dists, 0, lend, btype, hq, symbols);
   } else {
     /* Dynamic block. */
     outpred = 3;
-    outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 1);
+    outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 1, symbols);
     outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
   }
   if (btype == 2){
@@ -741,7 +741,7 @@ static void AddLZ77Block(int btype, int final,
       else{
         //TODO: This may make compression worse due to longer huffman headers.
         outpred = 3;
-        outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 1);
+        outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 1, symbols);
         if (replaceCodes == i + 1){
           outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
         }
@@ -809,8 +809,8 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
     ZopfliLZ77Store fixedstore;
     ZopfliInitLZ77Store(&fixedstore);
     ZopfliLZ77OptimalFixed(options, in, instart, inend, &fixedstore);
-    double dyncost = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, options->searchext);
-    double fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, options->searchext);
+    double dyncost = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, options->searchext, store.symbols);
+    double fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, options->searchext, store.symbols);
     if (fixedcost <= dyncost) {
       btype = 1;
       ZopfliCleanLZ77Store(&store);
@@ -821,6 +821,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
   }
 
   if (twiceMode == 1){
+    ZopfliInitLZ77Store(twiceStore);
     twiceStore->dists = store.dists;
     twiceStore->litlens = store.litlens;
     twiceStore->size = store.size;
@@ -828,7 +829,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
   else{
     AddLZ77Block(btype, final,
                  store.litlens, store.dists, store.size,
-                 blocksize, bp, out, outsize, options->searchext, in, instart, options->replaceCodes);
+                 blocksize, bp, out, outsize, options->searchext, in, instart, options->replaceCodes, store.symbols);
 
     if (!options->replaceCodes){
       ZopfliCleanLZ77Store(&store);
@@ -865,8 +866,8 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
     ZopfliLZ77Store fixedstore;
     ZopfliInitLZ77Store(&fixedstore);
     ZopfliLZ77OptimalFixed(options, in, instart, inend, &fixedstore);
-    dyncost = ZopfliCalculateBlockSize(store->store.litlens, store->store.dists, 0, store->store.size, 2, options->searchext);
-    fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, options->searchext);
+    dyncost = ZopfliCalculateBlockSize(store->store.litlens, store->store.dists, 0, store->store.size, 2, options->searchext, store->store.symbols);
+    fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, options->searchext, fixedstore.symbols);
     if (fixedcost <= dyncost) {
       store->btype = 1;
       ZopfliCleanLZ77Store(&store->store);
@@ -928,7 +929,7 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
 
       AddLZ77Block(d[i].btype, i == npoints && final,
                    d[i].store.litlens, d[i].store.dists, d[i].store.size,
-                   d[i].blocksize, bp, out, outsize, options->searchext, in, start, options->replaceCodes);
+                   d[i].blocksize, bp, out, outsize, options->searchext, in, start, options->replaceCodes, d[i].store.symbols);
       if (!options->replaceCodes){
         ZopfliCleanLZ77Store(&d[i].store);
       }
@@ -1036,6 +1037,7 @@ void ZopfliDeflate(const ZopfliOptions* options, int final,
     int final2 = final && masterfinal;
     size_t size = masterfinal ? insize - i : msize;
     ZopfliLZ77Store lf;
+    ZopfliInitLZ77Store(&lf);
     if (!options->twice){
       ZopfliDeflatePart(options, final2, in, i, i + size, bp, out, outsize, &costmodelnotinited, 0, &lf);
     }

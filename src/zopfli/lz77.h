@@ -49,6 +49,7 @@ typedef struct ZopfliLZ77Store {
   unsigned short* dists;  /* If 0: indicates literal in corresponding litlens,
       if > 0: length in corresponding litlens, this is the distance. */
   size_t size;
+  unsigned char symbols;
 } ZopfliLZ77Store;
 
 void ZopfliInitLZ77Store(ZopfliLZ77Store* store);
@@ -75,7 +76,7 @@ d_count: count of each dist symbol, must have size 32 (see deflate standard)
 void ZopfliLZ77Counts(const unsigned short* litlens,
                       const unsigned short* dists,
                       size_t start, size_t end,
-                      size_t* ll_count, size_t* d_count);
+                      size_t* ll_count, size_t* d_count, unsigned char symbols);
 
 /*
 Does LZ77 using an algorithm similar to gzip, with lazy matching, rather than

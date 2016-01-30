@@ -34,6 +34,7 @@ typedef struct SplitCostContext {
   const unsigned short* dists;
   size_t start;
   size_t end;
+  unsigned char symbols;
 } SplitCostContext;
 
 /*
@@ -41,8 +42,8 @@ typedef struct SplitCostContext {
  of the data.
  */
 static double SplitCost(size_t i, SplitCostContext* c, double* first, double* second, unsigned char searchext) {
-  *first = ZopfliCalculateBlockSize(c->litlens, c->dists, c->start, i, 2, searchext);
-  *second = ZopfliCalculateBlockSize(c->litlens, c->dists, i, c->end, 2, searchext);
+  *first = ZopfliCalculateBlockSize(c->litlens, c->dists, c->start, i, 2, searchext, c->symbols);
+  *second = ZopfliCalculateBlockSize(c->litlens, c->dists, i, c->end, 2, searchext, c->symbols);
   return *first + *second;
 }
 
@@ -173,7 +174,7 @@ static int FindLargestSplittableBlock(
 static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
                           const unsigned short* dists,
                           size_t llsize, size_t** splitpoints,
-                          size_t* npoints, const ZopfliOptions* options) {
+                          size_t* npoints, const ZopfliOptions* options, unsigned char symbols) {
   if (llsize < options->noblocksplitlz) return;  /* This code fails on tiny files. */
 
   size_t llpos;
@@ -197,13 +198,14 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
     c.dists = dists;
     c.start = lstart;
     c.end = lend;
+    c.symbols = symbols;
     assert(lstart < lend);
     llpos = FindMinimum(&c, lstart + 1, lend, &splitcost, &nprevcost, options);
     assert(llpos > lstart);
     assert(llpos < lend);
 
     if (prevcost == ZOPFLI_LARGE_FLOAT || splittingleft == 1 || options->num == 9){
-    origcost = ZopfliCalculateBlockSize(litlens, dists, lstart, lend, 2, options->searchext & 2);
+    origcost = ZopfliCalculateBlockSize(litlens, dists, lstart, lend, 2, options->searchext & 2, symbols);
     }
     else {
       origcost = prevcost;
@@ -231,6 +233,18 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
   free(done);
 }
 
+static unsigned symtox(unsigned lls){
+  if (lls <= 279){
+    return 0;
+  }
+  else if (lls <= 283){
+    return 100;
+  }
+  else{
+    return 200;
+  }
+}
+
 void ZopfliBlockSplit(const ZopfliOptions* options,
                       const unsigned char* in, size_t instart, size_t inend,
                       size_t** splitpoints, size_t* npoints, SymbolStats** stats, unsigned char twiceMode, ZopfliLZ77Store twiceStore) {
@@ -249,11 +263,13 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
   ZopfliInitLZ77Store(&store);
   if (twiceMode != 2){
     ZopfliLZ77Greedy(options, in, instart, inend, &store);
+    store.symbols = 1;
   }
   else{
     store.size = twiceStore.size;
     store.litlens = twiceStore.litlens;
     store.dists = twiceStore.dists;
+    store.symbols = twiceStore.symbols;
   }
 
   /* Blocksplitting likely wont improve compression on small files */
@@ -264,7 +280,7 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
     return;
   }
 
-  ZopfliBlockSplitLZ77(store.litlens, store.dists, store.size, &lz77splitpoints, &nlz77points, options);
+  ZopfliBlockSplitLZ77(store.litlens, store.dists, store.size, &lz77splitpoints, &nlz77points, options, store.symbols);
 
   SymbolStats* statsp = (SymbolStats*)malloc((nlz77points + 1) * sizeof(SymbolStats));
   if (!(statsp)){
@@ -275,7 +291,7 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
   pos = instart;
   if (nlz77points) {
     for (i = 0; i < store.size; i++) {
-      size_t length = store.dists[i] == 0 ? 1 : store.litlens[i];
+      size_t length = store.symbols ? store.litlens[i] < 256 ? 1 : symtox(store.litlens[i] & 511) + (store.litlens[i] >> 9) : store.dists[i] == 0 ? 1 : store.litlens[i];
       if (lz77splitpoints[*npoints] == i) {
         size_t temp = store.size;
         size_t shift = *npoints ? lz77splitpoints[*npoints - 1] : 0;

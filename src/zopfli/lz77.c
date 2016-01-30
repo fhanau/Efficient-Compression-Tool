@@ -33,6 +33,7 @@ void ZopfliInitLZ77Store(ZopfliLZ77Store* store) {
   store->size = 0;
   store->litlens = 0;
   store->dists = 0;
+  store->symbols = 0;
 }
 
 void ZopfliCleanLZ77Store(ZopfliLZ77Store* store) {
@@ -157,6 +158,19 @@ static void ZopfliFindLongestMatch(const ZopfliOptions* options, const ZopfliHas
   *length = bestlength;
 }
 
+
+static unsigned symtox(unsigned lls){
+  if (lls <= 279){
+    return 0;
+  }
+  else if (lls <= 283){
+    return 100;
+  }
+  else{
+    return 200;
+  }
+}
+
 void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
                       size_t instart, size_t inend,
                       ZopfliLZ77Store* store) {
@@ -220,7 +234,9 @@ void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
 #ifndef NDEBUG
         ZopfliVerifyLenDist(in, inend, i - 1, dist, leng);
 #endif
-        ZopfliStoreLitLenDist(leng, dist, store);
+        unsigned lls = ZopfliGetLengthSymbol(leng);
+        ZopfliStoreLitLenDist(lls + ((leng - symtox(lls)) << 9), disttable[dist] + 1, store);
+
         for (j = 2; j < leng; j++) {
           i++;
           ZopfliUpdateHash(in, i, inend, h);
@@ -241,7 +257,9 @@ void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
 #ifndef NDEBUG
         ZopfliVerifyLenDist(in, inend, i, dist, leng);
 #endif
-      ZopfliStoreLitLenDist(leng, dist, store);
+      unsigned lls = ZopfliGetLengthSymbol(leng);
+      ZopfliStoreLitLenDist(lls + ((leng - symtox(lls)) << 9), disttable[dist] + 1, store);
+
     } else {
       leng = 1;
       ZopfliStoreLitLenDist(in[i], 0, store);
@@ -256,55 +274,142 @@ void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
   ZopfliCleanHash(h);
 }
 
-void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists, size_t start, size_t end, size_t* ll_count, size_t* d_count) {
+void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists, size_t start, size_t end, size_t* ll_count, size_t* d_count, unsigned char symbols) {
   for (unsigned i = 0; i < 288; i++) {
     ll_count[i] = 0;
   }
   for (unsigned i = 0; i < 32; i++) {
     d_count[i] = 0;
   }
-
   size_t i;
-  size_t lenarrything[515] = {0};
 
-  if (start - end < 1024){
-    for (i = start; i < end; i++) {
-      lenarrything[litlens[i] + !dists[i] * 259]++;
-      d_count[disttable[dists[i]]]++;
-    }
-    memcpy(ll_count, &lenarrything[259], 256 * sizeof(size_t));
 
-    for (i = 3; i < 259; i++){
-      ll_count[ZopfliGetLengthSymbol(i)] += lenarrything[i];
-    }
-  }
-  else{
-    size_t lenarrything2[515] = {0};
+  if (symbols){
+
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(_M_X64))
+    size_t d_count1[32] = {0};
     size_t d_count2[32] = {0};
+    size_t d_count3[32] = {0};
 
-    if ((start - end) % 2){
-      lenarrything[litlens[start] + !dists[start] * 259]++;
-      d_count[disttable[dists[start]]]++;
-      start++;
-    }
-    for (i = start; i < end; i++) {
-      lenarrything[litlens[i] + !dists[i] * 259]++;
-      d_count[disttable[dists[i]]]++;
-      i++;
-      lenarrything2[litlens[i] + !dists[i] * 259]++;
-      d_count2[disttable[dists[i]]]++;
+    size_t rstart = start + ((end - start) & 15);
+    for (i = start; i < rstart; i++) {
+      d_count[dists[i]]++;
+      ll_count[litlens[i] & 511]++;
     }
 
-    for (i = 0; i < 256; i++){
-      ll_count[i] = lenarrything[i + 259] + lenarrything2[i + 259];
+#define ANDLLS 511LU + (511LU << 16) + (511LU << 32) + (511LU << 48)
+    const unsigned short* ip = &dists[rstart];
+    size_t cached = *(size_t*)ip;ip += 4;
+    while (ip < dists + end)
+    {
+      size_t c = cached; cached = *(size_t*)ip; ip += 4;
+      d_count[(unsigned short) c     ]++;
+      d_count1[(unsigned short)(c>>16) ]++;
+      d_count2[(unsigned short)(c>>32)]++;
+      d_count3[       c>>48 ]++;
+      c = cached; cached = *(size_t*)ip; ip += 4;
+      d_count[(unsigned short) c     ]++;
+      d_count1[(unsigned short)(c>>16) ]++;
+      d_count2[(unsigned short)(c>>32)]++;
+      d_count3[       c>>48 ]++;
+      c = cached; cached = *(size_t*)ip; ip += 4;
+      d_count[(unsigned short) c     ]++;
+      d_count1[(unsigned short)(c>>16) ]++;
+      d_count2[(unsigned short)(c>>32)]++;
+      d_count3[       c>>48 ]++;
+      c = cached; cached = *(size_t*)ip; ip += 4;
+      d_count[(unsigned short) c     ]++;
+      d_count1[(unsigned short)(c>>16) ]++;
+      d_count2[(unsigned short)(c>>32)]++;
+      d_count3[       c>>48 ]++;
     }
 
-    for (i = 3; i < 259; i++){
-      ll_count[ZopfliGetLengthSymbol(i)] += lenarrything[i] + lenarrything2[i];
-    }
     for (i = 0; i < 32; i++){
-      d_count[i] += d_count2[i];
+      d_count[i] += d_count1[i] + d_count2[i] + d_count3[i];
     }
+    for (i = 0; i < 31; i++) {
+      d_count[i] = d_count[i + 1];
+    }
+
+    size_t ll_count1[288] = {0};
+    size_t ll_count2[288] = {0};
+    size_t ll_count3[288] = {0};
+
+    ip = &litlens[rstart];
+    cached = (*(size_t*)ip) & ANDLLS;ip += 4;
+    while (ip < litlens + end)
+    {
+      size_t c = cached; cached = (*(size_t*)ip) & ANDLLS; ip += 4;
+      ll_count[(unsigned short) c     ]++;
+      ll_count1[(unsigned short)(c>>16) ]++;
+      ll_count2[(unsigned short)(c>>32)]++;
+      ll_count3[       c>>48 ]++;
+      c = cached; cached = (*(size_t*)ip) & ANDLLS; ip += 4;
+      ll_count[(unsigned short) c     ]++;
+      ll_count1[(unsigned short)(c>>16) ]++;
+      ll_count2[(unsigned short)(c>>32)]++;
+      ll_count3[       c>>48 ]++;
+      c = cached; cached = (*(size_t*)ip) & ANDLLS; ip += 4;
+      ll_count[(unsigned short) c     ]++;
+      ll_count1[(unsigned short)(c>>16) ]++;
+      ll_count2[(unsigned short)(c>>32)]++;
+      ll_count3[       c>>48 ]++;
+      c = cached; cached = (*(size_t*)ip) & ANDLLS; ip += 4;
+      ll_count[(unsigned short) c     ]++;
+      ll_count1[(unsigned short)(c>>16) ]++;
+      ll_count2[(unsigned short)(c>>32)]++;
+      ll_count3[       c>>48 ]++;
+    }
+
+    for (i = 0; i < 288; i++){
+      ll_count[i] += ll_count1[i] + ll_count2[i] + ll_count3[i];
+    }
+#else
+
+    for (i = start; i < end; i++) {
+      d_count[dists[i]]++;
+    }
+
+    for (i = 0; i < 31; i++) {
+      d_count[i] = d_count[i + 1];
+    }
+
+    for (i = start; i < end; i++) {
+      ll_count[litlens[i] & 511]++;
+    }
+#endif
+
+    ll_count[256] = 1;  /* End symbol. */
+
+    return;
+  }
+
+  size_t lenarrything[515] = {0};
+  size_t lenarrything2[515] = {0};
+  size_t d_count2[32] = {0};
+
+  if ((end - start) % 2){
+    lenarrything[litlens[start] + !dists[start] * 259]++;
+    d_count[disttable[dists[start]]]++;
+    start++;
+  }
+  for (i = start; i < end; i++) {
+    lenarrything[litlens[i] + !dists[i] * 259]++;
+    d_count[disttable[dists[i]]]++;
+    i++;
+    lenarrything2[litlens[i] + !dists[i] * 259]++;
+    d_count2[disttable[dists[i]]]++;
+  }
+
+  for (i = 0; i < 256; i++){
+    ll_count[i] = lenarrything[i + 259] + lenarrything2[i + 259];
+  }
+
+  for (i = 3; i < 259; i++){
+    ll_count[ZopfliGetLengthSymbol(i)] += lenarrything[i] + lenarrything2[i];
+  }
+  for (i = 0; i < 32; i++){
+    d_count[i] += d_count2[i];
   }
 
   d_count[30] = 0;

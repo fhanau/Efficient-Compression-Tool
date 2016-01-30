@@ -470,7 +470,7 @@ static void CalculateStatistics(SymbolStats* stats) {
 
 /* Appends the symbol statistics from the store. */
 void GetStatistics(const ZopfliLZ77Store* store, SymbolStats* stats) {
-  ZopfliLZ77Counts(store->litlens, store->dists, 0, store->size, stats->litlens, stats->dists);
+  ZopfliLZ77Counts(store->litlens, store->dists, 0, store->size, stats->litlens, stats->dists, store->symbols);
 
   CalculateStatistics(stats);
 }
@@ -565,7 +565,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
 
     LZ77OptimalRun(options, in, instart, inend, length_array, &stats, &currentstore, options->useCache ? i == 1 ? 1 : 2 : 0, &c);
 
-    cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists, 0, currentstore.size, 2, options->searchext);
+    cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists, 0, currentstore.size, 2, options->searchext, currentstore.symbols);
     if (cost < bestcost) {
 
       bestcost = cost;
@@ -595,7 +595,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
           ZopfliLZ77Store peace;
           ZopfliInitLZ77Store(&peace);
           LZ77OptimalRun(options, in, instart, inend, length_array, &sta, &peace, options->useCache ? i == 1 ? 1 : 2 : 0, &c);
-          double newcost = ZopfliCalculateBlockSize(peace.litlens, peace.dists, 0, peace.size, 2, options->searchext);
+          double newcost = ZopfliCalculateBlockSize(peace.litlens, peace.dists, 0, peace.size, 2, options->searchext, peace.symbols);
           if (newcost < bestcost){
             bestcost = newcost;
             ZopfliCleanLZ77Store(&currentstore);
@@ -656,6 +656,7 @@ void ZopfliLZ77Optimal2(const ZopfliOptions* options,
     return;
   }
 
+  //TODO: Test this for PNG if last two cost models similar
   if (costmodelnotinited || (!options->reuse_costmodel)){
     SymbolStats fromBlocksplitting = *statsp;
     CopyStats(&fromBlocksplitting, &stats);
