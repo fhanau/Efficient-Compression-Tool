@@ -924,9 +924,11 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
   }
   else{
     for (i = 0; i <= npoints; i++) {
+      size_t start = i == 0 ? instart : splitpoints[i - 1];
+
       AddLZ77Block(d[i].btype, i == npoints && final,
                    d[i].store.litlens, d[i].store.dists, d[i].store.size,
-                   d[i].blocksize, bp, out, outsize, options->searchext, in, instart, options->replaceCodes);
+                   d[i].blocksize, bp, out, outsize, options->searchext, in, start, options->replaceCodes);
       if (!options->replaceCodes){
         ZopfliCleanLZ77Store(&d[i].store);
       }
