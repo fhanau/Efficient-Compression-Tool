@@ -242,5 +242,5 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   options->ultra = mode >= 8;
 
   options->replaceCodes = (2 * (mode > 5) + (mode == 9) * 18) * !options->ultra;
-  options->twice = mode == 9;
+  options->twice = 0;
 }
