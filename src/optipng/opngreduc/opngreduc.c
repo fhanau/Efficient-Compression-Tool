@@ -1087,10 +1087,10 @@ static png_uint_32 opng_reduce_palette(png_structp png_ptr, png_infop info_ptr, 
       num_trans = 0;
       png_free_data(png_ptr, info_ptr, PNG_FREE_TRNS, -1);
       png_set_invalid(png_ptr, info_ptr, PNG_INFO_tRNS);
-      result |= OPNG_REDUCE_PALETTE_FAST;
+      result |= OPNG_REDUCE_PALETTE;
    }
 
-   if (reductions & OPNG_REDUCE_PALETTE_FAST)
+   if (reductions & OPNG_REDUCE_PALETTE)
    {
       if (num_palette != last_color_index + 1)
       {
@@ -1099,7 +1099,7 @@ static png_uint_32 opng_reduce_palette(png_structp png_ptr, png_infop info_ptr, 
          opng_realloc_PLTE(png_ptr, info_ptr, last_color_index + 1);
          png_get_PLTE(png_ptr, info_ptr, &palette, &num_palette);
          OPNG_ASSERT(num_palette == last_color_index + 1);
-         result |= OPNG_REDUCE_PALETTE_FAST;
+         result |= OPNG_REDUCE_PALETTE;
       }
 
       if (num_trans > 0 && num_trans != last_trans_index + 1)
@@ -1108,7 +1108,7 @@ static png_uint_32 opng_reduce_palette(png_structp png_ptr, png_infop info_ptr, 
          opng_realloc_tRNS(png_ptr, info_ptr, last_trans_index + 1);
          png_get_tRNS(png_ptr, info_ptr, &trans_alpha, &num_trans, 0);
          OPNG_ASSERT(num_trans == last_trans_index + 1);
-         result |= OPNG_REDUCE_PALETTE_FAST;
+         result |= OPNG_REDUCE_PALETTE;
       }
    }
 
@@ -1270,7 +1270,7 @@ png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, pn
    if (color_type == PNG_COLOR_TYPE_PALETTE &&
        (reductions &
         (OPNG_REDUCE_PALETTE_TO_GRAY |
-         OPNG_REDUCE_PALETTE_FAST |
+         OPNG_REDUCE_PALETTE |
          OPNG_REDUCE_8_TO_4_2_1)))
       result |= opng_reduce_palette(png_ptr, info_ptr, reductions);
 

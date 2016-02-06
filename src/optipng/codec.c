@@ -489,11 +489,14 @@ int opng_encode_image(struct opng_codec_context *context, int filtered, FILE *st
 
         png_set_filter(context->libpng_ptr, PNG_FILTER_TYPE_BASE, filtered ? PNG_ALL_FILTERS : PNG_FILTER_NONE);
         if (level != 6){
-            png_set_compression_level(context->libpng_ptr, level);
+          png_set_compression_level(context->libpng_ptr, level == 51 ? 5 : level);
         }
         png_set_compression_mem_level(context->libpng_ptr, 8);
         png_set_compression_window_bits(context->libpng_ptr, 15);
-        png_set_compression_strategy(context->libpng_ptr, 0);
+        png_set_compression_strategy(context->libpng_ptr, level == 1 || level == 51 ? !!filtered : 0);
+        if (level == 51){
+          level = 5;
+        }
         png_set_keep_unknown_chunks(context->libpng_ptr, PNG_HANDLE_CHUNK_ALWAYS, 0, 0);
         opng_store_image(context->image, context->libpng_ptr, context->info_ptr);
 
