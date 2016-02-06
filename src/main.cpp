@@ -48,6 +48,7 @@ static void Usage() {
 #ifdef BOOST_SUPPORTED
             " -recurse       Recursively search directories\n"
 #endif
+            " -zip           Compress file with  ZIP algorithm\n"
             " -gzip          Compress file with GZIP algorithm\n"
             " -quiet         Print only error messages\n"
             " -help          Print this help\n"
@@ -102,17 +103,17 @@ static void ECT_ReportSavings(){
     else {printf("No compatible files found\n");}
 }
 
-static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multithreading, long long fs){
+static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multithreading, long long fs, unsigned ZIP){
     if (!fs){
         printf("%s: Compression of empty files is currently not supported\n", Infile);
         return 2;
     }
-    if (!IsGzip(Infile)){
-        if (exists(((std::string)Infile).append(".gz").c_str())){
+    if (ZIP || !IsGzip(Infile)){
+        if (exists(((std::string)Infile).append(ZIP ? ".zip" : ".gz").c_str())){
             printf("%s: Compressed file already exists\n", Infile);
             return 2;
         }
-        ZopfliGzip(Infile, 0, Mode, multithreading);
+        ZopfliGzip(Infile, 0, Mode, multithreading, ZIP);
         return 1;
     }
     else {
@@ -123,7 +124,7 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
             return 2;
         }
         ungz(Infile, ((std::string)Infile).append(".ungz").c_str());
-        ZopfliGzip(((std::string)Infile).append(".ungz").c_str(), 0, Mode, multithreading);
+        ZopfliGzip(((std::string)Infile).append(".ungz").c_str(), 0, Mode, multithreading, ZIP);
         if (filesize(((std::string)Infile).append(".ungz.gz").c_str()) < filesize(Infile)){
             unlink(Infile);
             rename(((std::string)Infile).append(".ungz.gz").c_str(), Infile);
@@ -235,7 +236,7 @@ static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
             }
             else if (Options.Gzip){
                 //if (!size)
-                statcompressedfile = ECTGzip(Infile, Options.Mode, Options.DeflateMultithreading, size);
+                statcompressedfile = ECTGzip(Infile, Options.Mode, Options.DeflateMultithreading, size, Options.Zip);
                 if (statcompressedfile == 2){
                     return;
                 }
@@ -272,6 +273,7 @@ int main(int argc, const char * argv[]) {
     Options.JPEG_ACTIVE = true;
     Options.Arithmetic = false;
     Options.Gzip = false;
+    Options.Zip = 0;
     Options.SavingsCounter = true;
     Options.Strict = false;
     Options.DeflateMultithreading = 0;
@@ -289,6 +291,7 @@ int main(int argc, const char * argv[]) {
             else if (strcmp(argv[i], "-8") == 0) {Options.Mode = 8;}
             else if (strcmp(argv[i], "-9") == 0) {Options.Mode = 9;}
             else if (strncmp(argv[i], "-gzip", 2) == 0) {Options.Gzip = true;}
+            else if (strncmp(argv[i], "-zip", 2) == 0) {Options.Zip = true; Options.Gzip = true;}
             else if (strncmp(argv[i], "-help", 2) == 0) {Usage(); return 0;}
             else if (strncmp(argv[i], "-quiet", 2) == 0) {Options.SavingsCounter = false;}
 #ifdef BOOST_SUPPORTED

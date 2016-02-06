@@ -209,8 +209,6 @@ void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
       --lengthscore;
     }
 
-    /* Lazy matching. */
-
     prevlengthscore = prev_length;
     if (prevlengthscore == 3 && prev_match > 8192){
       --prevlengthscore;
@@ -220,7 +218,7 @@ void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
       match_available = 0;
       if (lengthscore > prevlengthscore + 1) {
         ZopfliStoreLitLenDist(in[i - 1], 0, store);
-        if (lengthscore >= ZOPFLI_MIN_MATCH && leng < ZOPFLI_MAX_MATCH) {
+        if (lengthscore >= ZOPFLI_MIN_MATCH) {
           match_available = 1;
           prev_length = leng;
           prev_match = dist;
@@ -250,7 +248,6 @@ void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
       prev_match = dist;
       continue;
     }
-    /* End of lazy matching. */
 
     /* Add to output. */
     if (lengthscore >= ZOPFLI_MIN_MATCH) {

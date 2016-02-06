@@ -432,7 +432,7 @@ static void AddLZ77Data(const unsigned short* litlens,
       testlength += litlen;
     }
   }
-  assert(expected_data_size == 0 || testlength == expected_data_size);
+  assert(testlength == expected_data_size);
 }
 
 //From brotli.

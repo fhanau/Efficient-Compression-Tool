@@ -20,13 +20,113 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <cstdio>
 #include <sys/stat.h>
 
-#include "util.h"
 #include "zopfli.h"
 #include "../zlib/zlib.h"
 #include "deflate.h"
 #include "zopfli.h"
 #include "zlib_container.h"
 #include "../main.h"
+
+#define ZOPFLI_APPEND_DATA(/* T */ value, /* T** */ data, /* size_t* */ size) {\
+(*data)[(*size)] = (value);\
+(*size)++;\
+}
+
+static void ZopfliZipCompress(const ZopfliOptions* options,
+                              const unsigned char* in, size_t insize, time_t time, std::string name,
+                       unsigned char** out, size_t* outsize) {
+  static const unsigned char filePKh[10]     = { 80, 75,  3,  4, 20,  0,  2,  0,  8,  0};
+  static const unsigned char CDIRPKh[12]     = { 80, 75,  1,  2, 20,  0, 20,  0,  2,  0,  8,  0};
+  static const unsigned char CDIRPKs[12]     = {  0,  0,  0,  0,  0,  0,  0,  0, 32,  0,  0,  0};
+  static const unsigned char EndCDIRPKh[12]  = { 80, 75,  5,  6,  0,  0,  0,  0,  1,  0,  1,  0};
+
+  unsigned long crcvalue = crc32(0, in, insize);//CRC(in, insize);
+  unsigned long i;
+  std::string x = name.substr(name.find_last_of("/") + 1);
+  const char* infilename = x.c_str();
+  unsigned long rawdeflsize = 0;
+  unsigned char bp = 0;
+  size_t max = x.size();
+  *out = (unsigned char*)realloc(*out, 200);
+
+  /* File PK STATIC DATA + CM */
+
+  for(i=0;i<sizeof(filePKh);++i) ZOPFLI_APPEND_DATA(filePKh[i],out,outsize);
+
+  /* MS-DOS TIME */
+  for(i=0; i < 4; ++i) ZOPFLI_APPEND_DATA(0, out, outsize);
+  //for(i=0; i < 4; ++i) ZOPFLI_APPEND_DATA(time >> (i*8) % 256, out, outsize);
+
+
+  /* CRC */
+  for(i=0;i<4;++i) ZOPFLI_APPEND_DATA((crcvalue >> (i*8)) % 256, out, outsize);
+
+  /* OSIZE NOT KNOWN YET - WILL UPDATE AFTER COMPRESSION */
+  for(i=0;i<4;++i) ZOPFLI_APPEND_DATA(0, out, outsize);
+
+  /* ISIZE */
+  for(i=0;i<4;++i) ZOPFLI_APPEND_DATA((insize >> (i*8)) % 256, out, outsize);
+
+  /* FNLENGTH */
+  for(i=0;i<2;++i) ZOPFLI_APPEND_DATA((max >> (i*8)) % 256, out, outsize);
+
+  /* NO EXTRA FLAGS */
+  for(i=0;i<2;++i) ZOPFLI_APPEND_DATA(0, out, outsize);
+
+  /* FILENAME */
+  for(i=0;i<max;++i) ZOPFLI_APPEND_DATA(infilename[i], out, outsize);
+  rawdeflsize = *outsize;
+
+  ZopfliDeflate(options, 1, in, insize, &bp, out, outsize);
+  *out = (unsigned char*)realloc(*out, 200 + *outsize);
+
+  rawdeflsize = *outsize - rawdeflsize;
+
+  /* C-DIR PK HEADER STATIC DATA */
+  unsigned long cdirsize = *outsize;
+  for(i=0;i<sizeof(CDIRPKh);++i) ZOPFLI_APPEND_DATA(CDIRPKh[i],out,outsize);
+
+  /* MS-DOS TIME, CRC, OSIZE, ISIZE FROM */
+
+  for(i=0; i < 4; ++i) ZOPFLI_APPEND_DATA(0, out, outsize);
+  //for(i=0; i < 4; ++i) ZOPFLI_APPEND_DATA(time >> (i*8) % 256, out, outsize);
+
+  /* CRC */
+  for(i=0;i<4;++i) ZOPFLI_APPEND_DATA((crcvalue >> (i*8)) % 256,out,outsize);
+
+  /* OSIZE + UPDATE IN PK HEADER */
+  for(i=0;i<4;++i) ZOPFLI_APPEND_DATA((rawdeflsize >> (i*8)) % 256,out,outsize);
+  for(i=0;i<4;++i) (*out)[18+i]=(rawdeflsize >> (i*8)) % 256;
+
+  /* ISIZE */
+  for(i=0;i<25;i+=8) ZOPFLI_APPEND_DATA((insize >> i) % 256,out,outsize);
+
+  /* FILENAME LENGTH */
+  for(i=0;i<2;++i) ZOPFLI_APPEND_DATA((max >> (i*8)) % 256,out,outsize);
+
+  /* C-DIR STATIC DATA */
+  for(i=0;i<sizeof(CDIRPKs);++i) ZOPFLI_APPEND_DATA(CDIRPKs[i],out,outsize);
+
+  /* FilePK offset in ZIP file */
+  for(i=0;i<4;++i) ZOPFLI_APPEND_DATA(0,out,outsize);
+  unsigned long cdiroffset=(unsigned long)(rawdeflsize+30+max);
+
+  /* FILENAME */
+  for(i=0; i<max;++i) ZOPFLI_APPEND_DATA(infilename[i],out,outsize);
+  cdirsize = *outsize - cdirsize;
+
+  /* END C-DIR PK STATIC DATA + TOTAL FILES (ALWAYS 1) */
+  for(i=0;i<sizeof(EndCDIRPKh);++i) ZOPFLI_APPEND_DATA(EndCDIRPKh[i],out,outsize);
+
+  /* C-DIR SIZE */
+  for(i=0;i<4;++i) ZOPFLI_APPEND_DATA((cdirsize >> (i*8)) % 256,out, outsize);
+
+  /* C-DIR OFFSET */
+  for(i=0;i<4;++i) ZOPFLI_APPEND_DATA((cdiroffset >> (i*8)) % 256,out, outsize);
+
+  /* NO COMMENTS IN END C-DIR */
+  for(i=0;i<2;++i) ZOPFLI_APPEND_DATA(0, out, outsize);
+}
 
 /*
 Compresses the data according to the gzip specification.
@@ -60,13 +160,18 @@ static void ZopfliGzipCompress(const ZopfliOptions* options,
 }
 
 static void ZopfliCompress(const ZopfliOptions* options, ZopfliFormat output_type,
-                    const unsigned char* in, size_t insize, time_t time,
+                    const unsigned char* in, size_t insize, time_t time, std::string name,
                     unsigned char** out, size_t* outsize) {
   if (output_type == ZOPFLI_FORMAT_GZIP) {
     ZopfliGzipCompress(options, in, insize, time, out, outsize);
-  } else if (output_type == ZOPFLI_FORMAT_ZLIB) {
+  }
+  else if (output_type == ZOPFLI_FORMAT_ZIP) {
+    ZopfliZipCompress(options, in, insize, time, name, out, outsize);
+  }
+  else if (output_type == ZOPFLI_FORMAT_ZLIB) {
     //ZopfliZlibCompress(options, in, insize, out, outsize);
-  } else if (output_type == ZOPFLI_FORMAT_DEFLATE) {
+  }
+  else if (output_type == ZOPFLI_FORMAT_DEFLATE) {
     unsigned char bp = 0;
     ZopfliDeflate(options, 1, in, insize, &bp, out, outsize);
   }
@@ -136,7 +241,7 @@ static void CompressFile(const ZopfliOptions* options,
   struct stat st;
   stat(infilename, &st);
   time_t time = st.st_mtime;
-  ZopfliCompress(options, output_type, in, insize, time, &out, &outsize);
+  ZopfliCompress(options, output_type, in, insize, time, infilename, &out, &outsize);
   free(in);
 
   SaveFile(outfilename, out, outsize);
@@ -144,7 +249,7 @@ static void CompressFile(const ZopfliOptions* options,
   free(out);
 }
 
-int ZopfliGzip(const char* filename, const char* outname, unsigned mode, unsigned multithreading) {
+int ZopfliGzip(const char* filename, const char* outname, unsigned mode, unsigned multithreading, unsigned ZIP) {
   ZopfliOptions options;
   //ZopfliFormat output_type = ZOPFLI_FORMAT_GZIP;
   //output_type = ZOPFLI_FORMAT_ZLIB;
@@ -153,6 +258,6 @@ int ZopfliGzip(const char* filename, const char* outname, unsigned mode, unsigne
   ZopfliInitOptions(&options, mode, multithreading, 0);
   //Append ".gz" ".zlib" ".deflate"
 
-  CompressFile(&options, ZOPFLI_FORMAT_GZIP, filename, outname ? outname : ((std::string)filename).append(".gz").c_str());
+  CompressFile(&options, ZIP ? ZOPFLI_FORMAT_ZIP : ZOPFLI_FORMAT_GZIP, filename, outname ? outname : ((std::string)filename).append(ZIP ? ".zip" : ".gz").c_str());
   return 0;
 }
