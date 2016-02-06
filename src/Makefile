@@ -19,8 +19,8 @@ clean:
 deps: zlib libpng mozjpeg
 zlib:
 	cd zlib/; \
-	$(CC) $(CFLAGS) -DNO_GZCOMPRESS -c adler32.c crc32.c deflate.c infback.c inffast.c inflate.c inftrees.c trees.c zutil.c gzclose.c gzlib.c gzread.c gzwrite.c; \
-	ar rcs libz.a adler32.o crc32.o deflate.o infback.o inffast.o inflate.o inftrees.o trees.o zutil.o gzclose.o gzlib.o gzread.o gzwrite.o
+	$(CC) $(CFLAGS) -DNO_GZCOMPRESS -c adler32.c crc32.c deflate.c inffast.c inflate.c inftrees.c trees.c zutil.c gzlib.c gzread.c; \
+	ar rcs libz.a adler32.o crc32.o deflate.o inffast.o inflate.o inftrees.o trees.o zutil.o gzlib.o gzread.o
 libpng:
 	cd libpng/; \
 	$(CC) -c -I../zlib $(CFLAGS) png.c pngerror.c pngget.c pngmem.c pngread.c pngrio.c pngrtran.c pngrutil.c pngset.c pngtrans.c pngwio.c pngwrite.c pngwutil.c; \
