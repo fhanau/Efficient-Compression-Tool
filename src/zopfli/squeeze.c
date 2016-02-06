@@ -567,49 +567,6 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
 
     cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists, 0, currentstore.size, 2, options->searchext, currentstore.symbols);
     if (cost < bestcost) {
-
-      bestcost = cost;
-
-      if (options->ultra && i == options->numiterations){
-
-        for (;;){
-          SymbolStats sta;
-          GetStatistics(&currentstore, &sta);
-
-          unsigned bl[288];
-
-          OptimizeHuffmanCountsForRle(32, sta.dists);
-          OptimizeHuffmanCountsForRle(288, sta.litlens);
-
-          ZopfliLengthLimitedCodeLengths(sta.litlens, 288, 15, bl);
-          for (int j = 0; j < 288; j++){
-            sta.ll_symbols[j] = bl[j];
-          }
-          unsigned bld[32];
-          ZopfliLengthLimitedCodeLengths(sta.dists, 32, 15, bld);
-          for (int j = 0; j < 32; j++){
-            sta.d_symbols[j] = bld[j];
-          }
-
-
-          ZopfliLZ77Store peace;
-          ZopfliInitLZ77Store(&peace);
-          LZ77OptimalRun(options, in, instart, inend, length_array, &sta, &peace, options->useCache ? i == 1 ? 1 : 2 : 0, &c);
-          double newcost = ZopfliCalculateBlockSize(peace.litlens, peace.dists, 0, peace.size, 2, options->searchext, peace.symbols);
-          if (newcost < bestcost){
-            bestcost = newcost;
-            ZopfliCleanLZ77Store(&currentstore);
-            currentstore = peace;
-
-          }
-          else{
-            ZopfliCleanLZ77Store(&peace);
-            break;
-          }
-
-        }
-      }
-
       /* Copy to the output store. */
       ZopfliCopyLZ77Store(&currentstore, store);
       CopyStats(&stats, &beststats);
@@ -636,6 +593,47 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
     }
     lastcost = cost;
   }
+
+  if (options->ultra){
+
+    for (;;){
+      SymbolStats sta;
+      GetStatistics(store, &sta);
+
+      unsigned bl[288];
+
+      OptimizeHuffmanCountsForRle(32, sta.dists);
+      OptimizeHuffmanCountsForRle(288, sta.litlens);
+
+      ZopfliLengthLimitedCodeLengths(sta.litlens, 288, 15, bl);
+      for (int j = 0; j < 286; j++){
+        sta.ll_symbols[j] = bl[j];
+      }
+      unsigned bld[32];
+      ZopfliLengthLimitedCodeLengths(sta.dists, 32, 15, bld);
+      for (int j = 0; j < 30; j++){
+        sta.d_symbols[j] = bld[j];
+      }
+
+
+      ZopfliLZ77Store peace;
+      ZopfliInitLZ77Store(&peace);
+      LZ77OptimalRun(options, in, instart, inend, length_array, &sta, &peace, options->useCache ? 2 : 0, &c, mfinexport);
+      double newcost = ZopfliCalculateBlockSize(peace.litlens, peace.dists, 0, peace.size, 2, options->searchext, peace.symbols);
+      if (newcost < bestcost){
+        bestcost = newcost;
+        ZopfliCopyLZ77Store(&peace, store);
+        ZopfliCleanLZ77Store(&peace);
+
+      }
+      else{
+        ZopfliCleanLZ77Store(&peace);
+        break;
+      }
+
+    }
+  }
+
 
   if (options->useCache){
     CleanCache(&c);
