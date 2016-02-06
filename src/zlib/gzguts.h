@@ -65,14 +65,6 @@
 #endif
 
 #ifndef HAVE_VSNPRINTF
-#  ifdef MSDOS
-/* vsnprintf may exist on some MS-DOS compilers (DJGPP?),
-   but for now we just assume it doesn't. */
-#    define NO_vsnprintf
-#  endif
-#  ifdef __TURBOC__
-#    define NO_vsnprintf
-#  endif
 #  ifdef WIN32
 /* In Win32, vsnprintf is available as the "non-ANSI" _vsnprintf. */
 #    if !defined(vsnprintf) && !defined(NO_vsnprintf)
@@ -80,18 +72,6 @@
 #         define vsnprintf _vsnprintf
 #      endif
 #    endif
-#  endif
-#  ifdef __SASC
-#    define NO_vsnprintf
-#  endif
-#  ifdef VMS
-#    define NO_vsnprintf
-#  endif
-#  ifdef __OS400__
-#    define NO_vsnprintf
-#  endif
-#  ifdef __MVS__
-#    define NO_vsnprintf
 #  endif
 #endif
 
@@ -194,9 +174,7 @@ typedef gz_state FAR *gz_statep;
 
 /* shared functions */
 void ZLIB_INTERNAL gz_error OF((gz_statep, int, const char *));
-#if defined UNDER_CE
-char ZLIB_INTERNAL *gz_strwinerror OF((DWORD error));
-#endif
+
 
 /* GT_OFF(x), where x is an unsigned value, is true if x > maximum z_off64_t
    value -- needed when comparing unsigned to z_off64_t, which is signed

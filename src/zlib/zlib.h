@@ -1346,21 +1346,6 @@ ZEXTERN int ZEXPORT gzwrite OF((gzFile file,
    error.
 */
 
-ZEXTERN int ZEXPORTVA gzprintf Z_ARG((gzFile file, const char *format, ...));
-/*
-     Converts, formats, and writes the arguments to the compressed file under
-   control of the format string, as in fprintf.  gzprintf returns the number of
-   uncompressed bytes actually written, or 0 in case of error.  The number of
-   uncompressed bytes written is limited to 8191, or one less than the buffer
-   size given to gzbuffer().  The caller should assure that this limit is not
-   exceeded.  If it is exceeded, then gzprintf() will return an error (0) with
-   nothing written.  In this case, there may also be a buffer overflow with
-   unpredictable consequences, which is possible only if zlib was compiled with
-   the insecure functions sprintf() or vsprintf() because the secure snprintf()
-   or vsnprintf() functions were not available.  This can be determined using
-   zlibCompileFlags().
-*/
-
 ZEXTERN int ZEXPORT gzputs OF((gzFile file, const char *s));
 /*
      Writes the given null-terminated string to the compressed file, excluding
@@ -1752,13 +1737,6 @@ ZEXTERN int            ZEXPORT deflateResetKeep OF((z_streamp));
 #if defined(_WIN32) && !defined(Z_SOLO)
 ZEXTERN gzFile         ZEXPORT gzopen_w OF((const wchar_t *path,
                                             const char *mode));
-#endif
-#if defined(STDC) || defined(Z_HAVE_STDARG_H)
-#  ifndef Z_SOLO
-ZEXTERN int            ZEXPORTVA gzvprintf Z_ARG((gzFile file,
-                                                  const char *format,
-                                                  va_list va));
-#  endif
 #endif
 
 #ifdef __cplusplus

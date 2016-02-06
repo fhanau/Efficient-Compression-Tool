@@ -145,11 +145,7 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #  define OS_CODE  0x0f
 #endif
 
-#if defined(_BEOS_) || defined(RISCOS)
-#  define fdopen(fd,mode) NULL /* No fdopen() */
-#endif
-
-#if (defined(_MSC_VER) && (_MSC_VER > 600)) && !defined __INTERIX
+#if (defined(_MSC_VER) && (_MSC_VER > 600))
 #  if defined(_WIN32_WCE)
 #    define fdopen(fd,mode) NULL /* No fdopen() */
 #    ifndef _PTRDIFF_T_DEFINED
@@ -159,12 +155,6 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #  else
 #    define fdopen(fd,type)  _fdopen(fd,type)
 #  endif
-#endif
-
-#if defined(__BORLANDC__) && !defined(MSDOS)
-  #pragma warn -8004
-  #pragma warn -8008
-  #pragma warn -8066
 #endif
 
 /* provide prototypes for these when building zlib without LFS */
@@ -186,16 +176,10 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 
          /* functions */
 
-#if defined(pyr) || defined(Z_SOLO)
+#ifdef Z_SOLO
 #  define NO_MEMCPY
 #endif
-#if defined(SMALL_MEDIUM) && !defined(_MSC_VER) && !defined(__SC__)
- /* Use our own functions for small and medium model with MSC <= 5.0.
-  * You may have to use the same strategy for Borland C (untested).
-  * The __SC__ check is for Symantec.
-  */
-#  define NO_MEMCPY
-#endif
+
 #if defined(STDC) && !defined(HAVE_MEMCPY) && !defined(NO_MEMCPY)
 #  define HAVE_MEMCPY
 #endif
@@ -215,25 +199,12 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
    void ZLIB_INTERNAL zmemzero OF((Bytef* dest, uInt len));
 #endif
 
-/* Diagnostic functions */
-#ifdef DEBUG
-#  include <stdio.h>
-   extern int ZLIB_INTERNAL z_verbose;
-   extern void ZLIB_INTERNAL z_error OF((char *m));
-#  define Assert(cond,msg) {if(!(cond)) z_error(msg);}
-#  define Trace(x) {if (z_verbose>=0) fprintf x ;}
-#  define Tracev(x) {if (z_verbose>0) fprintf x ;}
-#  define Tracevv(x) {if (z_verbose>1) fprintf x ;}
-#  define Tracec(c,x) {if (z_verbose>0 && (c)) fprintf x ;}
-#  define Tracecv(c,x) {if (z_verbose>1 && (c)) fprintf x ;}
-#else
 #  define Assert(cond,msg)
 #  define Trace(x)
 #  define Tracev(x)
 #  define Tracevv(x)
 #  define Tracec(c,x)
 #  define Tracecv(c,x)
-#endif
 
 #ifndef Z_SOLO
    voidpf ZLIB_INTERNAL zcalloc OF((voidpf opaque, unsigned items,

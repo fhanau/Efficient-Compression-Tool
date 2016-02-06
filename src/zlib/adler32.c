@@ -7,10 +7,6 @@
 
 #include "zutil.h"
 
-#define local static
-
-local uLong adler32_combine_ OF((uLong adler1, uLong adler2, z_off64_t len2));
-
 #define BASE 65521      /* largest prime smaller than 65536 */
 #define NMAX 5552
 /* NMAX is the largest n such that 255n(n+1)/2 + (n+1)(BASE-1) <= 2^32-1 */
@@ -42,23 +38,9 @@ local uLong adler32_combine_ OF((uLong adler1, uLong adler2, z_off64_t len2));
         CHOP(a); \
         MOD28(a); \
     } while (0)
-#  define MOD63(a) \
-    do { /* this assumes a is not negative */ \
-        z_off64_t tmp = a >> 32; \
-        a &= 0xffffffffL; \
-        a += (tmp << 8) - (tmp << 5) + tmp; \
-        tmp = a >> 16; \
-        a &= 0xffffL; \
-        a += (tmp << 4) - tmp; \
-        tmp = a >> 16; \
-        a &= 0xffffL; \
-        a += (tmp << 4) - tmp; \
-        if (a >= BASE) a -= BASE; \
-    } while (0)
 #else
 #  define MOD(a) a %= BASE
 #  define MOD28(a) a %= BASE
-#  define MOD63(a) a %= BASE
 #endif
 
 /* ========================================================================= */
@@ -130,50 +112,4 @@ uLong ZEXPORT adler32(adler, buf, len)
 
     /* return recombined sums */
     return adler | (sum2 << 16);
-}
-
-/* ========================================================================= */
-local uLong adler32_combine_(adler1, adler2, len2)
-    uLong adler1;
-    uLong adler2;
-    z_off64_t len2;
-{
-    unsigned long sum1;
-    unsigned long sum2;
-    unsigned rem;
-
-    /* for negative len, return invalid adler32 as a clue for debugging */
-    if (len2 < 0)
-        return 0xffffffffUL;
-
-    /* the derivation of this formula is left as an exercise for the reader */
-    MOD63(len2);                /* assumes len2 >= 0 */
-    rem = (unsigned)len2;
-    sum1 = adler1 & 0xffff;
-    sum2 = rem * sum1;
-    MOD(sum2);
-    sum1 += (adler2 & 0xffff) + BASE - 1;
-    sum2 += ((adler1 >> 16) & 0xffff) + ((adler2 >> 16) & 0xffff) + BASE - rem;
-    if (sum1 >= BASE) sum1 -= BASE;
-    if (sum1 >= BASE) sum1 -= BASE;
-    if (sum2 >= (BASE << 1)) sum2 -= (BASE << 1);
-    if (sum2 >= BASE) sum2 -= BASE;
-    return sum1 | (sum2 << 16);
-}
-
-/* ========================================================================= */
-uLong ZEXPORT adler32_combine(adler1, adler2, len2)
-    uLong adler1;
-    uLong adler2;
-    z_off_t len2;
-{
-    return adler32_combine_(adler1, adler2, len2);
-}
-
-uLong ZEXPORT adler32_combine64(adler1, adler2, len2)
-    uLong adler1;
-    uLong adler2;
-    z_off64_t len2;
-{
-    return adler32_combine_(adler1, adler2, len2);
 }
