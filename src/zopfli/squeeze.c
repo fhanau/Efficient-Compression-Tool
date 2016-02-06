@@ -124,10 +124,12 @@ static void CleanCache(LZCache* c){
   free(c->cache);
 }
 
+CMatchFinder mf;
+int right;
 static void GetBestLengths(const ZopfliOptions* options,
                              const unsigned char* in,
                              size_t instart, size_t inend,
-                             SymbolStats* costcontext, unsigned* length_array, unsigned char storeincache, LZCache* c) {
+                             SymbolStats* costcontext, unsigned* length_array, unsigned char storeincache, LZCache* c, unsigned mfinexport) {
   size_t i;
 
   /*TODO: Put this in seperate function*/
@@ -238,18 +240,34 @@ static void GetBestLengths(const ZopfliOptions* options,
   memset(costs + 1, 127, sizeof(float) * blocksize);
 
   size_t windowstart = instart > ZOPFLI_WINDOW_SIZE ? instart - ZOPFLI_WINDOW_SIZE : 0;
+  if (blocksize < ZOPFLI_MIN_MATCH){
+    windowstart = instart;
+  }
 
   CMatchFinder p;
   p.hash = 0;
   if (storeincache != 2){
-    p.buffer = &in[windowstart];
-    p.cutValue = options->cutValue;
-    p.directInputRem = inend - windowstart;
-    MatchFinder_Create(&p);
-    if (instart - windowstart){
-      Bt3Zip_MatchFinder_Skip(&p, instart - windowstart);
+    if ((mfinexport & 1) && right){
+      p = mf;
+      p.bufend = &in[inend];
+
+      Bt3Zip_MatchFinder_Skip(&p, ZOPFLI_MAX_MATCH);
+
+      assert(p.buffer == &in[instart]);
+    }
+    else{
+      p.buffer = &in[windowstart];
+      p.cutValue = options->cutValue;
+      p.bufend = &in[inend];
+
+      MatchFinder_Create(&p);
+      if (instart - windowstart){
+        //Eliminate by reusing hash
+        Bt3Zip_MatchFinder_Skip(&p, instart - windowstart);
+      }
     }
   }
+  right = 0;
 
   unsigned* matches;
   if (!storeincache){
@@ -352,6 +370,11 @@ static void GetBestLengths(const ZopfliOptions* options,
     if (newCost < costs[j + 1]) {
       costs[j + 1] = newCost;
       length_array[j + 1] = 1;
+    }
+
+    if (i == inend - ZOPFLI_MAX_MATCH - 1 && mfinexport & 2 && storeincache != 2){
+      CopyMF(&p, &mf);
+      right = 1;
     }
   }
 
@@ -491,8 +514,8 @@ store: place to output the LZ77 data
 returns the cost that was, according to the costmodel, needed to get to the end.
     This is not the actual cost.
 */
-static void LZ77OptimalRun(const ZopfliOptions* options, const unsigned char* in, size_t instart, size_t inend, unsigned* length_array, SymbolStats* costcontext, ZopfliLZ77Store* store, unsigned char storeincache, LZCache* c) {
-  GetBestLengths(options, in, instart, inend, costcontext, length_array, storeincache, c);
+static void LZ77OptimalRun(const ZopfliOptions* options, const unsigned char* in, size_t instart, size_t inend, unsigned* length_array, SymbolStats* costcontext, ZopfliLZ77Store* store, unsigned char storeincache, LZCache* c, unsigned mfinexport) {
+  GetBestLengths(options, in, instart, inend, costcontext, length_array, storeincache, c, mfinexport);
   unsigned* path = 0;
   size_t pathsize = 0;
   TraceBackwards(inend - instart, length_array, &path, &pathsize);
@@ -505,7 +528,7 @@ static SymbolStats st;
 
 static void ZopfliLZ77Optimal(const ZopfliOptions* options,
                        const unsigned char* in, size_t instart, size_t inend,
-                       ZopfliLZ77Store* store, unsigned char first, SymbolStats* statsp) {
+                       ZopfliLZ77Store* store, unsigned char first, SymbolStats* statsp, unsigned mfinexport) {
   /* Dist to get to here with smallest cost. */
   unsigned* length_array = (unsigned*)malloc(sizeof(unsigned) * (inend - instart + 1));
   ZopfliLZ77Store currentstore;
@@ -563,7 +586,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
       }
     }
 
-    LZ77OptimalRun(options, in, instart, inend, length_array, &stats, &currentstore, options->useCache ? i == 1 ? 1 : 2 : 0, &c);
+    LZ77OptimalRun(options, in, instart, inend, length_array, &stats, &currentstore, options->useCache ? i == 1 ? 1 : 2 : 0, &c, mfinexport);
 
     cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists, 0, currentstore.size, 2, options->searchext, currentstore.symbols);
     if (cost < bestcost) {
@@ -647,10 +670,10 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
 
 void ZopfliLZ77Optimal2(const ZopfliOptions* options,
                         const unsigned char* in, size_t instart, size_t inend,
-                        ZopfliLZ77Store* store, unsigned char costmodelnotinited, SymbolStats* statsp) {
+                        ZopfliLZ77Store* store, unsigned char costmodelnotinited, SymbolStats* statsp, unsigned mfinexport) {
   SymbolStats stats;
   if (options->numiterations != 1){
-    ZopfliLZ77Optimal(options, in, instart, inend, store, costmodelnotinited, statsp);
+    ZopfliLZ77Optimal(options, in, instart, inend, store, costmodelnotinited, statsp, mfinexport);
     return;
   }
 
@@ -715,7 +738,7 @@ void ZopfliLZ77Optimal2(const ZopfliOptions* options,
   /* Dist to get to here with smallest cost. */
   unsigned* length_array = (unsigned*)malloc(sizeof(unsigned) * (inend - instart + 1));
   if (!length_array) exit(1); /* Allocation failed. */
-  LZ77OptimalRun(options, in, instart, inend, length_array, options->reuse_costmodel ? &st : &stats, store, 0, 0);
+  LZ77OptimalRun(options, in, instart, inend, length_array, options->reuse_costmodel ? &st : &stats, store, 0, 0, mfinexport);
   free(length_array);
 
   if (!options->multithreading){
@@ -726,7 +749,7 @@ void ZopfliLZ77Optimal2(const ZopfliOptions* options,
 void ZopfliLZ77OptimalFixed(const ZopfliOptions* options,
                             const unsigned char* in,
                             size_t instart, size_t inend,
-                            ZopfliLZ77Store* store)
+                            ZopfliLZ77Store* store, unsigned mfinexport)
 {
   /* Dist to get to here with smallest cost. */
   unsigned* length_array = (unsigned*)malloc(sizeof(unsigned) * (inend - instart + 1));
@@ -734,7 +757,7 @@ void ZopfliLZ77OptimalFixed(const ZopfliOptions* options,
 
   /* Shortest path for fixed tree This one should give the shortest possible
   result for fixed tree, no repeated runs are needed since the tree is known. */
-  LZ77OptimalRun(options, in, instart, inend, length_array, 0, store, 0, 0);
+  LZ77OptimalRun(options, in, instart, inend, length_array, 0, store, 0, 0, mfinexport);
 
   free(length_array);
 }

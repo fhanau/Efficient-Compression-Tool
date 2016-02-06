@@ -14,28 +14,6 @@ void MatchFinder_Free(CMatchFinder *p)
   free(p->hash);
 }
 
-static void MatchFinder_SetLimits(CMatchFinder *p)
-{
-  UInt32 limit = ZOPFLI_WINDOW_SIZE - p->cyclicBufferPos;
-  UInt32 limit2 = p->streamPos - p->pos;
-  if (limit2 <= ZOPFLI_MAX_MATCH)
-  {
-    if (limit2 > 0)
-      limit2 = 1;
-  }
-  else
-    limit2 -= ZOPFLI_MAX_MATCH;
-  if (limit2 < limit)
-    limit = limit2;
-  {
-    UInt32 lenLimit = p->streamPos - p->pos;
-    if (lenLimit > ZOPFLI_MAX_MATCH) 
-      lenLimit = ZOPFLI_MAX_MATCH;
-    p->lenLimit = lenLimit;
-  }
-  p->posLimit = p->pos + limit;
-}
-
 void MatchFinder_Create(CMatchFinder *p)
 {
   //256kb hash, 256kb binary tree
@@ -48,16 +26,7 @@ void MatchFinder_Create(CMatchFinder *p)
 
   memset(p->hash, 0, 65536 * sizeof(unsigned));
   p->cyclicBufferPos = 0;
-  p->pos = p->streamPos = ZOPFLI_WINDOW_SIZE;
-  p->streamPos += p->directInputRem;
-  MatchFinder_SetLimits(p);
-}
-
-static void MatchFinder_CheckLimits(CMatchFinder *p)
-{
-  if (p->cyclicBufferPos == ZOPFLI_WINDOW_SIZE)
-    p->cyclicBufferPos = 0;
-  MatchFinder_SetLimits(p);
+  p->pos = ZOPFLI_WINDOW_SIZE;
 }
 
 static UInt32 * GetMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const Byte *cur, UInt32 *son,
@@ -70,7 +39,7 @@ static UInt32 * GetMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const B
   for (;;)
   {
     UInt32 delta = pos - curMatch;
-    if (cutValue-- == 0 || delta >= ZOPFLI_WINDOW_SIZE || curMatch == 0)
+    if (cutValue-- == 0 || delta >= ZOPFLI_WINDOW_SIZE)
     {
       *ptr0 = *ptr1 = 0;
       return distances;
@@ -124,11 +93,12 @@ static void SkipMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const Byte
   for (;;)
   {
     UInt32 delta = pos - curMatch;
-    if (cutValue-- == 0 || delta >= ZOPFLI_WINDOW_SIZE || curMatch == 0)
+    if (cutValue-- == 0 || delta >= ZOPFLI_WINDOW_SIZE)
     {
       *ptr0 = *ptr1 = 0;
       return;
     }
+
     UInt32 *pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? (ZOPFLI_WINDOW_SIZE) : 0)) << 1);
     const Byte *pb = cur - delta;
     UInt32 len = (len0 < len1 ? len0 : len1);
@@ -165,36 +135,50 @@ static void SkipMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const Byte
 
 #define MOVE_POS \
   ++p->cyclicBufferPos; \
+  p->cyclicBufferPos &= ZOPFLI_WINDOW_MASK; \
   p->buffer++; \
-  if (++p->pos == p->posLimit) MatchFinder_CheckLimits(p);
-
-#define GET_MATCHES_HEADER2(ret_op) \
-  UInt32 lenLimit = p->lenLimit; { if (lenLimit < ZOPFLI_MIN_MATCH) { MOVE_POS; ret_op; }} \
-  const Byte *cur = p->buffer;
+  ++p->pos;
 
 #define MF_PARAMS(p) p->pos, p->buffer, p->son, p->cyclicBufferPos, p->cutValue
 
 UInt32 Bt3Zip_MatchFinder_GetMatches(CMatchFinder *p, UInt32 *distances)
 {
-  GET_MATCHES_HEADER2(return 0)
+  unsigned lenl = p->bufend - p->buffer; { if (lenl < ZOPFLI_MIN_MATCH) {return 0;}}
+  const Byte *cur = p->buffer;
   UInt32 hashValue = ((cur[2] | ((UInt32)cur[0] << 8)) ^ crc[cur[1]]) & 0xFFFF;
   UInt32 curMatch = p->hash[hashValue];
   p->hash[hashValue] = p->pos;
-  UInt32 offset = (UInt32)(GetMatches(lenLimit, curMatch, MF_PARAMS(p), distances, 2) - distances);
+  UInt32 offset = (UInt32)(GetMatches(lenl > ZOPFLI_MAX_MATCH ? ZOPFLI_MAX_MATCH : lenl, curMatch, MF_PARAMS(p), distances, 2) - distances);
   MOVE_POS;
   return offset;
 }
 
-void Bt3Zip_MatchFinder_Skip(CMatchFinder *p, UInt32 num)
+void Bt3Zip_MatchFinder_Skip(CMatchFinder* p, UInt32 num)
 {
   do
   {
-    GET_MATCHES_HEADER2(continue)
+    const Byte *cur = p->buffer;
     UInt32 hashValue = ((cur[2] | ((UInt32)cur[0] << 8)) ^ crc[cur[1]]) & 0xFFFF;
     UInt32 curMatch = p->hash[hashValue];
     p->hash[hashValue] = p->pos;
-    SkipMatches(lenLimit, curMatch, MF_PARAMS(p));
+    unsigned lenlimit = p->bufend - p->buffer;
+    SkipMatches(lenlimit > ZOPFLI_MAX_MATCH ? ZOPFLI_MAX_MATCH : lenlimit, curMatch, MF_PARAMS(p));
     MOVE_POS;
   }
-  while (--num != 0);
+  while (--num);
+}
+
+void CopyMF(const CMatchFinder *p, CMatchFinder* copy){
+  copy->cutValue = p->cutValue;
+  copy->hash = (UInt32*)malloc(131072 * sizeof(UInt32));
+  if (!copy->hash)
+  {
+    exit(1);
+  }
+  copy->son = copy->hash + 65536;
+  memcpy(copy->hash, p->hash, 131072 * sizeof(UInt32));
+
+  copy->cyclicBufferPos = p->cyclicBufferPos;
+  copy->pos = p->pos;
+  copy->buffer = p->buffer;
 }
