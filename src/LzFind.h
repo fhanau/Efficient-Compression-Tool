@@ -8,15 +8,13 @@ extern "C" {
 #endif
 
 typedef unsigned char Byte;
-typedef unsigned int UInt32;
+typedef unsigned UInt32;
 
 typedef struct _CMatchFinder
 {
   const Byte *buffer;
+  const Byte *bufend;
   UInt32 pos;
-  UInt32 posLimit;
-  UInt32 streamPos;
-  UInt32 lenLimit;
 
   UInt32 cyclicBufferPos;
 
@@ -24,7 +22,6 @@ typedef struct _CMatchFinder
   UInt32 *son;
   UInt32 cutValue;
 
-  size_t directInputRem;
 } CMatchFinder;
 
 void MatchFinder_Create(CMatchFinder *p);
@@ -32,6 +29,8 @@ void MatchFinder_Free(CMatchFinder *p);
 
 UInt32 Bt3Zip_MatchFinder_GetMatches(CMatchFinder *p, UInt32 *distances);
 void Bt3Zip_MatchFinder_Skip(CMatchFinder *p, UInt32 num);
+
+void CopyMF(const CMatchFinder *p, CMatchFinder* copy);
 
 static unsigned crc[256] = {
   0u, 1996959894u, 3993919788u, 2567524794u,  124634137u, 1886057615u, 3915621685u, 2657392035u,
