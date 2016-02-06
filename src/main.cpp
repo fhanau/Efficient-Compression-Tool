@@ -42,7 +42,7 @@ static void Usage() {
 #endif
             "\n"
             "Options:\n"
-            " -1 to -9       Set compression level (Default: 2)\n"
+            " -1 to -9       Set compression level (Default: 3)\n"
             " -strip         Strip metadata\n"
             " -progressive   Use progressive encoding for JPEGs\n"
 #ifdef BOOST_SUPPORTED
@@ -264,7 +264,7 @@ int main(int argc, const char * argv[]) {
     ECTOptions Options;
     Options.strip = false;
     Options.Progressive = false;
-    Options.Mode = 2;
+    Options.Mode = 3;
 #ifdef BOOST_SUPPORTED
     Options.Recurse = false;
 #endif
