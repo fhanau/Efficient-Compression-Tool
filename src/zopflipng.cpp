@@ -28,6 +28,7 @@
 #include "zopfli/deflate.h"
 #include "main.h"
 #include "lodepng/lodepng.h"
+#include <assert.h>
 
 struct ZopfliPNGOptions {
   ZopfliPNGOptions();
