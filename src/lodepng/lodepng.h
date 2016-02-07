@@ -392,14 +392,18 @@ void lodepng_decoder_settings_init(LodePNGDecoderSettings* settings);
 typedef enum LodePNGFilterStrategy
 {
   /*every filter at zero*/
-  LFS_ZERO,
+  LFS_ZERO = 0,
+    LFS_SUB = 1,
+    LFS_UP = 2,
+    LFS_AVG = 3,
+    LFS_PAETH = 4,
   /*Use the filter type that gives smallest Shannon entropy for this scanline. Depending
   on the image, this is better or worse than minsum.*/
-  LFS_ENTROPY,
+  LFS_ENTROPY = 55,
   /*Brute-force-search PNG filters by compressing each filter for each scanline.*/
-  LFS_BRUTE_FORCE,
+  LFS_BRUTE_FORCE = 5,
   /*use predefined_filters buffer: you specify the filter type for each scanline*/
-  LFS_PREDEFINED
+  LFS_PREDEFINED = 6
 } LodePNGFilterStrategy;
 
 /*Gives characteristics about the colors of the image, which helps decide which color model to use for encoding.

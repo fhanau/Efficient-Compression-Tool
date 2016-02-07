@@ -60,4 +60,6 @@ unsigned getChunks(std::vector<std::string> names[3],
                    std::vector<std::vector<unsigned char> > chunks[3],
                    const std::vector<unsigned char>& png);
 
+unsigned getFilterTypes(std::vector<unsigned char>& filterTypes, const std::vector<unsigned char>& png);
+
 } // namespace lodepng

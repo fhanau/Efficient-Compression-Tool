@@ -35,7 +35,7 @@ static void Usage() {
             "disabled\n"
 #endif
 
-            "Losslessly optimizes JPEG and PNG images\n"
+            "Losslessly optimizes GZIP, ZIP, JPEG and PNG images\n"
             "Usage: ECT [Options] File"
 #ifdef BOOST_SUPPORTED
             "/Folder"
@@ -58,6 +58,8 @@ static void Usage() {
             " --disable-jpg  Disable JPEG optimization\n"
 #endif
             " --strict       Enable strict losslessness\n"
+            " --reuse        Keep PNG filter and colortype\n"
+            " --allfilters   Try all PNG filter modes\n"
 #ifndef NOMULTI
             " --mt-deflate   Use per block multithreading in Deflate\n"
             " --mt-deflate=i Use per block multithreading in Deflate, use i threads\n"
@@ -138,23 +140,36 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
 }
 
 static void OptimizePNG(const char * Infile, const ECTOptions& Options){
+    unsigned mode = Options.Mode;
+    if (mode == 1 && Options.Reuse){
+        mode++;
+    }
     int x = 1;
     long long size = filesize(Infile);
-    if(Options.Mode == 9){
+    if(mode == 9){
         x = Zopflipng(Options.strip, Infile, Options.Strict, 3, 0, Options.DeflateMultithreading);
     }
     //Disabled as using this causes libpng warnings
     //int filter = Optipng(Options.Mode, Infile, true, Options.Strict || Options.Mode > 1);
-    int filter = Optipng(Options.Mode, Infile, false, Options.Strict || Options.Mode > 1);
+    int filter = Options.Reuse ? 6 : Optipng(mode, Infile, false, Options.Strict || mode > 1);
 
     if (filter == -1){
         return;
     }
-    if (Options.Mode != 1){
-        if (Options.Mode == 9){
-            Zopflipng(Options.strip, Infile, Options.Strict, Options.Mode, filter, Options.DeflateMultithreading);}
+    if (mode != 1){
+        if (mode == 9){
+            Zopflipng(Options.strip, Infile, Options.Strict, mode, filter, Options.DeflateMultithreading);
+        }
         else {
-            x = Zopflipng(Options.strip, Infile, Options.Strict, Options.Mode, filter, Options.DeflateMultithreading);}
+            x = Zopflipng(Options.strip, Infile, Options.Strict, mode, filter, Options.DeflateMultithreading);
+        }
+        if (Options.Allfilters){
+            Zopflipng(Options.strip, Infile, Options.Strict, mode, filter == 5 ? 0 : 5, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, mode, 1, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, mode, 2, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, mode, 3, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, mode, 4, Options.DeflateMultithreading);
+        }
     }
     else {
         if (filesize(Infile) <= size){
@@ -277,6 +292,8 @@ int main(int argc, const char * argv[]) {
     Options.SavingsCounter = true;
     Options.Strict = false;
     Options.DeflateMultithreading = 0;
+    Options.Reuse = 0;
+    Options.Allfilters = 0;
     if (argc >= 2){
         for (int i = 1; i < argc-1; i++) {
             if (strncmp(argv[i], "-strip", 2) == 0){Options.strip = true;}
@@ -300,6 +317,9 @@ int main(int argc, const char * argv[]) {
             else if (strncmp(argv[i], "-recurse", 2) == 0)  {Options.Recurse = 1;}
 #endif
             else if (strcmp(argv[i], "--strict") == 0) {Options.Strict = true;}
+            else if (strcmp(argv[i], "--reuse") == 0) {Options.Reuse = true;}
+            else if (strcmp(argv[i], "--allfilters") == 0) {Options.Allfilters = true;}
+
 #ifndef NOMULTI
             else if (strncmp(argv[i], "--mt-deflate", 12) == 0) {
                 if (strncmp(argv[i], "--mt-deflate=", 13) == 0){
@@ -312,6 +332,9 @@ int main(int argc, const char * argv[]) {
 #endif
             //else if (strcmp(argv[i], "--arithmetic") == 0) {Options.Arithmetic = true;}
             else {printf("Unknown flag: %s\n", argv[i]); return 0;}
+        }
+        if(Options.Reuse){
+            Options.Allfilters = 0;
         }
 #ifdef BOOST_SUPPORTED
         if (boost::filesystem::is_regular_file(argv[argc-1])){

@@ -200,7 +200,7 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
 // Tries to optimize given a single PNG filter strategy.
 // Returns 0 if ok, other value for error
 static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsigned h, bool bit16,
-                            const ZopfliPNGOptions* png_options, std::vector<unsigned char>* out, int best_filter) {
+                            const ZopfliPNGOptions* png_options, std::vector<unsigned char>* out, int best_filter, std::vector<unsigned char> filters) {
   lodepng::State state;
   state.encoder.zlibsettings.custom_deflate = CustomPNGDeflate;
   state.encoder.zlibsettings.custom_context = png_options;
@@ -216,8 +216,21 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
 
   if (best_filter == 0)
   {state.encoder.filter_strategy = LFS_ZERO;}
-  else if (best_filter== 5)
+  else if (best_filter == 1)
+  {state.encoder.filter_strategy = LFS_SUB;}
+  else if (best_filter == 2)
+  {state.encoder.filter_strategy = LFS_UP;}
+  else if (best_filter == 3)
+  {state.encoder.filter_strategy = LFS_AVG;}
+  else if (best_filter == 4)
+  {state.encoder.filter_strategy = LFS_PAETH;}
+  else if (best_filter == 5)
   {state.encoder.filter_strategy = LFS_BRUTE_FORCE;}
+  else if (best_filter == 6)
+  {state.encoder.filter_strategy = LFS_PREDEFINED;
+    state.encoder.predefined_filters = &filters[0];
+    state.encoder.auto_convert = 0;
+  }
 
   //Palette sorting (Should be in seperate function). This is an untested experiment and likely wont improve compression.
   /*if (state.info_png.color.colortype == LCT_PALETTE){
@@ -246,7 +259,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
   // For very small output, also try without palette, it may be smaller thanks
   // to no palette storage overhead.
   unsigned long testboth = out->size();
-  if (!error && testboth < 3328 && w * h < 45000) {
+  if (!error && testboth < 3328 && w * h < 45000 && best_filter != 6) {
     lodepng::State teststate;
     std::vector<unsigned char> temp;
     lodepng::decode(temp, w, h, teststate, *out);
@@ -286,7 +299,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
   return 0;
 }
 
-static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter) {
+static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter, std::vector<unsigned char> filters) {
   std::vector<unsigned char> image;
   unsigned w, h;
   lodepng::State inputstate;
@@ -313,7 +326,7 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
     }
   }
   std::vector<unsigned char> temp;
-  error = TryOptimize(image, w, h, bit16, &png_options, &temp, best_filter);
+  error = TryOptimize(image, w, h, bit16, &png_options, &temp, best_filter, filters);
   if (!error) {
     (*resultpng).swap(temp);  // Store best result so far in the output.
   }
@@ -330,12 +343,18 @@ int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int f
   ZopfliPNGOptions png_options;
   png_options.Mode = Mode;
   png_options.multithreading = multithreading;
-  png_options.lossy_transparent = !strict;
+  png_options.lossy_transparent = !strict && filter != 6;
   png_options.strip = strip;
   std::vector<unsigned char> origpng;
+
+  std::vector<unsigned char> filters;
   lodepng::load_file(origpng, Infile);
+  if (filter == 6){
+    lodepng::getFilterTypes(filters, origpng);
+    assert(filters.size());
+  }
   std::vector<unsigned char> resultpng;
-  if (ZopfliPNGOptimize(origpng, png_options, &resultpng, filter)) {return -1;}
+  if (ZopfliPNGOptimize(origpng, png_options, &resultpng, filter, filters)) {return -1;}
   if (resultpng.size() >= origpng.size()) {return 1;}
   lodepng::save_file(resultpng, Infile);
   return 0;

@@ -30,6 +30,8 @@ struct ECTOptions{
   bool Arithmetic;
   bool Gzip;
   bool Zip;
+  bool Reuse;
+  bool Allfilters;
 #ifdef BOOST_SUPPORTED
   bool Recurse;
 #endif

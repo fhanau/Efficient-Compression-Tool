@@ -3767,14 +3767,14 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
 
   if(bpp == 0) return 31; /*error: invalid color type*/
 
-  if(strategy == LFS_ZERO)
+  if(strategy < LFS_BRUTE_FORCE)
   {
     for(y = 0; y != h; ++y)
     {
       size_t outindex = (1 + linebytes) * y; /*the extra filterbyte added to each row*/
       size_t inindex = linebytes * y;
       out[outindex] = 0; /*filter type byte*/
-      filterScanline(&out[outindex + 1], &in[inindex], prevline, linebytes, bytewidth, 0);
+      filterScanline(&out[outindex + 1], &in[inindex], prevline, linebytes, bytewidth, strategy);
       prevline = &in[inindex];
     }
   }
