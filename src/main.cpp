@@ -263,7 +263,7 @@ static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
                 savings = savings + size - filesize(Infile);
                 }
                 else if (statcompressedfile){
-                    savings += (size - filesize(((std::string)Infile).append(".gz").c_str()));
+                    savings += (size - filesize(((std::string)Infile).append(Options.Zip ? ".zip" : ".gz").c_str()));
                 }
             }
         }
@@ -294,9 +294,15 @@ int main(int argc, const char * argv[]) {
     Options.DeflateMultithreading = 0;
     Options.Reuse = 0;
     Options.Allfilters = 0;
+    std::vector<int> args;
+    int files = 0;
     if (argc >= 2){
-        for (int i = 1; i < argc-1; i++) {
-            if (strncmp(argv[i], "-strip", 2) == 0){Options.strip = true;}
+        for (int i = 1; i < argc; i++) {
+            if (strncmp(argv[i], "-", 1) != 0){
+                args.push_back(i);
+                files++;
+            }
+            else if (strncmp(argv[i], "-strip", 2) == 0){Options.strip = true;}
             else if (strncmp(argv[i], "-progressive", 2) == 0) {Options.Progressive = true;}
             else if (strcmp(argv[i], "-1") == 0) {Options.Mode = 1;}
             else if (strcmp(argv[i], "-2") == 0) {Options.Mode = 2;}
@@ -336,25 +342,30 @@ int main(int argc, const char * argv[]) {
         if(Options.Reuse){
             Options.Allfilters = 0;
         }
+        for (int j = 0; j < files; j++){
 #ifdef BOOST_SUPPORTED
-        if (boost::filesystem::is_regular_file(argv[argc-1])){
-            PerFileWrapper(argv[argc-1], Options);
-        }
-        else if (boost::filesystem::is_directory(argv[argc-1])){
-            if(Options.Recurse){boost::filesystem::recursive_directory_iterator a(argv[argc-1]), b;
-                std::vector<boost::filesystem::path> paths(a, b);
-                for(unsigned i = 0; i < paths.size(); i++){PerFileWrapper(paths[i].c_str(), Options);}
+            if (boost::filesystem::is_regular_file(argv[args[j]])){
+                PerFileWrapper(argv[args[j]], Options);
             }
-            else{
-                boost::filesystem::directory_iterator a(argv[argc-1]), b;
-                std::vector<boost::filesystem::path> paths(a, b);
-                for(unsigned i = 0; i < paths.size(); i++){
-                    PerFileWrapper(paths[i].c_str(), Options);}
+            else if (boost::filesystem::is_directory(argv[args[j]])){
+                if(Options.Recurse){boost::filesystem::recursive_directory_iterator a(argv[args[j]]), b;
+                    std::vector<boost::filesystem::path> paths(a, b);
+                    for(unsigned i = 0; i < paths.size(); i++){PerFileWrapper(paths[i].c_str(), Options);}
+                }
+                else{
+                    boost::filesystem::directory_iterator a(argv[args[j]]), b;
+                    std::vector<boost::filesystem::path> paths(a, b);
+                    for(unsigned i = 0; i < paths.size(); i++){
+                        PerFileWrapper(paths[i].c_str(), Options);}
+                }
             }
-        }
 #else
-        PerFileWrapper(argv[argc-1], Options);
+            PerFileWrapper(argv[args[j]], Options);
 #endif
+        }
+
+        if(!files){Usage();}
+        
         if(Options.SavingsCounter){ECT_ReportSavings();}
     }
     else {Usage();}
