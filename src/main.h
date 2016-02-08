@@ -10,12 +10,12 @@
 #include <cstdlib>
 #include <string>
 #include <cstring>
+#include <vector>
 
 #include "gztools.h"
 
 //Compile support for folder input. Requires linking of Boost::filesystem and Boost::system.
 #ifdef BOOST_SUPPORTED
-#include <vector>
 #include <boost/filesystem.hpp>
 #endif
 
