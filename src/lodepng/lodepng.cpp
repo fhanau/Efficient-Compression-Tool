@@ -3773,7 +3773,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
     {
       size_t outindex = (1 + linebytes) * y; /*the extra filterbyte added to each row*/
       size_t inindex = linebytes * y;
-      out[outindex] = 0; /*filter type byte*/
+      out[outindex] = strategy; /*filter type byte*/
       filterScanline(&out[outindex + 1], &in[inindex], prevline, linebytes, bytewidth, strategy);
       prevline = &in[inindex];
     }
