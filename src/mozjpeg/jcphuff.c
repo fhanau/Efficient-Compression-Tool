@@ -5,6 +5,8 @@
  * Copyright (C) 1995-1997, Thomas G. Lane.
  * It was modified by The libjpeg-turbo Project to include only code relevant
  * to libjpeg-turbo.
+ * mozjpeg Modifications:
+ * Copyright (C) 2014, Mozilla Corporation.
  * For conditions of distribution and use, see the accompanying README file.
  *
  * This file contains Huffman entropy encoding routines for progressive JPEG.
@@ -19,10 +21,8 @@
 #include "jpeglib.h"
 #include "jchuff.h"             /* Declarations shared with jchuff.c */
 
-#if defined(__AVX2__) || defined(__SSE4_2__)
-#if !defined(USE_INTRIN)
+#if defined(__GNUC__) && (defined(__AVX2__) || defined(__SSE4_2__))
 #define USE_INTRIN
-#endif
 #include <immintrin.h>
 #endif
 
