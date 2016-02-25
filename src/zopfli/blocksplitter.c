@@ -212,7 +212,7 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
     }
     prevcost = nprevcost;
 
-    if (splitcost > origcost || llpos == lstart + 1 || llpos == lend) {
+    if (splitcost >= origcost || llpos == lstart + 1 || llpos == lend) {
       done[lstart] = 1;
     } else {
       AddSorted(llpos, splitpoints, npoints);
