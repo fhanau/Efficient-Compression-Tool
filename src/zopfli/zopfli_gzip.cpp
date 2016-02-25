@@ -34,8 +34,8 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 }
 
 static void ZopfliZipCompress(const ZopfliOptions* options,
-                              const unsigned char* in, size_t insize, time_t time, std::string name,
-                       unsigned char** out, size_t* outsize) {
+                              const unsigned char* in, size_t insize, std::string name,
+                              unsigned char** out, size_t* outsize) {
   static const unsigned char filePKh[10]     = { 80, 75,  3,  4, 20,  0,  2,  0,  8,  0};
   static const unsigned char CDIRPKh[12]     = { 80, 75,  1,  2, 20,  0, 20,  0,  2,  0,  8,  0};
   static const unsigned char CDIRPKs[12]     = {  0,  0,  0,  0,  0,  0,  0,  0, 32,  0,  0,  0};
@@ -133,7 +133,7 @@ static void ZopfliZipCompress(const ZopfliOptions* options,
 Compresses the data according to the gzip specification.
 */
 static void ZopfliGzipCompress(const ZopfliOptions* options,
-                        const unsigned char* in, size_t insize,  time_t time,
+                        const unsigned char* in, size_t insize, time_t time,
                         unsigned char** out, size_t* outsize) {
   unsigned crcvalue = crc32(0, in, insize);
   unsigned char bp = 0;
@@ -167,7 +167,7 @@ static void ZopfliCompress(const ZopfliOptions* options, ZopfliFormat output_typ
     ZopfliGzipCompress(options, in, insize, time, out, outsize);
   }
   else if (output_type == ZOPFLI_FORMAT_ZIP) {
-    ZopfliZipCompress(options, in, insize, time, name, out, outsize);
+    ZopfliZipCompress(options, in, insize, name, out, outsize);
   }
   else if (output_type == ZOPFLI_FORMAT_ZLIB) {
     //ZopfliZlibCompress(options, in, insize, out, outsize);
