@@ -70,8 +70,11 @@ maxbits: Size of lists.
 pool: Memory pool to get free node from.
 */
 static Node* GetFreeNode(Node* (*lists)[2], int maxbits, NodePool* pool) {
+  if (likely(!pool->next->inuse && pool->next < &pool->nodes[pool->size])){
+    return pool->next++;
+  }
   for (;;) {
-    if (unlikely(pool->next >= &pool->nodes[pool->size])) {
+    if (pool->next >= &pool->nodes[pool->size]) {
       /* Garbage collection. */
       int i;
       for (i = 0; i < pool->size; i++) {
@@ -149,9 +152,11 @@ static void BoundaryPMfinal(Node* (*lists)[2], int maxbits,
   size_t sum = lists[index - 1][0]->weight + lists[index - 1][1]->weight;
   if (lastcount < numsymbols && sum > leaves[lastcount].weight) {
     /* New leaf inserted in list, so count is incremented. */
-    InitNode(leaves[lastcount].weight, lastcount + 1, oldchain->tail, newchain);
+    newchain->count = lastcount + 1;
+    newchain->tail = oldchain->tail;
   } else {
-    InitNode(sum, lastcount, lists[index - 1][1], newchain);
+    newchain->count = lastcount;
+    newchain->tail = lists[index - 1][1];
   }
 }
 
