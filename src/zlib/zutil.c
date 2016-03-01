@@ -27,24 +27,15 @@ const char * ZEXPORT zError(int err)
     return ERR_MSG(err);
 }
 
-#ifndef Z_SOLO
-
-voidpf ZLIB_INTERNAL zcalloc (opaque, items, size)
-    voidpf opaque;
-    unsigned items;
-    unsigned size;
+voidpf ZLIB_INTERNAL zcalloc (voidpf opaque, unsigned items, unsigned size)
 {
     if (opaque) items += size - size; /* make compiler happy */
     return sizeof(uInt) > 2 ? (voidpf)malloc(items * size) :
                               (voidpf)calloc(items, size);
 }
 
-void ZLIB_INTERNAL zcfree (opaque, ptr)
-    voidpf opaque;
-    voidpf ptr;
+void ZLIB_INTERNAL zcfree (voidpf opaque, voidpf ptr)
 {
     free(ptr);
     if (opaque) return; /* make compiler happy */
 }
-
-#endif /* !Z_SOLO */

@@ -336,7 +336,7 @@ int main(int argc, const char * argv[]) {
                 }
             }
 #endif
-            //else if (strcmp(argv[i], "--arithmetic") == 0) {Options.Arithmetic = true;}
+            else if (strcmp(argv[i], "--arithmetic") == 0) {Options.Arithmetic = true;}
             else {printf("Unknown flag: %s\n", argv[i]); return 0;}
         }
         if(Options.Reuse){
@@ -365,7 +365,7 @@ int main(int argc, const char * argv[]) {
         }
 
         if(!files){Usage();}
-        
+
         if(Options.SavingsCounter){ECT_ReportSavings();}
     }
     else {Usage();}
