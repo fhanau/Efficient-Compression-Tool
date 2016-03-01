@@ -45,7 +45,7 @@ whole byte. It is: (bp == 0) ? (bytesize * 8) : ((bytesize - 1) * 8 + bp)
 */
 static void AddBit(int bit,
                    unsigned char* bp, unsigned char** out, size_t* outsize) {
-  if (*bp == 0) {(*out)[*outsize] = 0; (*outsize)++;}
+  if (*bp == 0) {(*outsize)++;}
   (*out)[*outsize - 1] |= bit << *bp;
   *bp = (*bp + 1) & 7;
 }
@@ -58,19 +58,25 @@ static void AddBits(unsigned symbol, unsigned length,
   //3. Little endian architecture
 //As this code is not that much faster it should be ok to only enable it on x86 with MSVC, GCC and clang
 #if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)
-  if (length){
-    //Zero 4 bytes and write data
-
-    *(unsigned*)(&(out[*outsize])) = 0;
+  //Length must be nonzero.
     *(unsigned*)(&(out[*outsize - (!!(*bp))])) |= (symbol << (*bp));
     (*outsize) += ((*bp) + length - 1) / 8 + (!(*bp));
     *bp = (((*bp) + length) & 7);
-  }
+}
+
+//Like AddBits, but uses "bits" for posititon
+static void AddBits2(unsigned symbol, unsigned length,
+                     unsigned char* out, size_t* bits) {
+  //Length may be zero.
+  unsigned pos = (*bits) >> 3;
+  unsigned char bitties = ((*bits) & 7);
+  *(unsigned*)(&(out[pos])) |= (symbol << bitties);
+  (*bits) += length;
+
 #else
-  /* TODO(lode): make more efficient (add more bits at once). */
   for (unsigned i = 0; i < length; i++) {
     unsigned bit = (symbol >> i) & 1;
-    if (*bp == 0) {out[*outsize] = 0; (*outsize)++;}
+    if (*bp == 0) {(*outsize)++;}
     out[*outsize - 1] |= bit << *bp;
     *bp = (*bp + 1) & 7;
   }
@@ -84,10 +90,9 @@ uses both orders in one standard.
 static void AddHuffmanBits(unsigned symbol, unsigned length,
                            unsigned char* bp, unsigned char* out,
                            size_t* outsize) {
-  /* TODO(lode): make more efficient (add more bits at once). */
   for (unsigned i = 0; i < length; i++) {
     unsigned bit = (symbol >> (length - i - 1)) & 1;
-    if (*bp == 0) {out[*outsize] = 0; (*outsize)++;}
+    if (*bp == 0) {(*outsize)++;}
     out[*outsize - 1] |= bit << *bp;
     *bp = (*bp + 1) & 7;
   }
@@ -393,27 +398,44 @@ static void AddLZ77Data(const unsigned short* litlens,
       len_symbols[i] = ll_symbols[lls] + (ZopfliGetLengthExtraBitsValue(i) << bitlen);
     }
   }
+
+  size_t bits = (*outsize) * 8 + *bp - ((*bp) != 0) * 8;
+
 #define setbits AddBits
+#define FAST_BITWRITER
 #else
 #define setbits AddHuffmanBits
 #endif
+
   for (i = lstart; i < lend; i++) {
     unsigned dist = dists[i];
     unsigned litlen = litlens[i];
     if (dist == 0) {
       assert(litlen < 256);
       assert(ll_lengths[litlen] > 0);
-      setbits(ll_symbols[litlen], ll_lengths[litlen], bp, out, outsize);
+#ifdef FAST_BITWRITER
+      AddBits2(ll_symbols[litlen], ll_lengths[litlen], out, &bits);
+#else 
+      AddHuffmanBits(ll_symbols[litlen], ll_lengths[litlen], bp, out, outsize);
+#endif
+
       testlength++;
     } else {
       assert(litlen >= 3 && litlen <= ZOPFLI_MAX_MATCH);
       unsigned ds = ZopfliGetDistSymbol(dist);
       assert(d_lengths[ds]);
 
-#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)
-      AddBits(len_symbols[litlen],
-              len_lengths[litlen],
-              bp, out, outsize);
+
+#ifdef FAST_BITWRITER
+      AddBits2(len_symbols[litlen],
+               len_lengths[litlen],
+               out, &bits);
+
+      AddBits2(d_symbols[ds], d_lengths[ds], out, &bits);
+
+      AddBits2(ZopfliGetDistExtraBitsValue(dist),
+               ZopfliGetDistExtraBits(dist),
+               out, &bits);
 #else
       unsigned lls = ZopfliGetLengthSymbol(litlen);
       assert(ll_lengths[lls]);
@@ -423,15 +445,21 @@ static void AddLZ77Data(const unsigned short* litlens,
               ZopfliGetLengthExtraBits(litlen),
               bp, out, outsize);
 
-#endif
-
-      setbits(d_symbols[ds], d_lengths[ds], bp, out, outsize);
+      AddHuffmanBits(d_symbols[ds], d_lengths[ds], bp, out, outsize);
       AddBits(ZopfliGetDistExtraBitsValue(dist),
               ZopfliGetDistExtraBits(dist),
               bp, out, outsize);
+#endif
+
       testlength += litlen;
     }
   }
+
+#ifdef FAST_BITWRITER
+  *bp = bits & 7;
+  (*outsize) = (bits / 8) + ((bits & 7) != 0);
+#endif
+
   assert(testlength == expected_data_size);
 }
 
@@ -752,6 +780,8 @@ static void AddLZ77Block(int btype, int final,
   }
   outpred += *outsize * 8 + *bp -((*bp != 0) * 8);
   (*out) = (unsigned char*)realloc(*out, outpred / 8 + 1 + 8);
+  memset(&((*out)[*outsize]), 0, outpred / 8 + (!!(outpred & 7)) - (*outsize) + 8);
+
   if (!(*out)){
     exit(1);
   }
