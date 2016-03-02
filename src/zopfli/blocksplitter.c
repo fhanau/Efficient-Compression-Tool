@@ -217,6 +217,10 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
     } else {
       AddSorted(llpos, splitpoints, npoints);
       numblocks++;
+      if(splitcost + 200 >= origcost && options->midsplit){
+        done[llpos] = 1;
+        //done[lstart] = 1; //Less compression loss
+      }
     }
 
 
