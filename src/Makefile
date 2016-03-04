@@ -3,15 +3,15 @@ CXX = g++
 CFLAGS = -Ofast -std=gnu11
 CXXFLAGS= -Ofast -std=gnu++11
 
-OBJECTS = blocksplitter.o codec.o hash.o image.o katajainen.o lz77.o opngreduc.o squeeze.o util.o LzFind.o
-CXXSRC = support.cpp zopflipng.cpp zopfli/deflate.cpp zopfli/zopfli_gzip.cpp\
+OBJECTS = blocksplitter.o codec.o hash.o image.o lz77.o opngreduc.o squeeze.o util.o LzFind.o
+CXXSRC = support.cpp zopflipng.cpp zopfli/deflate.cpp zopfli/zopfli_gzip.cpp zopfli/katajainen.cpp \
 lodepng/lodepng.cpp lodepng/lodepng_util.cpp optipng/optipng.cpp jpegtran.cpp gztools.cpp
 
 .PHONY: zlib libpng mozjpeg deps bin all
 all: deps bin
 
 bin:
-	$(CC) -c $(CFLAGS) optipng/codec.c optipng/image.c zopfli//util.c zopfli/squeeze.c zopfli/lz77.c zopfli/katajainen.c \
+	$(CC) -c $(CFLAGS) optipng/codec.c optipng/image.c zopfli//util.c zopfli/squeeze.c zopfli/lz77.c \
 	zopfli/blocksplitter.c zopfli/hash.c optipng/opngreduc/opngreduc.c LzFind.c
 	$(CXX) $(CXXFLAGS) main.cpp $(OBJECTS) $(CXXSRC) mozjpeg/.libs/libjpeg.a libpng/libpng.a zlib/libz.a -o ../ECT
 clean:
