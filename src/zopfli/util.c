@@ -203,7 +203,7 @@ unsigned ZopfliGetLengthSymbol(unsigned l) {
   return table[l];
 }
 
-ZopfliOptionsMin opt[8] =
+static const ZopfliOptionsMin opt[8] =
 {
   { 1, 0,  400,  10000,    0, 180, 2500},/* 2 */
   { 1, 1,  900,   3000,    0, 180,  512},/* 3 */

@@ -190,7 +190,7 @@ static size_t EncodeTree(const unsigned* ll_lengths,
 
   /* Trim zeros. */
   while (hlit && ll_lengths[257 + hlit - 1] == 0) hlit--;
-  while (hdist && d_lengths[1 + hdist - 1] == 0) hdist--;
+  while (hdist && d_lengths[hdist] == 0) hdist--;
   unsigned hlit2 = hlit + 257;
 
   unsigned lld_total = hlit2 + hdist + 1; /* Total amount of literal, length, distance codes. */
@@ -204,8 +204,8 @@ static size_t EncodeTree(const unsigned* ll_lengths,
           (j < hlit2 ? ll_lengths[j] : d_lengths[j - hlit2]); j++) {
         count++;
       }
+      i += count - 1;
     }
-    i += count - 1;
 
     /* Repetitions of zeroes */
     if (symbol == 0 && count >= 3) {
@@ -470,6 +470,18 @@ static void AddLZ77Data(const unsigned short* litlens,
  more efficiently. length containts the size of the histogram.
  */
 void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
+  //This improves PNG?
+  /*int nonzero_count = 0;
+
+  for (int i = 0; i < length; i++) {
+    if (counts[i]) {
+      ++nonzero_count;
+    }
+  }
+  if (nonzero_count < length / 8) {
+    return;
+  }*/
+
   // Let's make the Huffman code more compatible with rle encoding.
   for (;; --length) {
     if (!length) {
@@ -510,7 +522,7 @@ void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
 
   // 3) Let's replace those population counts that lead to more rle codes.
   // Math here is in 24.8 fixed point representation.
-  const int streak_limit = 1240;
+  const int streak_limit = 1240;//1200 for PNG
   stride = 0;
   long limit = 256 * (counts[0] + counts[1] + counts[2]) / 3 + 420;
   int sum = 0;

@@ -70,10 +70,7 @@ void ZopfliVerifyLenDist(const unsigned char* data, size_t datasize, size_t pos,
                          unsigned short dist, unsigned short length) {
   assert(pos + length <= datasize);
   for (size_t i = 0; i < length; i++) {
-    if (data[pos - dist + i] != data[pos + i]) {
-      assert(data[pos - dist + i] == data[pos + i]);
-      break;
-    }
+    assert(data[pos - dist + i] == data[pos + i]);
   }
 }
 #endif
