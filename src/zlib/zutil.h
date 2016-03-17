@@ -8,17 +8,16 @@
    subject to change. Applications should only use zlib.h.
  */
 
-/* @(#) $Id$ */
-
 #ifndef ZUTIL_H
 #define ZUTIL_H
 
 #ifdef HAVE_HIDDEN
-#  define ZLIB_INTERNAL __attribute__((visibility ("hidden")))
+#define ZLIB_INTERNAL __attribute__((visibility ("hidden")))
 #else
-#  define ZLIB_INTERNAL
+#define ZLIB_INTERNAL
 #endif
 
+#include <stdint.h>
 #include "zlib.h"
 
 #if defined(STDC) && !defined(Z_SOLO)
@@ -34,7 +33,7 @@
 #endif
 
 #ifndef local
-#  define local static
+#define local static
 #endif
 /* compile with -Dlocal if your debugger can't find static symbols */
 
@@ -44,7 +43,7 @@ typedef unsigned short ush;
 typedef ush FAR ushf;
 typedef unsigned long  ulg;
 
-extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
+extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 /* (size given to avoid silly warnings with Visual C++) */
 
 #define ERR_MSG(err) z_errmsg[Z_NEED_DICT-(err)]

@@ -59,19 +59,12 @@ typedef enum {
 typedef block_state (*compress_func) (deflate_state *s, int flush);
 /* Compression function. Returns the block state after the call. */
 
-static void fill_window    OF((deflate_state *s));
-static block_state deflate_fast   OF((deflate_state *s, int flush));
-static block_state deflate_slow   OF((deflate_state *s, int flush));
-static void lm_init        OF((deflate_state *s));
-static void putShortMSB    OF((deflate_state *s, uInt b));
-static void flush_pending  OF((z_streamp strm));
-static int read_buf        OF((z_streamp strm, Bytef *buf, unsigned size));
-#ifdef ASMV
-      void match_init OF((void)); /* asm code initialization */
-      uInt longest_match  OF((deflate_state *s, IPos cur_match));
-#else
-static uInt longest_match  OF((deflate_state *s, IPos cur_match));
-#endif
+static void fill_window(deflate_state *s);
+static block_state deflate_fast(deflate_state *s, int flush);
+static block_state deflate_slow(deflate_state *s, int flush);
+static void lm_init(deflate_state *s);
+static void flush_pending(z_streamp strm);
+static unsigned longest_match(deflate_state *s, IPos cur_match);
 
 /* Values for max_lazy_match, good_match and max_chain_length, depending on
  * the desired pack level (0..9). The values given below have been tuned to
@@ -79,10 +72,10 @@ static uInt longest_match  OF((deflate_state *s, IPos cur_match));
  * found for specific files.
  */
 typedef struct config_s {
-   ush good_length; /* reduce lazy search above this match length */
-   ush max_lazy;    /* do not perform lazy search above this match length */
-   ush nice_length; /* quit search above this match length */
-   ush max_chain;
+   unsigned short good_length; /* reduce lazy search above this match length */
+   unsigned short max_lazy;    /* do not perform lazy search above this match length */
+   unsigned short nice_length; /* quit search above this match length */
+   unsigned short max_chain;
    compress_func func;
 } config;
 
@@ -246,9 +239,9 @@ int deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
 
     s->lit_bufsize = 1 << (memLevel + 6); /* 16K elements by default */
 
-    overlay = (ushf *) ZALLOC(strm, s->lit_bufsize, sizeof(ush)+2);
-    s->pending_buf = (uchf *) overlay;
-    s->pending_buf_size = (ulg)s->lit_bufsize * (sizeof(ush)+2L);
+    overlay = (unsigned short *) ZALLOC(strm, s->lit_bufsize, sizeof(unsigned short)+2);
+    s->pending_buf = (unsigned char*) overlay;
+    s->pending_buf_size = (ulg)s->lit_bufsize * (sizeof(unsigned short)+2L);
 
     if (s->window == Z_NULL || s->prev == Z_NULL || s->head == Z_NULL ||
         s->pending_buf == Z_NULL) {
@@ -688,15 +681,15 @@ static void lm_init (deflate_state* s)
  *    ...
  *    do {
  *        match = s->window + cur_match;                //s0
- *        if (*(ushf*)(match+best_len-1) != scan_end || //s1
- *            *(ushf*)match != scan_start) continue;    //s2
+ *        if (*(unsigned short*)(match+best_len-1) != scan_end || //s1
+ *            *(unsigned short*)match != scan_start) continue;    //s2
  *        ...
  *
  *        do {
- *        } while (*(ushf*)(scan+=2) == *(ushf*)(match+=2) &&
- *                 *(ushf*)(scan+=2) == *(ushf*)(match+=2) &&
- *                 *(ushf*)(scan+=2) == *(ushf*)(match+=2) &&
- *                 *(ushf*)(scan+=2) == *(ushf*)(match+=2) &&
+ *        } while (*(unsigned short*)(scan+=2) == *(unsigned short*)(match+=2) &&
+ *                 *(unsigned short*)(scan+=2) == *(unsigned short*)(match+=2) &&
+ *                 *(unsigned short*)(scan+=2) == *(unsigned short*)(match+=2) &&
+ *                 *(unsigned short*)(scan+=2) == *(unsigned short*)(match+=2) &&
  *                 scan < strend); //s3
  *
  *        ...
@@ -934,10 +927,10 @@ static unsigned longest_match(s, cur_match)
         Assert(scan[2] == match[2], "scan[2]?");
         scan++, match++;
         do {
-        } while (*(ushf*)(scan+=2) == *(ushf*)(match+=2) &&
-                 *(ushf*)(scan+=2) == *(ushf*)(match+=2) &&
-                 *(ushf*)(scan+=2) == *(ushf*)(match+=2) &&
-                 *(ushf*)(scan+=2) == *(ushf*)(match+=2) &&
+        } while (*(unsigned short*)(scan+=2) == *(unsigned short*)(match+=2) &&
+                 *(unsigned short*)(scan+=2) == *(unsigned short*)(match+=2) &&
+                 *(unsigned short*)(scan+=2) == *(unsigned short*)(match+=2) &&
+                 *(unsigned short*)(scan+=2) == *(unsigned short*)(match+=2) &&
                  scan < strend);
         /* The funny "do {}" generates better code on most compilers */
 
@@ -1157,8 +1150,8 @@ deflate_state *s;
         }
     }
 
-    Assert((ulg)s->strstart <= s->window_size - MIN_LOOKAHEAD,
-           "not enough room for search");
+  Assert((uint64_t)s->strstart <= s->window_size - MIN_LOOKAHEAD,
+         "not enough room for search");
 }
 
 /* ===========================================================================
