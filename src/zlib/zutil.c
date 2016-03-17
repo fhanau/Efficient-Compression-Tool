@@ -5,7 +5,7 @@
 
 #include "zutil.h"
 
-z_const char * const z_errmsg[10] = {
+const char * const z_errmsg[10] = {
 "need dictionary",     /* Z_NEED_DICT       2  */
 "stream end",          /* Z_STREAM_END      1  */
 "",                    /* Z_OK              0  */
@@ -17,24 +17,21 @@ z_const char * const z_errmsg[10] = {
 "incompatible version",/* Z_VERSION_ERROR (-6) */
 ""};
 
-
-
 /* exported to allow conversion of error code to string for compress() and
  * uncompress()
  */
-const char * ZEXPORT zError(int err)
+const char* zError(int err)
 {
     return ERR_MSG(err);
 }
 
-voidpf ZLIB_INTERNAL zcalloc (voidpf opaque, unsigned items, unsigned size)
+void* ZLIB_INTERNAL zcalloc (void* opaque, unsigned items, unsigned size)
 {
     if (opaque) items += size - size; /* make compiler happy */
-    return sizeof(uInt) > 2 ? (voidpf)malloc(items * size) :
-                              (voidpf)calloc(items, size);
+    return (void*)malloc(items * size);
 }
 
-void ZLIB_INTERNAL zcfree (voidpf opaque, voidpf ptr)
+void ZLIB_INTERNAL zcfree (void* opaque, void* ptr)
 {
     free(ptr);
     if (opaque) return; /* make compiler happy */

@@ -463,7 +463,7 @@ static unsigned crc_fold_512to32(deflate_state* s)
     CRC_SAVE(s)
 }
 
-unsigned long ZEXPORT crc32_SSSE3(const unsigned char* buf, unsigned len)
+unsigned long crc32_SSSE3(const unsigned char* buf, unsigned len)
 {
   deflate_state s;
   crc_fold_init(&s);
@@ -476,9 +476,9 @@ unsigned long ZEXPORT crc32_SSSE3(const unsigned char* buf, unsigned len)
 #define BYFOUR
 #ifdef BYFOUR
 static unsigned long crc32_little (unsigned long,
-                                   const unsigned char FAR *, unsigned);
+                                   const unsigned char *, unsigned);
 static unsigned long crc32_big (unsigned long,
-                                const unsigned char FAR *, unsigned);
+                                const unsigned char *, unsigned);
 #endif /* BYFOUR */
 
 #include "crc32.h"
@@ -486,13 +486,13 @@ static unsigned long crc32_big (unsigned long,
 #define DO1 crc = crc_table[0][((int)crc ^ (*buf++)) & 0xff] ^ (crc >> 8)
 #define DO8 DO1; DO1; DO1; DO1; DO1; DO1; DO1; DO1
 
-static unsigned long crc32_generic(unsigned long crc, const unsigned char FAR *buf, uInt len)
+static unsigned long crc32_generic(unsigned long crc, const unsigned char *buf, unsigned len)
 {
   if (!buf) return 0UL;
 
 #ifdef BYFOUR
   if (sizeof(void *) == sizeof(ptrdiff_t)) {
-    z_crc_t endian;
+    unsigned endian;
 
     endian = 1;
     if (*((unsigned char *)(&endian)))
@@ -514,8 +514,8 @@ static unsigned long crc32_generic(unsigned long crc, const unsigned char FAR *b
 
 unsigned long crc32(crc, buf, len)
 unsigned long crc;
-const unsigned char FAR *buf;
-uInt len;
+const unsigned char *buf;
+unsigned len;
 {
 #if defined(__GNUC__) && defined(__PCLMUL__)
   if(!crc && len){
@@ -532,19 +532,19 @@ c = crc_table[3][c & 0xff] ^ crc_table[2][(c >> 8) & 0xff] ^ \
 crc_table[1][(c >> 16) & 0xff] ^ crc_table[0][c >> 24]
 #define DOLIT32 DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4
 
-static unsigned long crc32_little(unsigned long crc, const unsigned char FAR *buf, unsigned len)
+static unsigned long crc32_little(unsigned long crc, const unsigned char *buf, unsigned len)
 {
-  register z_crc_t c;
-  register const z_crc_t FAR *buf4;
+  register unsigned c;
+  register const unsigned *buf4;
 
-  c = (z_crc_t)crc;
+  c = (unsigned)crc;
   c = ~c;
   while (len && ((ptrdiff_t)buf & 3)) {
     c = crc_table[0][(c ^ *buf++) & 0xff] ^ (c >> 8);
     len--;
   }
 
-  buf4 = (const z_crc_t FAR *)(const void FAR *)buf;
+  buf4 = (const unsigned *)(const void *)buf;
   while (len >= 32) {
     DOLIT32;
     len -= 32;
@@ -553,7 +553,7 @@ static unsigned long crc32_little(unsigned long crc, const unsigned char FAR *bu
     DOLIT4;
     len -= 4;
   }
-  buf = (const unsigned char FAR *)buf4;
+  buf = (const unsigned char *)buf4;
 
   if (len) do {
     c = crc_table[0][(c ^ *buf++) & 0xff] ^ (c >> 8);
@@ -569,20 +569,20 @@ crc_table[6][(c >> 16) & 0xff] ^ crc_table[7][c >> 24]
 
 static unsigned long crc32_big(crc, buf, len)
 unsigned long crc;
-const unsigned char FAR *buf;
+const unsigned char *buf;
 unsigned len;
 {
-  register z_crc_t c;
-  register const z_crc_t FAR *buf4;
+  register unsigned c;
+  register const unsigned *buf4;
 
-  c = ZSWAP32((z_crc_t)crc);
+  c = ZSWAP32((unsigned)crc);
   c = ~c;
   while (len && ((ptrdiff_t)buf & 3)) {
     c = crc_table[4][(c >> 24) ^ *buf++] ^ (c << 8);
     len--;
   }
 
-  buf4 = (const z_crc_t FAR *)(const void FAR *)buf;
+  buf4 = (const unsigned *)(const void *)buf;
   buf4--;
   while (len >= 32) {
     DOBIG32;
@@ -593,7 +593,7 @@ unsigned len;
     len -= 4;
   }
   buf4++;
-  buf = (const unsigned char FAR *)buf4;
+  buf = (const unsigned char *)buf4;
 
   if (len) do {
     c = crc_table[4][(c >> 24) ^ *buf++] ^ (c << 8);

@@ -6,12 +6,12 @@
 #include "gzguts.h"
 
 #if defined(_WIN32) && !defined(__BORLANDC__)
-#  define LSEEK _lseeki64
+#define LSEEK _lseeki64
 #else
 #if defined(_LARGEFILE64_SOURCE) && _LFS64_LARGEFILE-0
-#  define LSEEK lseek64
+#define LSEEK lseek64
 #else
-#  define LSEEK lseek
+#define LSEEK lseek
 #endif
 #endif
 
@@ -193,8 +193,7 @@ gzFile ZEXPORT gzopen(path, mode)
 }
 
 /* -- see zlib.h -- */
-int ZEXPORT gzeof(file)
-    gzFile file;
+int gzeof(gzFile file)
 {
     gz_statep state;
 
@@ -221,7 +220,7 @@ void ZLIB_INTERNAL gz_error(state, err, msg)
     const char *msg;
 {
     /* free previously allocated message and clear */
-    if (state->msg != NULL) {
+    if (state->msg) {
         if (state->err != Z_MEM_ERROR)
             free(state->msg);
         state->msg = NULL;
@@ -233,7 +232,7 @@ void ZLIB_INTERNAL gz_error(state, err, msg)
 
     /* set error code, and if no message, then done */
     state->err = err;
-    if (msg == NULL)
+    if (!msg)
         return;
 
     /* for an out of memory error, return literal string when requested */
@@ -246,13 +245,6 @@ void ZLIB_INTERNAL gz_error(state, err, msg)
         state->err = Z_MEM_ERROR;
         return;
     }
-#if !defined(NO_snprintf) && !defined(NO_vsnprintf)
     snprintf(state->msg, strlen(state->path) + strlen(msg) + 3,
              "%s%s%s", state->path, ": ", msg);
-#else
-    strcpy(state->msg, state->path);
-    strcat(state->msg, ": ");
-    strcat(state->msg, msg);
-#endif
-    return;
 }

@@ -22,32 +22,32 @@
 #ifdef NO_DIVIDE
 /* note that this assumes BASE is 65521, where 65536 % 65521 == 15
    (thank you to John Reiser for pointing this out) */
-#  define CHOP(a) \
+#define CHOP(a) \
     do { \
         unsigned long tmp = a >> 16; \
         a &= 0xffffUL; \
         a += (tmp << 4) - tmp; \
     } while (0)
-#  define MOD28(a) \
+#define MOD28(a) \
     do { \
         CHOP(a); \
         if (a >= BASE) a -= BASE; \
     } while (0)
-#  define MOD(a) \
+#define MOD(a) \
     do { \
         CHOP(a); \
         MOD28(a); \
     } while (0)
 #else
-#  define MOD(a) a %= BASE
-#  define MOD28(a) a %= BASE
+#define MOD(a) a %= BASE
+#define MOD28(a) a %= BASE
 #endif
 
 /* ========================================================================= */
-uLong ZEXPORT adler32(adler, buf, len)
+uLong adler32(adler, buf, len)
     uLong adler;
-    const Bytef *buf;
-    uInt len;
+    const Byte *buf;
+    unsigned len;
 {
     unsigned long sum2;
     unsigned n;

@@ -10,24 +10,8 @@
 
 #ifndef ASMINF
 
-/* Allow machine dependent optimization for post-increment or pre-increment.
-   Based on testing to date,
-   Pre-increment preferred for:
-   - PowerPC G3 (Adler)
-   - MIPS R5000 (Randers-Pehrson)
-   Post-increment preferred for:
-   - none
-   No measurable difference:
-   - Pentium III (Anderson)
-   - M68060 (Nikl)
- */
-#ifdef POSTINC
-#  define OFF 0
-#  define PUP(a) *(a)++
-#else
-#  define OFF 1
-#  define PUP(a) *++(a)
-#endif
+#define OFF 1
+#define PUP(a) *++(a)
 
 /*
    Decode literal, length, and distance codes and write out the resulting
@@ -64,27 +48,25 @@
       requires strm->avail_out >= 258 for each loop to avoid checking for
       output space.
  */
-void ZLIB_INTERNAL inflate_fast(strm, start)
-z_streamp strm;
-unsigned start;         /* inflate()'s starting value for strm->avail_out */
+void ZLIB_INTERNAL inflate_fast(z_streamp strm, unsigned start /* inflate()'s starting value for strm->avail_out */)
 {
-    struct inflate_state FAR *state;
-    z_const unsigned char FAR *in;      /* local strm->next_in */
-    z_const unsigned char FAR *last;    /* have enough input while in < last */
-    unsigned char FAR *out;     /* local strm->next_out */
-    unsigned char FAR *beg;     /* inflate()'s initial strm->next_out */
-    unsigned char FAR *end;     /* while out < end, enough space available */
+    struct inflate_state *state;
+    const unsigned char *in;      /* local strm->next_in */
+    const unsigned char *last;    /* have enough input while in < last */
+    unsigned char *out;     /* local strm->next_out */
+    unsigned char *beg;     /* inflate()'s initial strm->next_out */
+    unsigned char *end;     /* while out < end, enough space available */
 #ifdef INFLATE_STRICT
     unsigned dmax;              /* maximum distance from zlib header */
 #endif
     unsigned wsize;             /* window size or zero if not using window */
     unsigned whave;             /* valid bytes in the window */
     unsigned wnext;             /* window write index */
-    unsigned char FAR *window;  /* allocated sliding window, if wsize != 0 */
+    unsigned char *window;  /* allocated sliding window, if wsize != 0 */
     unsigned long hold;         /* local strm->hold */
     unsigned bits;              /* local strm->bits */
-    code const FAR *lcode;      /* local strm->lencode */
-    code const FAR *dcode;      /* local strm->distcode */
+    code const *lcode;      /* local strm->lencode */
+    code const *dcode;      /* local strm->distcode */
     unsigned lmask;             /* mask for first level of length codes */
     unsigned dmask;             /* mask for first level of distance codes */
     code here;                  /* retrieved table entry */
@@ -92,10 +74,10 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                                 /*  window position, window bytes to copy */
     unsigned len;               /* match length, unused bytes */
     unsigned dist;              /* match distance */
-    unsigned char FAR *from;    /* where to copy match from */
+    unsigned char *from;    /* where to copy match from */
 
     /* copy state to local variables */
-    state = (struct inflate_state FAR *)strm->state;
+    state = (struct inflate_state *)strm->state;
     in = strm->next_in - OFF;
     last = in + (strm->avail_in - 5);
     out = strm->next_out - OFF;
@@ -131,9 +113,6 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
         bits -= op;
         op = (unsigned)(here.op);
         if (op == 0) {                          /* literal */
-            Tracevv((stderr, here.val >= 0x20 && here.val < 0x7f ?
-                    "inflate:         literal '%c'\n" :
-                    "inflate:         literal 0x%02x\n", here.val));
             PUP(out) = (unsigned char)(here.val);
         }
         else if (op & 16) {                     /* length base */
@@ -148,7 +127,6 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                 hold >>= op;
                 bits -= op;
             }
-            Tracevv((stderr, "inflate:         length %u\n", len));
             if (bits < 15) {
                 hold += (unsigned long)(PUP(in)) << bits;
                 bits += 8;
@@ -182,7 +160,6 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
 #endif
                 hold >>= op;
                 bits -= op;
-                Tracevv((stderr, "inflate:         distance %u\n", dist));
                 op = (unsigned)(out - beg);     /* max distance in output */
                 if (dist > op) {                /* see if copy from window */
                     op = dist - op;             /* distance back in window */
@@ -295,7 +272,6 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
             goto dolen;
         }
         else if (op & 32) {                     /* end-of-block */
-            Tracevv((stderr, "inflate:         end of block\n"));
             state->mode = TYPE;
             break;
         }
