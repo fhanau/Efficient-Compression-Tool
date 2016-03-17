@@ -1086,12 +1086,12 @@ int inflate(z_streamp strm, int flush)
 
 int inflateEnd(z_streamp strm)
 {
-    struct inflate_state *state;
-    if (strm == Z_NULL || strm->state == Z_NULL || strm->zfree == (free_func)0)
-        return Z_STREAM_ERROR;
-    if (state->window != Z_NULL) ZFREE(strm, state->window);
-    ZFREE(strm, strm->state);
-    state = (struct inflate_state *)strm->state;
-    strm->state = Z_NULL;
-    return Z_OK;
+  struct inflate_state FAR *state;
+  if (strm == Z_NULL || strm->state == Z_NULL || strm->zfree == (free_func)0)
+    return Z_STREAM_ERROR;
+  state = (struct inflate_state FAR *)strm->state;
+  if (state->window != Z_NULL) ZFREE(strm, state->window);
+  ZFREE(strm, strm->state);
+  strm->state = Z_NULL;
+  return Z_OK;
 }
