@@ -15,14 +15,6 @@
 
 #include "zutil.h"
 
-/* define NO_GZIP when compiling if you want to disable gzip header and
-   trailer creation by deflate().  NO_GZIP would be used to avoid linking in
-   the crc code when it is not needed.  For shared libraries, gzip encoding
-   should be left enabled. */
-#ifndef NO_GZIP
-#  define GZIP
-#endif
-
 /* ===========================================================================
  * Internal compression state.
  */
@@ -48,7 +40,11 @@
 #define MAX_BITS 15
 /* All codes must not exceed MAX_BITS bits */
 
+#if defined(__x86_64__) || defined(_M_X64)
+#define Buf_size 64
+#else
 #define Buf_size 16
+#endif
 /* size of bit buffer in bi_buf */
 
 #define INIT_STATE    42
@@ -86,9 +82,8 @@ typedef struct tree_desc_s {
     static_tree_desc *stat_desc; /* the corresponding static tree */
 } tree_desc;
 
-typedef ush Pos;
-typedef Pos FAR Posf;
-typedef unsigned IPos;
+typedef uint16_t Pos;
+typedef uint32_t IPos;
 
 /* A Pos is an index in the character window. We use short instead of int to
  * save space in the various tables. IPos is used only for parameter passing.
@@ -243,12 +238,12 @@ typedef struct internal_state {
      * array would be necessary.
      */
 
-    ulg opt_len;        /* bit length of current block with optimal trees */
-    ulg static_len;     /* bit length of current block with static trees */
-    uInt matches;       /* number of string matches in current block */
-    uInt insert;        /* bytes at end of window left to insert */
+    uint64_t opt_len;        /* bit length of current block with optimal trees */
+    uint64_t static_len;     /* bit length of current block with static trees */
+    uint32_t matches;       /* number of string matches in current block */
+    uint32_t insert;        /* bytes at end of window left to insert */
 
-    ush bi_buf;
+    uint64_t bi_buf;
     /* Output buffer. bits are inserted starting at the bottom (least
      * significant bits).
      */
@@ -275,26 +270,11 @@ typedef struct internal_state {
  * Output a short LSB first on the stream.
  * IN assertion: there is enough room in pendingBuf.
  */
-#if defined(__x86_64) || defined(__i386_)
-/* Compared to the else-clause's implementation, there are few advantages:
- *  - s->pending is loaded only once (else-clause's implementation needs to
- *    load s->pending twice due to the alias between s->pending and
- *    s->pending_buf[].
- *  - no instructions for extracting bytes from short.
- *  - needs less registers
- *  - stores to adjacent bytes are merged into a single store, albeit at the
- *    cost of penalty of potentially unaligned access. 
- */
+
 #define put_short(s, w) { \
     s->pending += 2; \
     *(unsigned short*)(&s->pending_buf[s->pending - 2]) = (w) ; \
 }
-#else
-#define put_short(s, w) { \
-    put_byte(s, (uch)((w) & 0xff)); \
-    put_byte(s, (uch)((ush)(w) >> 8)); \
-}
-#endif
 
 #define MIN_LOOKAHEAD (MAX_MATCH+MIN_MATCH+1)
 /* Minimum amount of lookahead, except at the end of the input file.
@@ -311,14 +291,14 @@ typedef struct internal_state {
    memory checker errors from longest match routines */
 
         /* in trees.c */
-void ZLIB_INTERNAL _tr_init OF((deflate_state *s));
-int ZLIB_INTERNAL _tr_tally OF((deflate_state *s, unsigned dist, unsigned lc));
-void ZLIB_INTERNAL _tr_flush_block OF((deflate_state *s, charf *buf,
-                        ulg stored_len, int last));
-void ZLIB_INTERNAL _tr_flush_bits OF((deflate_state *s));
-void ZLIB_INTERNAL _tr_align OF((deflate_state *s));
-void ZLIB_INTERNAL _tr_stored_block OF((deflate_state *s, charf *buf,
-                        ulg stored_len, int last));
+void ZLIB_INTERNAL _tr_init(deflate_state *s);
+int  ZLIB_INTERNAL _tr_tally(deflate_state *s, uint32_t dist, unsigned lc);
+void ZLIB_INTERNAL _tr_flush_block(deflate_state *s, char* buf,
+                        uint64_t stored_len, int last);
+void ZLIB_INTERNAL _tr_flush_bits(deflate_state *s);
+void ZLIB_INTERNAL _tr_align(deflate_state *s);
+void ZLIB_INTERNAL _tr_stored_block(deflate_state *s, char *buf,
+                        uint64_t stored_len, int last);
 
 #define d_code(dist) \
    ((dist) < 256 ? _dist_code[dist] : _dist_code[256+((dist)>>7)])
@@ -327,39 +307,8 @@ void ZLIB_INTERNAL _tr_stored_block OF((deflate_state *s, charf *buf,
  * used.
  */
 
-#ifndef DEBUG
-/* Inline versions of _tr_tally for speed: */
-
-#if defined(GEN_TREES_H) || !defined(STDC)
-  extern uch ZLIB_INTERNAL _length_code[];
-  extern uch ZLIB_INTERNAL _dist_code[];
-#else
-  extern const uch ZLIB_INTERNAL _length_code[];
-  extern const uch ZLIB_INTERNAL _dist_code[];
-#endif
-
-# define _tr_tally_lit(s, c, flush) \
-  { uch cc = (c); \
-    s->d_buf[s->last_lit] = 0; \
-    s->l_buf[s->last_lit++] = cc; \
-    s->dyn_ltree[cc].Freq++; \
-    flush = (s->last_lit == s->lit_bufsize-1); \
-   }
-# define _tr_tally_dist(s, distance, length, flush) \
-  { uch len = (length); \
-    ush dist = (distance); \
-    s->d_buf[s->last_lit] = dist; \
-    s->l_buf[s->last_lit++] = len; \
-    dist--; \
-    s->dyn_ltree[_length_code[len]+LITERALS+1].Freq++; \
-    s->dyn_dtree[d_code(dist)].Freq++; \
-    flush = (s->last_lit == s->lit_bufsize-1); \
-  }
-#else
-# define _tr_tally_lit(s, c, flush) flush = _tr_tally(s, 0, c)
-# define _tr_tally_dist(s, distance, length, flush) \
-              flush = _tr_tally(s, distance, length)
-#endif
+extern const uint8_t ZLIB_INTERNAL _length_code[];
+extern const uint8_t ZLIB_INTERNAL _dist_code[];
 
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)

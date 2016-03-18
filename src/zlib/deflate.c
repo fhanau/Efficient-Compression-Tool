@@ -82,7 +82,7 @@ typedef struct config_s {
 static const config configuration_table[10] = {
 /*      good lazy nice chain */
 /* fake 0 */ {16, 258, 258, 4596, deflate_slow}, /* stored mode was removed */
-/* 1 */ {16, 258, 258, 4596, deflate_slow}, /* max speed, no lazy matches */
+/* 1 */ {16, 258, 258, 4096, deflate_slow}, /* max speed, no lazy matches */
 /* 2 */ {4,    5, 16,    8, deflate_fast},
 /* 3 */ {4,    6, 32,   32, deflate_fast},
 
@@ -155,15 +155,27 @@ __attribute__ ((always_inline)) inline static void
 bulk_insert_str(deflate_state *s, Pos startpos, unsigned count) {
     unsigned idx;
     for (idx = 0; idx < count; idx++) {
-        Posf dummy;
+        Pos dummy;
         INSERT_STRING(s, startpos + idx, dummy);
     }
 }
 
-/* ===========================================================================
- * Initialize the hash table (avoiding 64K overflow for 16 bit systems).
- * prev[] will be initialized on the fly.
- */
+static int _tr_tally_lit(deflate_state *s, uint8_t cc) {
+  s->d_buf[s->last_lit] = 0;
+  s->l_buf[s->last_lit++] = cc;
+  s->dyn_ltree[cc].Freq++;
+  return (s->last_lit == s->lit_bufsize-1);
+}
+
+static int _tr_tally_dist(deflate_state *s, uint16_t dist, uint8_t len) {
+  s->d_buf[s->last_lit] = dist;
+  s->l_buf[s->last_lit++] = len;
+  dist--;
+  s->dyn_ltree[_length_code[len]+LITERALS+1].Freq++;
+  s->dyn_dtree[d_code(dist)].Freq++;
+  return (s->last_lit == s->lit_bufsize-1);
+}
+
 #define CLEAR_HASH(s) \
     s->head[s->hash_size-1] = 0; \
     memset((Byte *)s->head, 0, (unsigned)(s->hash_size-1)*sizeof(*s->head));
@@ -232,8 +244,8 @@ int deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
     s->hash_shift =  ((s->hash_bits+MIN_MATCH-1)/MIN_MATCH);
 
     s->window = (Byte *) ZALLOC(strm, s->w_size, 2*sizeof(Byte));
-    s->prev   = (Posf *)  ZALLOC(strm, s->w_size, sizeof(Pos));
-    s->head   = (Posf *)  ZALLOC(strm, s->hash_size, sizeof(Pos));
+    s->prev   = (Pos *)  ZALLOC(strm, s->w_size, sizeof(Pos));
+    s->head   = (Pos *)  ZALLOC(strm, s->hash_size, sizeof(Pos));
 
     s->high_water = 0;      /* nothing written to s->window yet */
 
@@ -748,7 +760,7 @@ IPos cur_match;                             /* current match */
     /* Stop when cur_match becomes <= limit. To simplify the code,
      * we prevent matches with the string of window index 0.
      */
-    Posf *prev = s->prev;
+    Pos *prev = s->prev;
     unsigned wmask = s->w_mask;
 
     register Byte *strend = s->window + s->strstart + MAX_MATCH;
@@ -864,7 +876,7 @@ static unsigned longest_match(s, cur_match)
     /* Stop when cur_match becomes <= limit. To simplify the code,
      * we prevent matches with the string of window index 0.
      */
-    Posf *prev = s->prev;
+    Pos *prev = s->prev;
     unsigned wmask = s->w_mask;
 
 #ifdef UNALIGNED_OK
@@ -1006,74 +1018,96 @@ static unsigned longest_match(s, cur_match)
 static void fill_window(s)
 deflate_state *s;
 {
-    register unsigned n, m;
-    register Posf *p;
-    unsigned more;    /* Amount of free space at the end of the window. */
-    uInt wsize = s->w_size;
+    register uint32_t n, m;
+    register Pos *p;
+    uint32_t more;    /* Amount of free space at the end of the window. */
+    uint32_t wsize = s->w_size;
 
     Assert(s->lookahead < MIN_LOOKAHEAD, "already enough lookahead");
 
     do {
-        more = (unsigned)(s->window_size -(ulg)s->lookahead -(ulg)s->strstart);
+        more = (uint32_t)(s->window_size -(uint64_t)s->lookahead -(uint64_t)s->strstart);
 
         /* If the window is almost full and there is insufficient lookahead,
          * move the upper half to the lower one to make room in the upper half.
          */
         if (s->strstart >= wsize+MAX_DIST(s)) {
 
-            zmemcpy(s->window, s->window+wsize, (unsigned)wsize);
+            memcpy(s->window, s->window+wsize, (uint32_t)wsize);
             s->match_start -= wsize;
             s->strstart    -= wsize; /* we now have strstart >= MAX_DIST */
-            s->block_start -= (long) wsize;
+            s->block_start -= (int64_t) wsize;
 
             /* Slide the hash table (could be avoided with 32 bit values
-               at the expense of memory usage). We slide even when level == 0
-               to keep the hash table consistent if we switch back to level > 0
-               later. (Using level 0 permanently is not an optimal usage of
-               zlib, so we don't care about this pathological case.)
+             at the expense of memory usage). We slide even when level == 0
+             to keep the hash table consistent if we switch back to level > 0
+             later. (Using level 0 permanently is not an optimal usage of
+             zlib, so we don't care about this pathological case.)
              */
-            n = s->hash_size;
-            p = &s->head[n];
+#ifdef __SSE4_2__
 
-            /* As of I make this change, gcc (4.8.*) isn't able to vectorize
-             * this hot loop using saturated-subtraction on x86-64 architecture.
-             * To avoid this defect, we can change the loop such that
-             *    o. the pointer advance forward, and
-             *    o. demote the variable 'm' to be static to the loop, and
-             *       choose type "Pos" (instead of 'unsigned int') for the
-             *       variable to avoid unncessary zero-extension.
-             */
-            {
-                int i; 
-                typeof(p) q = p - n;
-                for (i = 0; i < n; i++) {
-                    Pos m = *q;
-                    Pos t = wsize;
-                    *q++ = (Pos)(m >= t ? m-t: 0);
-                }
+            /* Use intrinsics, because compiler generates suboptimal code */
+            n = s->hash_size;
+            __m128i W = _mm_set1_epi16(wsize);
+            __m128i *q = (__m128i*)s->head;
+            int i;
+            /* hash size would always be a pot */
+            for(i=0; i<n/8; i++) {
+                _mm_storeu_si128(q, _mm_subs_epu16(_mm_loadu_si128(q), W));
+                q++;
             }
-            
-            /* The following three assignments are unnecessary as the variable
-             * p, n and m are dead at this point. The rationale for these
-             * statements is to ease the reader to verify the two loops are
-             * equivalent.
-             */
+
+            n = wsize;
+            q = (__m128i*)s->prev;
+            /* assuming wsize would always be a pot */
+            for(i=0; i<n/8; i++) {
+                _mm_storeu_si128(q, _mm_subs_epu16(_mm_loadu_si128(q), W));
+                q++;
+            }
+#else
+          n = s->hash_size;
+          p = &s->head[n];
+
+          /* As of I make this change, gcc (4.8.*) isn't able to vectorize
+           * this hot loop using saturated-subtraction on x86-64 architecture.
+           * To avoid this defect, we can change the loop such that
+           *    o. the pointer advance forward, and
+           *    o. demote the variable 'm' to be static to the loop, and
+           *       choose type "Pos" (instead of 'unsigned int') for the
+           *       variable to avoid unncessary zero-extension.
+           */
+          {
+            int i;
+            typeof(p) q = p - n;
+            for (i = 0; i < n; i++) {
+              Pos m = *q;
+              Pos t = wsize;
+              *q++ = (Pos)(m >= t ? m-t: 0);
+            }
+          }
+
+          /* The following three assignments are unnecessary as the variable
+           * p, n and m are dead at this point. The rationale for these
+           * statements is to ease the reader to verify the two loops are
+           * equivalent.
+           */
+          p = p - n;
+          m = *p;
+          n = wsize;
+          p = &s->prev[n];
+          {
+            int i;
+            typeof(p) q = p - n;
+            for (i = 0; i < n; i++) {
+              Pos m = *q;
+              Pos t = wsize;
+              *q++ = (Pos)(m >= t ? m-t: 0);
+            }
             p = p - n;
             m = *p;
-            n = wsize;
-            p = &s->prev[n];
-            {
-                int i; 
-                typeof(p) q = p - n;
-                for (i = 0; i < n; i++) {
-                    Pos m = *q;
-                    Pos t = wsize;
-                    *q++ = (Pos)(m >= t ? m-t: 0);
-                }
-                p = p - n;
-                m = *p;
-                n = 0;
-            }
+            n = 0;
+          }
+#endif
             more += wsize;
         }
         if (s->strm->avail_in == 0) break;
@@ -1096,11 +1130,11 @@ deflate_state *s;
 
         /* Initialize the hash value now that we have some input: */
         if (s->lookahead + s->insert >= MIN_MATCH) {
-            uInt str = s->strstart - s->insert;
-            uInt ins_h = s->window[str];
+            uint32_t str = s->strstart - s->insert;
+            uint32_t ins_h = s->window[str];
             INIT_HASH(s, ins_h, &s->window[str]);
             while (s->insert) {
-                UPDATE_HASH(s, ins_h, &s->window[str + MIN_MATCH-1]);
+                UPDATE_HASH(s, ins_h, &s->window[str + 2]);
                 s->prev[str & s->w_mask] = s->head[ins_h];
                 s->head[ins_h] = (Pos)str;
                 str++;
@@ -1124,8 +1158,8 @@ deflate_state *s;
      * routines allow scanning to strstart + MAX_MATCH, ignoring lookahead.
      */
     if (s->high_water < s->window_size) {
-        ulg curr = s->strstart + (ulg)(s->lookahead);
-        ulg init;
+        uint64_t curr = s->strstart + (uint64_t)(s->lookahead);
+        uint64_t init;
 
         if (s->high_water < curr) {
             /* Previous high water mark below current data -- zero WIN_INIT
@@ -1134,24 +1168,24 @@ deflate_state *s;
             init = s->window_size - curr;
             if (init > WIN_INIT)
                 init = WIN_INIT;
-            zmemzero(s->window + curr, (unsigned)init);
+            memset(s->window + curr, 0, (uint32_t)init);
             s->high_water = curr + init;
         }
-        else if (s->high_water < (ulg)curr + WIN_INIT) {
+        else if (s->high_water < (uint64_t)curr + WIN_INIT) {
             /* High water mark at or above current data, but below current data
              * plus WIN_INIT -- zero out to current data plus WIN_INIT, or up
              * to end of window, whichever is less.
              */
-            init = (ulg)curr + WIN_INIT - s->high_water;
+            init = (uint64_t)curr + WIN_INIT - s->high_water;
             if (init > s->window_size - s->high_water)
                 init = s->window_size - s->high_water;
-            zmemzero(s->window + s->high_water, (unsigned)init);
+            memset(s->window + s->high_water, 0, (uint32_t)init);
             s->high_water += init;
         }
     }
-
-  Assert((uint64_t)s->strstart <= s->window_size - MIN_LOOKAHEAD,
-         "not enough room for search");
+    
+    Assert((uint64_t)s->strstart <= s->window_size - MIN_LOOKAHEAD,
+           "not enough room for search");
 }
 
 /* ===========================================================================
@@ -1159,14 +1193,13 @@ deflate_state *s;
  * IN assertion: strstart is set to the end of the current match.
  */
 #define FLUSH_BLOCK_ONLY(s, last) { \
-   _tr_flush_block(s, (s->block_start >= 0L ? \
-                   (charf *)&s->window[(unsigned)s->block_start] : \
-                   (charf *)Z_NULL), \
-                (ulg)((long)s->strstart - s->block_start), \
-                (last)); \
-   s->block_start = s->strstart; \
-   flush_pending(s->strm); \
-   Tracev((stderr,"[FLUSH]")); \
+  _tr_flush_block(s, (s->block_start >= 0L ? \
+    (char *)&s->window[(uint64_t)s->block_start] : \
+    (char *)Z_NULL), \
+    (uint64_t)((int64_t)s->strstart - s->block_start), \
+    (last)); \
+  s->block_start = s->strstart; \
+  flush_pending(s->strm); \
 }
 
 /* Same but force premature exit if necessary. */
@@ -1223,8 +1256,8 @@ static block_state deflate_fast(s, flush)
             /* longest_match() sets match_start */
         }
         if (s->match_length >= MIN_MATCH) {
-            _tr_tally_dist(s, s->strstart - s->match_start,
-                           s->match_length - MIN_MATCH, bflush);
+            bflush = _tr_tally_dist(s, s->strstart - s->match_start,
+                                    s->match_length - MIN_MATCH);
 
             s->lookahead -= s->match_length;
 
@@ -1253,8 +1286,7 @@ static block_state deflate_fast(s, flush)
             }
         } else {
             /* No match, output a literal byte */
-            Tracevv((stderr,"%c", s->window[s->strstart]));
-            _tr_tally_lit (s, s->window[s->strstart], bflush);
+            bflush = _tr_tally_lit (s, s->window[s->strstart]);
             s->lookahead--;
             s->strstart++;
         }
@@ -1334,8 +1366,8 @@ static block_state deflate_slow(s, flush)
             unsigned max_insert = s->strstart + s->lookahead - MIN_MATCH;
             /* Do not insert strings in hash table beyond this. */
 
-            _tr_tally_dist(s, s->strstart -1 - s->prev_match,
-                           s->prev_length - MIN_MATCH, bflush);
+          bflush = _tr_tally_dist(s, s->strstart -1 - s->prev_match,
+                                  s->prev_length - MIN_MATCH);
 
             /* Insert in hash table all strings up to the end of the match.
              * strstart-1 and strstart are already inserted. If there is not
@@ -1364,7 +1396,7 @@ static block_state deflate_slow(s, flush)
              * single literal. If there was a match but the current match
              * is longer, truncate the previous match to a single literal.
              */
-            _tr_tally_lit(s, s->window[s->strstart-1], bflush);
+            bflush = _tr_tally_lit(s, s->window[s->strstart-1]);
             if (bflush) {
                 FLUSH_BLOCK_ONLY(s, 0);
             }
@@ -1382,7 +1414,7 @@ static block_state deflate_slow(s, flush)
     }
     Assert (flush != Z_NO_FLUSH, "no flush?");
     if (s->match_available) {
-        _tr_tally_lit(s, s->window[s->strstart-1], bflush);
+        bflush = _tr_tally_lit(s, s->window[s->strstart-1]);
         s->match_available = 0;
     }
     s->insert = s->strstart < MIN_MATCH-1 ? s->strstart : MIN_MATCH-1;
