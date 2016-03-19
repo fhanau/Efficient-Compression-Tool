@@ -275,21 +275,20 @@ static void GetBestLengths(const ZopfliOptions* options,
     matches = matchesarr;
   }
 
-  unsigned notenoughsame = 0;
+  unsigned notenoughsame = instart + ZOPFLI_MAX_MATCH;
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
 
 #ifdef ZOPFLI_SHORTCUT_LONG_REPETITIONS
     //You think ECT will choke on files with minimum entropy? Think again!
-    if (i < inend - ZOPFLI_MAX_MATCH - 1 && *(long*)&in[i] == *(long*)&in[i + 1] && i > notenoughsame){
+    if (i < inend - ZOPFLI_MAX_MATCH - 1 && i > notenoughsame && *(long*)&in[i - 200] == *(long*)&in[i - 8]){
       unsigned same = GetMatch(&in[i + 1], &in[i], &in[inend], &in[inend] - 8) - &in[i];
       /* If we're in a long repetition of the same character and have more than
        ZOPFLI_MAX_MATCH characters before and after our position. */
-      if (same > ZOPFLI_MAX_MATCH/* * 2*/
-          && i > instart + ZOPFLI_MAX_MATCH + 1
-          && GetMatch(&in[i + 1 - ZOPFLI_MAX_MATCH], &in[i - ZOPFLI_MAX_MATCH], &in[i + 1], &in[i] - 7) - &in[i - ZOPFLI_MAX_MATCH]
+      unsigned same2 = GetMatch(&in[i + 1 - ZOPFLI_MAX_MATCH], &in[i - ZOPFLI_MAX_MATCH], &in[i + 1], &in[i] - 7) - &in[i - ZOPFLI_MAX_MATCH];
+      if (same > ZOPFLI_MAX_MATCH
+          && same2
           > ZOPFLI_MAX_MATCH) {
-
         unsigned match = same - ZOPFLI_MAX_MATCH;
 
         float symbolcost = costcontext ? costcontext->ll_symbols[285] + costcontext->d_symbols[0] : 13;
@@ -305,10 +304,15 @@ static void GetBestLengths(const ZopfliOptions* options,
         if (storeincache != 2){
           Bt3Zip_MatchFinder_Skip(&p, match);
         }
+        notenoughsame = i + same + ZOPFLI_MAX_MATCH - 1;
+
         i += match;
       }
       else if (same <= ZOPFLI_MAX_MATCH){
-        notenoughsame = i + same - 1;
+        notenoughsame = i + same + ZOPFLI_MAX_MATCH - 1;
+      }
+      else{
+        notenoughsame = i + ZOPFLI_MAX_MATCH - same2 < i + same2 - 1 ? i + ZOPFLI_MAX_MATCH - same2 : i + same2 - 1;
       }
     }
 #endif
@@ -335,7 +339,6 @@ static void GetBestLengths(const ZopfliOptions* options,
         c->pointer += numPairs + 1;
       }
     }
-
     if (numPairs){
       const unsigned * mend = matches + numPairs;
 
