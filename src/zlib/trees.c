@@ -96,14 +96,6 @@ local static_tree_desc  static_bl_desc =
 
 local void init_block     (deflate_state *s);
 local void pqdownheap     (deflate_state *s, ct_data *tree, int k);
-local void gen_bitlen     (deflate_state *s, tree_desc *desc);
-local void gen_codes      (ct_data *tree, int max_code, unsigned short *bl_count);
-local void build_tree     (deflate_state *s, tree_desc *desc);
-local void scan_tree      (deflate_state *s, ct_data *tree, int max_code);
-local void send_tree      (deflate_state *s, ct_data *tree, int max_code);
-local int  build_bl_tree  (deflate_state *s);
-local void send_all_trees (deflate_state *s, int lcodes, int dcodes,
-                              int blcodes);
 local void compress_block (deflate_state *s, const ct_data *ltree,
                               const ct_data *dtree);
 local unsigned bi_reverse (unsigned value, int length);
@@ -432,12 +424,7 @@ local void build_tree(s, desc)
         s->depth[node] = (unsigned char)((s->depth[n] >= s->depth[m] ?
                                 s->depth[n] : s->depth[m]) + 1);
         tree[n].Dad = tree[m].Dad = (unsigned short)node;
-#ifdef DUMP_BL_TREE
-        if (tree == s->bl_tree) {
-            fprintf(stderr,"\nnode %d(%d), sons %d(%d) %d(%d)",
-                    node, tree[node].Freq, n, tree[n].Freq, m, tree[m].Freq);
-        }
-#endif
+
         /* and insert the new node in the heap */
         s->heap[SMALLEST] = node++;
         pqdownheap(s, tree, SMALLEST);
@@ -691,11 +678,7 @@ void ZLIB_INTERNAL _tr_flush_block(s, buf, stored_len, last)
          */
         _tr_stored_block(s, buf, stored_len, last);
 
-#ifdef FORCE_STATIC
-    } else if (static_lenb >= 0) { /* force static trees */
-#else
     } else if (static_lenb == opt_lenb) {
-#endif
         send_bits(s, (STATIC_TREES<<1)+last, 3);
         compress_block(s, (const ct_data *)static_ltree,
                        (const ct_data *)static_dtree);
