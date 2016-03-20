@@ -342,11 +342,28 @@ static void GetBestLengths(const ZopfliOptions* options,
     if (numPairs){
       const unsigned * mend = matches + numPairs;
 
+      //It would be really nice to get this faster, but that seems impossible. Using AVX1 is slower.
       if (*(mend - 2) == ZOPFLI_MAX_MATCH && numPairs == 2){
         unsigned dist = matches[1];
         costs[j + ZOPFLI_MAX_MATCH] = costs[j] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (dist << 9);
       }
+#if 0 //More speed, less compression.
+      else if (*(mend - 2) == ZOPFLI_MAX_MATCH){
+        unsigned dist = matches[numPairs - 1];
+        costs[j + ZOPFLI_MAX_MATCH] = costs[j] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
+        length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (dist << 9);
+      }
+      else if(*(mend - 2) > 100){
+        unsigned match = *(mend - 2);
+        unsigned dist = *(mend - 1);
+        float x = costs[j] + disttable[dist] + litlentable[match];
+        if (x < costs[j + match]){
+          costs[j + match] = x;
+          length_array[j + match] = match + (dist << 9);
+        }
+      }
+#endif
       else{
         float price = costs[j];
         unsigned* mp = matches;
