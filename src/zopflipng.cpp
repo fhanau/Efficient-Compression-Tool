@@ -260,7 +260,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
   // For very small output, also try without palette, it may be smaller thanks
   // to no palette storage overhead.
   unsigned long testboth = out->size();
-  if (!error && testboth < 3328 && w * h < 45000 && best_filter != 6) {
+  if (!error && testboth < 4096 && w * h < 45000 && best_filter != 6) {
     lodepng::State teststate;
     std::vector<unsigned char> temp;
     lodepng::decode(temp, w, h, teststate, *out);
