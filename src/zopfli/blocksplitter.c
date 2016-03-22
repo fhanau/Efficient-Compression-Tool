@@ -266,7 +266,7 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
   results in better blocks. */
   ZopfliInitLZ77Store(&store);
   if (twiceMode != 2){
-    ZopfliLZ77Greedy(options, in, instart, inend, &store);
+    ZopfliLZ77Lazy(options, in, instart, inend, &store);
     store.symbols = 1;
   }
   else{
@@ -300,11 +300,21 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
         size_t temp = store.size;
         size_t shift = *npoints ? lz77splitpoints[*npoints - 1] : 0;
         store.size = i - shift;
-        store.dists += shift;
+        if (store.symbols){
+          store.dists = (unsigned short*)(((unsigned char*)(store.dists)) + shift);
+        }
+        else{
+          store.dists += shift;
+        }
         store.litlens += shift;
         GetStatistics(&store, &statsp[*npoints]);
         store.size = temp;
-        store.dists -= shift;
+        if (store.symbols){
+          store.dists = (unsigned short*)(((unsigned char*)(store.dists)) - shift);
+        }
+        else{
+          store.dists -= shift;
+        }
         store.litlens -= shift;
         ZOPFLI_APPEND_DATA(pos, splitpoints, npoints);
         if (*npoints == nlz77points) break;
@@ -316,12 +326,22 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
 
   size_t shift = *npoints ? lz77splitpoints[*npoints - 1] : 0;
   store.size -= shift;
-  store.dists += shift;
+  if (store.symbols){
+    store.dists = (unsigned short*)(((unsigned char*)(store.dists)) + shift);
+  }
+  else{
+    store.dists += shift;
+  }
   store.litlens += shift;
 
   GetStatistics(&store, &statsp[*npoints]);
   store.size += shift;
-  store.dists -= shift;
+  if (store.symbols){
+    store.dists = (unsigned short*)(((unsigned char*)(store.dists)) - shift);
+  }
+  else{
+    store.dists -= shift;
+  }
   store.litlens -= shift;
 
   free(lz77splitpoints);

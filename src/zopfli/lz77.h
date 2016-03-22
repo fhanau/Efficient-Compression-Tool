@@ -27,7 +27,6 @@ compression.
 #ifndef ZOPFLI_LZ77_H_
 #define ZOPFLI_LZ77_H_
 
-#include "hash.h"
 #include "zopfli.h"
 
 #ifdef __cplusplus
@@ -85,7 +84,7 @@ The result is placed in the ZopfliLZ77Store.
 If instart is larger than 0, it uses values before instart as starting
 dictionary.
 */
-void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
+void ZopfliLZ77Lazy(const ZopfliOptions* options, const unsigned char* in,
                       size_t instart, size_t inend,
                       ZopfliLZ77Store* store);
 

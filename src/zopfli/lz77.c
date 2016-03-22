@@ -62,7 +62,7 @@ static void ZopfliStoreLitLenDist(unsigned short length, unsigned short dist,
                            ZopfliLZ77Store* store) {
   size_t size2 = store->size;  /* Needed for using ZOPFLI_APPEND_DATA twice. */
   ZOPFLI_APPEND_DATA(length, &store->litlens, &store->size);
-  ZOPFLI_APPEND_DATA(dist, &store->dists, &size2);
+  ZOPFLI_APPEND_DATA(dist, (unsigned char**)&store->dists, &size2);
 }
 
 #ifndef NDEBUG
@@ -74,87 +74,6 @@ void ZopfliVerifyLenDist(const unsigned char* data, size_t datasize, size_t pos,
   }
 }
 #endif
-
-static void ZopfliFindLongestMatch(const ZopfliOptions* options, const ZopfliHash* h,
-                            const unsigned char* array,
-                            size_t pos, size_t size,
-                            unsigned short* distance, unsigned short* length) {
-  if (size - pos < ZOPFLI_MIN_MATCH) {
-    /* The rest of the code assumes there are at least ZOPFLI_MIN_MATCH bytes to
-     try. */
-    *length = 0;
-    *distance = 0;
-    return;
-  }
-  unsigned short chain_counter = options->chain_length;   /*For quitting early. */
-
-  unsigned limit = ZOPFLI_MAX_MATCH;
-  if (pos + limit > size) {
-    limit = size - pos;
-  }
-  const unsigned char* arrayend = &array[pos] + limit;
-  const unsigned char* arrayend_safe = arrayend - 8;
-  unsigned short hpos = pos & ZOPFLI_WINDOW_MASK, p, pp;
-  unsigned short* hprev = h->prev;
-  unsigned char hhead = 0;
-  pp = hpos;  /* During the whole loop, p == hprev[pp]. */
-  p = hprev[pp];
-
-  unsigned dist = p < pp ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp); /* Not unsigned short on purpose. */
-
-  unsigned short bestlength = 2;
-  unsigned short bestdist = 0;
-  const unsigned char* scan;
-  const unsigned char* match;
-  const unsigned char* new = &array[pos];
-  unsigned short same0 = h->same[hpos];
-  if (same0 > limit) same0 = limit;
-  /* Go through all distances. */
-  while (dist < ZOPFLI_WINDOW_SIZE) {
-    scan = new;
-    match = new - dist;
-
-    /* Testing the byte at position bestlength first, goes slightly faster. */
-    if (unlikely(*(unsigned short*)(scan + bestlength - 1) == *(unsigned short*)(match + bestlength - 1))) {
-#ifdef ZOPFLI_HASH_SAME
-      if (same0 > 2) {
-        unsigned short same1 = h->same[(pos - dist) & ZOPFLI_WINDOW_MASK];
-        unsigned short same = same0 < same1 ? same0 : same1;
-        scan += same;
-        match += same;
-      }
-#endif
-      scan = GetMatch(scan, match, arrayend, arrayend_safe);
-      unsigned short currentlength = scan - new;  /* The found length. */
-      if (currentlength > bestlength) {
-        bestdist = dist;
-        bestlength = currentlength;
-        if (currentlength >= limit) break;
-      }
-    }
-
-#ifdef ZOPFLI_HASH_SAME_HASH
-    /* Switch to the other hash once this will be more efficient. */
-    if (!hhead && bestlength >= h->same[hpos] &&
-        h->val2 == h->hashval2[p]) {
-      /* Now use the hash that encodes the length and first byte. */
-      hhead = 1;
-      hprev = h->prev2;
-    }
-#endif
-
-    pp = p;
-    p = hprev[p];
-
-    dist += likely(p < pp) ? pp - p : ((ZOPFLI_WINDOW_SIZE - p) + pp);
-    chain_counter--;
-    if (!chain_counter) break;
-  }
-
-  *distance = bestdist;
-  *length = bestlength;
-}
-
 
 static unsigned symtox(unsigned lls){
   if (lls <= 279){
@@ -168,32 +87,244 @@ static unsigned symtox(unsigned lls){
   }
 }
 
-void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
+/*
+ LZ4 HC - High Compression Mode of LZ4
+ Copyright (C) 2011-2015, Yann Collet.
+ BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+ * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ You can contact the author at :
+ - LZ4 source repository : https://github.com/Cyan4973/lz4
+ - LZ4 public forum : https://groups.google.com/forum/#!forum/lz4c
+ */
+#include <stdint.h>
+typedef  uint8_t BYTE;
+typedef uint16_t U16;
+typedef uint32_t U32;
+
+#define DICTIONARY_LOGSIZE 15
+#define DICTIONARY_LOGSIZE3 11 //better use 9 for PNG
+
+#define MAXD (1<<DICTIONARY_LOGSIZE)
+#define MAXD3 (1<<DICTIONARY_LOGSIZE3)
+#define MAX_DISTANCE MAXD - 1
+#define MAX_DISTANCE3 MAXD3 - 1
+#define HASH_LOG (DICTIONARY_LOGSIZE + 1)
+#define HASHTABLESIZE (1 << HASH_LOG)
+#define HASH_LOG3 DICTIONARY_LOGSIZE3
+#define HASHTABLESIZE3 (1 << HASH_LOG3)
+
+typedef struct
+{
+  U32   hashTable[HASHTABLESIZE];
+  U16   chainTable[MAXD];
+  const BYTE* base;       /* All index relative to this position */
+  U32   nextToUpdate;     /* index from which to continue dictionary update */
+} LZ4HC_Data_Structure;
+typedef struct
+{
+  U32   hashTable[HASHTABLESIZE3];
+  U16   chainTable[MAXD3];
+  const BYTE* base;       /* All index relative to this position */
+  U32   nextToUpdate;     /* index from which to continue dictionary update */
+} LZ3HC_Data_Structure;
+
+#ifdef __SSE4_2__
+#include <nmmintrin.h>
+static U32 LZ4HC_hashPtr(const void* ptr) { return _mm_crc32_u32(0, *(unsigned*)ptr) >> (32-HASH_LOG); }
+static U32 LZ4HC_hashPtr3(const void* ptr) { return _mm_crc32_u32(0, (*(unsigned*)ptr) & 0xFFFFFF) >> (32-HASH_LOG3); }
+#else
+#define HASH_FUNCTION(i)       (((i) * 2654435761U) >> (32-HASH_LOG))
+#define HASH_FUNCTION3(i)       (((i) * 2654435761U) >> (32-HASH_LOG3))
+
+static U32 LZ4HC_hashPtr(const void* ptr) { return HASH_FUNCTION(*(unsigned*)ptr); }
+static U32 LZ4HC_hashPtr3(const void* ptr) { return HASH_FUNCTION3((*(unsigned*)ptr) & 0xFFFFFF); }
+#endif
+
+static void LZ4HC_init (LZ4HC_Data_Structure* hc4, const BYTE* start)
+{
+  memset((void*)hc4->hashTable, 0, sizeof(hc4->hashTable));
+  memset(hc4->chainTable, 0xFF, sizeof(hc4->chainTable));
+
+  hc4->nextToUpdate = MAXD;
+  hc4->base = start - MAXD;
+}
+static void LZ4HC_init3 (LZ3HC_Data_Structure* hc4, const BYTE* start)
+{
+  memset((void*)hc4->hashTable, 0, sizeof(hc4->hashTable));
+  memset(hc4->chainTable, 0xFF, sizeof(hc4->chainTable));
+
+  hc4->nextToUpdate = MAXD3;
+  hc4->base = start - MAXD3;
+}
+
+/* Update chains up to ip (excluded) */
+static void LZ4HC_Insert (LZ4HC_Data_Structure* hc4, const BYTE* ip)
+{
+  U16* chainTable = hc4->chainTable;
+  U32* HashTable  = hc4->hashTable;
+
+  const BYTE* const base = hc4->base;
+  const U32 target = (U32)(ip - base);
+  U32 idx = hc4->nextToUpdate;
+
+  while(idx < target)
+  {
+    U32 h = LZ4HC_hashPtr(base+idx);
+    size_t delta = idx - HashTable[h];
+    if (delta>MAX_DISTANCE) delta = MAX_DISTANCE;
+    chainTable[idx & MAX_DISTANCE] = (U16)delta;
+    HashTable[h] = idx;
+    idx++;
+  }
+
+  hc4->nextToUpdate = target;
+
+}
+static void LZ4HC_Insert3 (LZ3HC_Data_Structure* hc4, const BYTE* ip)
+{
+  U16* chainTable = hc4->chainTable;
+  U32* HashTable  = hc4->hashTable;
+
+  const BYTE* const base = hc4->base;
+  const U32 target = (U32)(ip - base);
+  U32 idx = hc4->nextToUpdate;
+
+  while(idx < target)
+  {
+    U32 h = LZ4HC_hashPtr3(base+idx);
+    size_t delta = idx - HashTable[h];
+    if (delta>MAX_DISTANCE3) delta = MAX_DISTANCE3;
+    chainTable[idx & MAX_DISTANCE3] = (U16)delta;
+    HashTable[h] = idx;
+    idx++;
+  }
+
+  hc4->nextToUpdate = target;
+}
+
+static int LZ4HC_InsertAndFindBestMatch (LZ4HC_Data_Structure* hc4,   /* Index table will be updated */
+                                               const BYTE* ip, const BYTE* const iLimit,
+                                               const BYTE** matchpos)
+{
+  U16* const chainTable = hc4->chainTable;
+  U32* const HashTable = hc4->hashTable;
+  const BYTE* const base = hc4->base;
+  const U32 lowLimit = (2 * MAXD > (U32)(ip-base)) ? MAXD : (U32)(ip - base) - (MAXD - 1);
+  const BYTE* match;
+  int nbAttempts = 650; //PNG 650//ENWIK 600/700
+  size_t ml=3;
+
+  /* HC4 match finder */
+  LZ4HC_Insert(hc4, ip);
+  U32 matchIndex = HashTable[LZ4HC_hashPtr(ip)];
+
+  while ((matchIndex>=lowLimit) && nbAttempts)
+  {
+    nbAttempts--;
+    match = base + matchIndex;
+    if (*(unsigned*)(match+ml - 3) == *(unsigned*)(ip+ml - 3))
+    {
+      size_t mlt = GetMatch(ip, match, iLimit, iLimit - 8) - ip;
+
+      if (mlt > ml) { ml = mlt; *matchpos = match;
+        if (ml == ZOPFLI_MAX_MATCH){
+          return ZOPFLI_MAX_MATCH;
+        }
+      }
+    }
+    matchIndex -= chainTable[matchIndex & MAX_DISTANCE];
+  }
+
+  return (int)ml;
+}
+
+static int LZ4HC_InsertAndFindBestMatch3 (LZ3HC_Data_Structure* hc4,   /* Index table will be updated */
+                                         const BYTE* ip, const BYTE* const iLimit,
+                                         const BYTE** matchpos)
+{
+  if (iLimit - ip < 3){
+    return 0;
+  }
+  U16* const chainTable = hc4->chainTable;
+  U32* const HashTable = hc4->hashTable;
+  const BYTE* const base = hc4->base;
+  const U32 lowLimit = (2 * MAXD3 > (U32)(ip-base)) ? MAXD3 : (U32)(ip - base) - (MAXD3 - 1);
+
+  /* HC3 match finder */
+  LZ4HC_Insert3(hc4, ip);
+  U32 matchIndex = HashTable[LZ4HC_hashPtr3(ip)];
+  unsigned val = (*(unsigned*)ip) & 0xFFFFFF;
+
+  while ((matchIndex>=lowLimit))
+  {
+    const BYTE* match = base + matchIndex;
+    if (((*(unsigned*)match) & 0xFFFFFF) == val) { *matchpos = match;  return 3;}
+    matchIndex -= chainTable[matchIndex & MAX_DISTANCE3];
+  }
+
+  return 0;
+}
+
+void ZopfliLZ77Lazy(const ZopfliOptions* options, const unsigned char* in,
                       size_t instart, size_t inend,
                       ZopfliLZ77Store* store) {
-  size_t i = 0, j;
+
+  LZ4HC_Data_Structure mmc;
+  LZ3HC_Data_Structure h3;
+  size_t i = 0;
   unsigned short leng;
   unsigned short dist;
   unsigned lengthscore;
   size_t windowstart = instart > ZOPFLI_WINDOW_SIZE
       ? instart - ZOPFLI_WINDOW_SIZE : 0;
 
-  ZopfliHash hash;
-  ZopfliHash* h = &hash;
-
   unsigned prev_length = 0;
   unsigned prev_match = 0;
-  unsigned prevlengthscore;
   unsigned char match_available = 0;
 
-  ZopfliInitHash(h);
-  ZopfliWarmupHash(in, windowstart, inend, h);
-  LoopedUpdateHash(in, windowstart, inend, h, instart - windowstart);
+  LZ4HC_init(&mmc, &in[windowstart]);
+  LZ4HC_init3(&h3, &in[instart > MAXD3 ? instart - MAXD3 : 0]);
+
 
   for (i = instart; i < inend; i++) {
-    ZopfliUpdateHash(in, i, inend, h);
 
-    ZopfliFindLongestMatch(options, h, in, i, inend, &dist, &leng);
+    const BYTE* matchpos;
+    int y = LZ4HC_InsertAndFindBestMatch(&mmc, &in[i], &in[inend] > &in[i] + ZOPFLI_MAX_MATCH ? &in[i] + ZOPFLI_MAX_MATCH : &in[inend], &matchpos);
+
+    if (y >= 4 && i + 4 <= inend){
+      dist = &in[i] - matchpos;
+      leng = y;
+    }
+    else if (!match_available){
+      y = LZ4HC_InsertAndFindBestMatch3(&h3, &in[i], &in[inend], &matchpos);
+      if (y == 3){
+      leng = 3;
+      dist = &in[i] - matchpos;
+      }
+      else{
+        leng = 0;
+      }
+
+    }
 
     lengthscore = leng;
     if (lengthscore == 3 && dist > 1024){
@@ -206,15 +337,11 @@ void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
       --lengthscore;
     }
 
-    prevlengthscore = prev_length;
-    if (prevlengthscore == 3 && prev_match > 8192){
-      --prevlengthscore;
-    }
-
     if (match_available) {
       match_available = 0;
-      if (lengthscore > prevlengthscore + 1) {
+      if (lengthscore > prev_length + 1) {
         ZopfliStoreLitLenDist(in[i - 1], 0, store);
+
         if (lengthscore >= ZOPFLI_MIN_MATCH) {
           match_available = 1;
           prev_length = leng;
@@ -229,17 +356,14 @@ void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
 #ifndef NDEBUG
         ZopfliVerifyLenDist(in, inend, i - 1, dist, leng);
 #endif
+
         unsigned lls = ZopfliGetLengthSymbol(leng);
         ZopfliStoreLitLenDist(lls + ((leng - symtox(lls)) << 9), disttable[dist] + 1, store);
-
-        for (j = 2; j < leng; j++) {
-          i++;
-          ZopfliUpdateHash(in, i, inend, h);
-        }
+        i += leng - 2;
         continue;
       }
     }
-    else if (lengthscore >= ZOPFLI_MIN_MATCH && leng < ZOPFLI_MAX_MATCH) {
+    else if (lengthscore >= ZOPFLI_MIN_MATCH && leng < options->greed) {
       match_available = 1;
       prev_length = leng;
       prev_match = dist;
@@ -258,14 +382,8 @@ void ZopfliLZ77Greedy(const ZopfliOptions* options, const unsigned char* in,
       leng = 1;
       ZopfliStoreLitLenDist(in[i], 0, store);
     }
-    for (j = 1; j < leng; j++) {
-      assert(i < inend);
-      i++;
-      ZopfliUpdateHash(in, i, inend, h);
-    }
+    i += leng - 1;
   }
-
-  ZopfliCleanHash(h);
 }
 
 void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists, size_t start, size_t end, size_t* ll_count, size_t* d_count, unsigned char symbols) {
@@ -277,45 +395,44 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
   }
   size_t i;
 
-
   if (symbols){
-
 #if defined(__GNUC__) && (defined(__x86_64__) || defined(_M_X64))
     size_t d_count1[32] = {0};
     size_t d_count2[32] = {0};
     size_t d_count3[32] = {0};
 
+    const unsigned char* distc = (const unsigned char*)dists;
+
     size_t rstart = start + ((end - start) & 15);
+
     for (i = start; i < rstart; i++) {
-      d_count[dists[i]]++;
+      d_count[distc[i]]++;
       ll_count[litlens[i] & 511]++;
     }
 
 #define ANDLLS 511LU + (511LU << 16) + (511LU << 32) + (511LU << 48)
-    const unsigned short* ip = &dists[rstart];
-    size_t cached = *(size_t*)ip;ip += 4;
-    while (ip < dists + end)
+    const unsigned char* ipo = &distc[rstart];
+    size_t cached = *(size_t*)ipo;ipo += 8;
+    while (ipo < distc + end)
     {
-      size_t c = cached; cached = *(size_t*)ip; ip += 4;
-      d_count[(unsigned short) c     ]++;
-      d_count1[(unsigned short)(c>>16) ]++;
-      d_count2[(unsigned short)(c>>32)]++;
-      d_count3[       c>>48 ]++;
-      c = cached; cached = *(size_t*)ip; ip += 4;
-      d_count[(unsigned short) c     ]++;
-      d_count1[(unsigned short)(c>>16) ]++;
-      d_count2[(unsigned short)(c>>32)]++;
-      d_count3[       c>>48 ]++;
-      c = cached; cached = *(size_t*)ip; ip += 4;
-      d_count[(unsigned short) c     ]++;
-      d_count1[(unsigned short)(c>>16) ]++;
-      d_count2[(unsigned short)(c>>32)]++;
-      d_count3[       c>>48 ]++;
-      c = cached; cached = *(size_t*)ip; ip += 4;
-      d_count[(unsigned short) c     ]++;
-      d_count1[(unsigned short)(c>>16) ]++;
-      d_count2[(unsigned short)(c>>32)]++;
-      d_count3[       c>>48 ]++;
+      size_t c = cached; cached = *(size_t*)ipo; ipo += 8;
+      d_count[(unsigned char) c     ]++;
+      d_count1[(unsigned char)(c>>8) ]++;
+      d_count2[(unsigned char)(c>>16)]++;
+      d_count3[(unsigned char)(c>>24) ]++;
+      d_count[(unsigned char) (c>>32)    ]++;
+      d_count1[(unsigned char)(c>>40) ]++;
+      d_count2[(unsigned char)(c>>48)]++;
+      d_count3[       (c>>56) ]++;
+      c = cached; cached = *(size_t*)ipo; ipo += 8;
+      d_count[(unsigned char) c     ]++;
+      d_count1[(unsigned char)(c>>8) ]++;
+      d_count2[(unsigned char)(c>>16)]++;
+      d_count3[(unsigned char)(c>>24) ]++;
+      d_count[(unsigned char) (c>>32)    ]++;
+      d_count1[(unsigned char)(c>>40) ]++;
+      d_count2[(unsigned char)(c>>48)]++;
+      d_count3[       (c>>56) ]++;
     }
 
     for (i = 0; i < 32; i++){
@@ -329,7 +446,7 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
     size_t ll_count2[288] = {0};
     size_t ll_count3[288] = {0};
 
-    ip = &litlens[rstart];
+    const unsigned short* ip = &litlens[rstart];
     cached = (*(size_t*)ip) & ANDLLS;ip += 4;
     while (ip < litlens + end)
     {
@@ -360,8 +477,9 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
     }
 #else
 
+    const unsigned char* distc = (const unsigned char*)dists;
     for (i = start; i < end; i++) {
-      d_count[dists[i]]++;
+      d_count[distc[i]]++;
     }
 
     for (i = 0; i < 31; i++) {

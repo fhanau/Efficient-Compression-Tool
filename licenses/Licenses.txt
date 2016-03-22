@@ -11,6 +11,7 @@ Brotli(https://github.com/google/brotli), Zopfli and Zopflipng (https://github.c
 Lodepng (https://github.com/lvandeve/lodepng/) is Copyright (c) 2005-2014 Lode Vandevenne and licensed under the Lodepng License, see src/zopfli/src/zopflipng/lodepng/lodepng.h.
 ImageOptim is (C) Kornel Lesiński and licensed under the GNU GPL V2.
 FSE(https://github.com/Cyan4973/FiniteStateEntropy) is (C) 2013, Yann Collet 
+LZ4(https://github.com/Cyan4973/FiniteStateEntropy) is (C) 2011-2015, Yann Collet 
 
 Zlib, Mozjpeg, Libpng, Optipng, Opngreduc, Zopfli, Zopflipng, Brotli and Lodepng have been modified and are NOT the original versions.
 

@@ -20,6 +20,11 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 /*Modified by Felix Hanau*/
 
 #include "deflate.h"
+#include "util.h"
+#include "blocksplitter.h"
+#include "lz77.h"
+#include "squeeze.h"
+#include "katajainen.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -30,11 +35,6 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <thread>
 #include <vector>
 #endif
-
-#include "blocksplitter.h"
-#include "lz77.h"
-#include "squeeze.h"
-#include "katajainen.h"
 
 /*
 bp = bitpointer, always in range [0, 7].
@@ -360,8 +360,8 @@ static void AddLZ77Data(const unsigned short* litlens,
                         const unsigned short* dists,
                         size_t lstart, size_t lend,
                         size_t expected_data_size,
-                        /*const */unsigned* ll_symbols, const unsigned* ll_lengths,
-                        /*const */unsigned* d_symbols, const unsigned* d_lengths,
+                        unsigned* ll_symbols, const unsigned* ll_lengths,
+                        unsigned* d_symbols, const unsigned* d_lengths,
                         unsigned char* bp,
                         unsigned char* out, size_t* outsize) {
   size_t testlength = 0;
