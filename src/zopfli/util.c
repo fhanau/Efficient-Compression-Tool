@@ -212,7 +212,7 @@ static const ZopfliOptionsMin opt[8] =
   { 8, 1, 1000,    800,  800,  80,  200},/* 6 */
   {16, 1, 1000,    800, 1800,  80,  200},/* 7 */
   {60, 2, 1000,    800, 2000,  80,  100},/* 8 */
-  {60, 2, 1000,    800, 2000,  80,  100} /* 9 */
+  {60, 2, 1000,    800, 3000,  80,  100} /* 9 */
 };
 
 //TODO: Rename ZopfliOptions to ZSettings?
@@ -242,5 +242,6 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   options->ultra = mode >= 8;
 
   options->replaceCodes = (2 * (mode > 5) + (mode == 9) * 18) * !options->ultra;
-  options->twice = 0;
+  options->twice = 0;//mode == 9;
+  options->greed = isPNG ? mode > 3 ? 258 : 50 : 258;
 }

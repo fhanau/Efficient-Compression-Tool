@@ -102,6 +102,9 @@ typedef struct ZopfliOptions {
 
   /*Sorry, can't figure out a better name. Leads to better final LZ costmodel*/
   unsigned ultra;
+
+  /*Use greedy search instead of lazy search above this value.*/
+  unsigned greed;
 } ZopfliOptions;
 
 typedef struct ZopfliOptionsMin {

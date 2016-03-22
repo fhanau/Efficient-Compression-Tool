@@ -704,26 +704,30 @@ void ZopfliLZ77Optimal2(const ZopfliOptions* options,
 
     if (options->isPNG){
       /*TODO:Corrections for cost model inaccuracies. There is still much potential here
-       Enable this in Mode 3, too, though less aggressive*/
+       Enable this in Mode 4 too, though less aggressive*/
       for (unsigned i = 0; i < 256; i++){
-        stats.ll_symbols[i] -= .2;
+        stats.ll_symbols[i] -= .25;
       }
       if (inend - instart < 1000){
         for (unsigned i = 0; i < 256; i++){
           stats.ll_symbols[i] -= 0.2;
         }
       }
-      stats.ll_symbols[0] -= 1;
+      stats.ll_symbols[0] -= 1.2;
       stats.ll_symbols[1] -= 0.4;
       stats.d_symbols[0] -= 1.5;
       stats.d_symbols[3] -= 1.4;
       stats.ll_symbols[255] -= 0.5;
-      stats.ll_symbols[257] -= 1.2;
+      stats.ll_symbols[257] -= .8;
       stats.ll_symbols[258] += 0.3;
       stats.ll_symbols[272] += 1.2;
       stats.ll_symbols[282] += 0.2;
       stats.ll_symbols[283] += 0.2;
       stats.ll_symbols[284] += 0.4;
+
+      for (unsigned i = 270; i < 286; i++){
+          stats.ll_symbols[i] += .4;
+      }
       for (unsigned i = 0; i < 286; i++){
         if (stats.ll_symbols[i] < 1){
           stats.ll_symbols[i] = 1;
