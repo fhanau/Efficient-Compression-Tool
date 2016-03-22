@@ -850,7 +850,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
   if (blocksize > options->skipdynamic && store.size < options->trystatic){
     ZopfliLZ77Store fixedstore;
     ZopfliInitLZ77Store(&fixedstore);
-    ZopfliLZ77OptimalFixed(options, in, instart, inend, &fixedstore, mfinexport);
+    ZopfliLZ77OptimalFixed(options, in, instart, inend, &fixedstore, 0);
     double dyncost = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, options->searchext, store.symbols);
     double fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, options->searchext, store.symbols);
     if (fixedcost <= dyncost) {
