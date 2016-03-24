@@ -444,8 +444,8 @@ typedef struct LodePNGEncoderSettings
   unsigned text_compression;
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
 
-    /* chain_length for LFS_BRUTE_FORCE*/
-    unsigned short chain_length;
+    /* filter_style for LFS_BRUTE_FORCE*/
+    unsigned short filter_style;
 } LodePNGEncoderSettings;
 
 void lodepng_encoder_settings_init(LodePNGEncoderSettings* settings);
