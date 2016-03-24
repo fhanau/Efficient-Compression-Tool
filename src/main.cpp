@@ -146,7 +146,7 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
     }
     int x = 1;
     long long size = filesize(Infile);
-    if(mode == 9){
+    if(mode == 9 && !Options.Reuse){
         x = Zopflipng(Options.strip, Infile, Options.Strict, 3, 0, Options.DeflateMultithreading);
     }
     //Disabled as using this causes libpng warnings

@@ -231,13 +231,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
   {state.encoder.filter_strategy = LFS_PREDEFINED;
     state.encoder.predefined_filters = &filters[0];
     state.encoder.auto_convert = 0;
-
-    if (inputstate.info_png.color.colortype == LCT_PALETTE) {
-      // Make it preserve the original palette order
-      lodepng_color_mode_copy(&state.info_raw, &inputstate.info_png.color);
-      state.info_raw.colortype = LCT_RGBA;
-      state.info_raw.bitdepth = 8;
-    }
+    lodepng_color_mode_copy(&state.info_png.color, &inputstate.info_png.color);
   }
 
   //Palette sorting (Should be in seperate function). This is an untested experiment and likely wont improve compression.
