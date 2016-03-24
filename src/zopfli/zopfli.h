@@ -54,7 +54,7 @@ typedef struct ZopfliOptions {
   ZOPFLI_WINDOW_SIZE, while zlib uses 4096 even for best level), but makes it
   faster on some specific files.
   */
-  unsigned short chain_length;
+  unsigned short filter_style;
 
   /* Don't try to use dynamic block under this size. */
   unsigned skipdynamic;
@@ -108,7 +108,7 @@ typedef struct ZopfliOptions {
 typedef struct ZopfliOptionsMin {
   int numiterations;
   unsigned searchext;
-  unsigned short chain_length;
+  unsigned short filter_style;
   unsigned noblocksplit;
   unsigned trystatic;
   unsigned skipdynamic;

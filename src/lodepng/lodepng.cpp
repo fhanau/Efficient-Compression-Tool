@@ -3865,6 +3865,9 @@ static void filterScanline(unsigned char* out, const unsigned char* scanline, co
   }
 }
 
+extern "C" size_t ZopfliLZ77LazyLauncher(const unsigned char* in,
+                              size_t instart, size_t inend, unsigned fs);
+
 static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsigned h,
                        const LodePNGColorMode* info, LodePNGEncoderSettings* settings)
 {
@@ -3945,16 +3948,21 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       {
         filterScanline(attempt[type].data, &in[y * linebytes], prevline, linebytes, bytewidth, type);
 
-        deflateTune(&stream, 258, 258, 258, 550 + (settings->chain_length > 900) * 100);
-        stream.next_in = (z_const unsigned char *)attempt[type].data;
-        stream.avail_in = linebytes;
-        stream.avail_out = UINT_MAX;
-        stream.next_out = dummy;
+        if(settings->filter_style < 2){
+          deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
+          stream.next_in = (z_const unsigned char *)attempt[type].data;
+          stream.avail_in = linebytes;
+          stream.avail_out = UINT_MAX;
+          stream.next_out = dummy;
 
-        deflate(&stream, Z_FINISH);
+          deflate(&stream, Z_FINISH);
 
-        size[type] = stream.total_out;
-        deflateReset(&stream);
+          size[type] = stream.total_out;
+          deflateReset(&stream);
+        }
+        else{
+          size[type] = ZopfliLZ77LazyLauncher(attempt[type].data, 0, linebytes, settings->filter_style);
+        }
 
         /*check if this is smallest size (or if type == 0 it's the first case so always store the values)*/
         if(type == 0 || size[type] < smallest)

@@ -284,6 +284,35 @@ static int LZ4HC_InsertAndFindBestMatch3 (LZ3HC_Data_Structure* hc4,   /* Index 
   return 0;
 }
 
+#include "deflate.h"
+
+size_t ZopfliLZ77LazyLauncher(const unsigned char* in,
+                              size_t instart, size_t inend, unsigned fs);
+
+size_t ZopfliLZ77LazyLauncher(const unsigned char* in,
+                              size_t instart, size_t inend, unsigned fs) {
+  ZopfliLZ77Store store;
+  ZopfliInitLZ77Store(&store);
+
+  ZopfliOptions options;
+  ZopfliInitOptions(&options, 4, 0, 0);
+  if (fs == 3){
+    unsigned char x = 0;
+    unsigned char* ou = 0;
+    size_t back = 0;
+    ZopfliDeflate(&options, 1, in + instart, inend - instart, &x, &ou, &back);
+    free(ou);
+    return back;
+  }
+
+  ZopfliLZ77Lazy(&options, in,
+                 instart, inend,
+                 &store);
+  size_t ret = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, 0, 1);
+  ZopfliCleanLZ77Store(&store);
+  return ret;
+}
+
 void ZopfliLZ77Lazy(const ZopfliOptions* options, const unsigned char* in,
                       size_t instart, size_t inend,
                       ZopfliLZ77Store* store) {

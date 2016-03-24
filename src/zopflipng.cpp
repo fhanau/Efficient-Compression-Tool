@@ -209,7 +209,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
 
   ZopfliOptions dummyoptions;
   ZopfliInitOptions(&dummyoptions, png_options->Mode, 0, 0);
-  state.encoder.chain_length = dummyoptions.chain_length;
+  state.encoder.filter_style = dummyoptions.filter_style;
   state.encoder.text_compression = 0;
   if (bit16) {
     state.info_raw.bitdepth = 16;

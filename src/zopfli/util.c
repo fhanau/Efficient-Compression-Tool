@@ -205,14 +205,14 @@ unsigned ZopfliGetLengthSymbol(unsigned l) {
 
 static const ZopfliOptionsMin opt[8] =
 {
-  { 1, 0,  400,  10000,    0, 180, 2500},/* 2 */
-  { 1, 1,  900,   3000,    0, 180,  512},/* 3 */
-  { 2, 1,  900,   3000,    0, 180,  512},/* 4 */
-  { 4, 1, 1000,   2000,    0, 180,  200},/* 5 */
-  { 8, 1, 1000,    800,  800,  80,  200},/* 6 */
-  {16, 1, 1000,    800, 1800,  80,  200},/* 7 */
-  {60, 2, 1000,    800, 2000,  80,  100},/* 8 */
-  {60, 2, 1000,    800, 3000,  80,  100} /* 9 */
+  { 1, 0, 0,  10000,    0, 180, 2500},/* 2 */
+  { 1, 1, 0,   3000,    0, 180,  512},/* 3 */
+  { 2, 1, 0,   3000,    0, 180,  512},/* 4 */
+  { 4, 1, 0,   2000,    0, 180,  200},/* 5 */
+  { 8, 1, 0,    800,  800,  80,  200},/* 6 */
+  {16, 1, 1,    800, 1800,  80,  200},/* 7 */
+  {60, 2, 2,    800, 2000,  80,  100},/* 8 */
+  {60, 2, 3,    800, 3000,  80,  100} /* 9 */
 };
 
 //TODO: Rename ZopfliOptions to ZSettings?
@@ -224,7 +224,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   ZopfliOptionsMin min = opt[mode - 2];
   options->numiterations = min.numiterations;
   options->searchext = min.searchext;
-  options->chain_length = min.chain_length;
+  options->filter_style = min.filter_style;
   options->noblocksplit = min.noblocksplit;
   options->skipdynamic = min.skipdynamic;
   options->trystatic = min.trystatic;
