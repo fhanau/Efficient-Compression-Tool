@@ -20,8 +20,6 @@ typedef struct _CMatchFinder
 
   UInt32 *hash;
   UInt32 *son;
-  UInt32 cutValue;
-
 } CMatchFinder;
 
 void MatchFinder_Create(CMatchFinder *p);

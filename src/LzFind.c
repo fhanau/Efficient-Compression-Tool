@@ -30,8 +30,7 @@ void MatchFinder_Create(CMatchFinder *p)
 }
 
 static UInt32 * GetMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const Byte *cur, UInt32 *son,
-                         UInt32 _cyclicBufferPos, UInt32 cutValue,
-                         UInt32 *distances, UInt32 maxLen)
+                         UInt32 _cyclicBufferPos, UInt32 *distances, UInt32 maxLen)
 {
   UInt32 *ptr0 = son + (_cyclicBufferPos << 1) + 1;
   UInt32 *ptr1 = son + (_cyclicBufferPos << 1);
@@ -39,7 +38,7 @@ static UInt32 * GetMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const B
   for (;;)
   {
     UInt32 delta = pos - curMatch;
-    if (cutValue-- == 0 || delta >= ZOPFLI_WINDOW_SIZE)
+    if (delta >= ZOPFLI_WINDOW_SIZE)
     {
       *ptr0 = *ptr1 = 0;
       return distances;
@@ -85,7 +84,7 @@ static UInt32 * GetMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const B
 }
 
 static void SkipMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const Byte *cur, UInt32 *son,
-                        UInt32 _cyclicBufferPos, UInt32 cutValue)
+                        UInt32 _cyclicBufferPos)
 {
   UInt32 *ptr0 = son + (_cyclicBufferPos << 1) + 1;
   UInt32 *ptr1 = son + (_cyclicBufferPos << 1);
@@ -93,7 +92,7 @@ static void SkipMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const Byte
   for (;;)
   {
     UInt32 delta = pos - curMatch;
-    if (cutValue-- == 0 || delta >= ZOPFLI_WINDOW_SIZE)
+    if (delta >= ZOPFLI_WINDOW_SIZE)
     {
       *ptr0 = *ptr1 = 0;
       return;
@@ -139,7 +138,7 @@ static void SkipMatches(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const Byte
   p->buffer++; \
   ++p->pos;
 
-#define MF_PARAMS(p) p->pos, p->buffer, p->son, p->cyclicBufferPos, p->cutValue
+#define MF_PARAMS(p) p->pos, p->buffer, p->son, p->cyclicBufferPos
 
 UInt32 Bt3Zip_MatchFinder_GetMatches(CMatchFinder *p, UInt32 *distances)
 {
@@ -169,7 +168,6 @@ void Bt3Zip_MatchFinder_Skip(CMatchFinder* p, UInt32 num)
 }
 
 void CopyMF(const CMatchFinder *p, CMatchFinder* copy){
-  copy->cutValue = p->cutValue;
   copy->hash = (UInt32*)malloc(131072 * sizeof(UInt32));
   if (!copy->hash)
   {

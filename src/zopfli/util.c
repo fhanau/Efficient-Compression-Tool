@@ -230,7 +230,6 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   options->trystatic = min.trystatic;
   options->noblocksplitlz = min.noblocksplitlz;
 
-  options->cutValue = mode == 2 ? 150 : 32768;
   options->num = mode < 5 ? 3 : 9;
   options->blocksplittingmax = mode > 3 || isPNG ? 0 : multithreading > 15 ? multithreading : 15;
 

@@ -257,7 +257,6 @@ static void GetBestLengths(const ZopfliOptions* options,
     }
     else{
       p.buffer = &in[windowstart];
-      p.cutValue = options->cutValue;
       p.bufend = &in[inend];
 
       MatchFinder_Create(&p);
@@ -279,7 +278,6 @@ static void GetBestLengths(const ZopfliOptions* options,
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
 
-#ifdef ZOPFLI_SHORTCUT_LONG_REPETITIONS
     //You think ECT will choke on files with minimum entropy? Think again!
     if (i < inend - ZOPFLI_MAX_MATCH - 1 && i > notenoughsame && *(long*)&in[i - 200] == *(long*)&in[i - 8]){
       unsigned same = GetMatch(&in[i + 1], &in[i], &in[inend], &in[inend] - 8) - &in[i];
@@ -315,7 +313,6 @@ static void GetBestLengths(const ZopfliOptions* options,
         notenoughsame = i + ZOPFLI_MAX_MATCH - same2 < i + same2 - 1 ? i + ZOPFLI_MAX_MATCH - same2 : i + same2 - 1;
       }
     }
-#endif
 
     int numPairs;
     if (!storeincache){

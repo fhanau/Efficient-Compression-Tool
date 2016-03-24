@@ -66,30 +66,6 @@ Used to initialize costs for example
 #define ZOPFLI_LARGE_FLOAT 1e30
 
 /*
-Enable to remember amount of successive identical bytes in the hash chain for
-finding longest match
-required for ZOPFLI_HASH_SAME_HASH and ZOPFLI_SHORTCUT_LONG_REPETITIONS
-This has no effect on the compression result, and enabling it increases speed.
-*/
-#define ZOPFLI_HASH_SAME
-
-/*
-Switch to a faster hash based on the info from ZOPFLI_HASH_SAME once the
-best length so far is long enough. This is way faster for files with lots of
-identical bytes, on which the compressor is otherwise too slow. Regular files
-are unaffected or maybe a tiny bit slower.
-This has no effect on the compression result, only on speed.
-*/
-#define ZOPFLI_HASH_SAME_HASH
-
-/*
-Enable this, to avoid slowness for files which are a repetition of the same
-character more than a multiple of ZOPFLI_MAX_MATCH times. This should not affect
-the compression result.
-*/
-#define ZOPFLI_SHORTCUT_LONG_REPETITIONS
-
-/*
 Gets the symbol for the given length, cfr. the DEFLATE spec.
 Returns the symbol in the range [257-285] (inclusive)
 */
