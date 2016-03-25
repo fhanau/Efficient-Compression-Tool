@@ -115,7 +115,9 @@ typedef struct ZopfliOptionsMin {
   unsigned noblocksplitlz;
 } ZopfliOptionsMin;
 /* Initializes options with default values. */
-void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithreading, unsigned isPNG);
+void ZopfliInitOptionsfull(ZopfliOptions* options, unsigned mode, unsigned multithreading, unsigned isPNG);
+void ZopfliInitOptionsmode(ZopfliOptions* options, unsigned mode);
+void ZopfliInitOptions(ZopfliOptions* options);
 
 /* Output format */
 typedef enum {

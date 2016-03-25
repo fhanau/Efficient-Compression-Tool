@@ -52,7 +52,7 @@ out: pointer to the dynamic output array to which the result is appended. Must
   be freed after use.
 outsize: pointer to the dynamic output array size.
 */
-void ZopfliDeflate(const ZopfliOptions* options, int final,
+void ZopfliDeflate(const ZopfliOptions* options, int btype, int final,
                    const unsigned char* in, size_t insize,
                    unsigned char* bp, unsigned char** out, size_t* outsize);
 

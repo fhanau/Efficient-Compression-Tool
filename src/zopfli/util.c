@@ -216,7 +216,7 @@ static const ZopfliOptionsMin opt[8] =
 };
 
 //TODO: Rename ZopfliOptions to ZSettings?
-void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithreading, unsigned isPNG) {
+void ZopfliInitOptionsfull(ZopfliOptions* options, unsigned mode, unsigned multithreading, unsigned isPNG) {
   if (mode < 2){
     mode = 2;
   }
@@ -243,4 +243,12 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   options->replaceCodes = (2 * (mode > 5) + (mode == 9) * 18) * !options->ultra;
   options->twice = 0;//mode == 9;
   options->greed = isPNG ? mode > 3 ? 258 : 50 : 258;
+}
+
+void ZopfliInitOptionsmode(ZopfliOptions* options, unsigned mode) {
+  ZopfliInitOptionsfull(options, mode, 0, 0);
+}
+
+void ZopfliInitOptions(ZopfliOptions* options) {
+  ZopfliInitOptionsmode(options, 3);
 }

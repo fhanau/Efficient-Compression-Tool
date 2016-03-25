@@ -295,12 +295,12 @@ size_t ZopfliLZ77LazyLauncher(const unsigned char* in,
   ZopfliInitLZ77Store(&store);
 
   ZopfliOptions options;
-  ZopfliInitOptions(&options, 4, 0, 0);
+  ZopfliInitOptionsfull(&options, 4, 0, 0);
   if (fs == 3){
     unsigned char x = 0;
     unsigned char* ou = 0;
     size_t back = 0;
-    ZopfliDeflate(&options, 1, in + instart, inend - instart, &x, &ou, &back);
+    ZopfliDeflate(&options, 2, 1, in + instart, inend - instart, &x, &ou, &back);
     free(ou);
     return back;
   }
