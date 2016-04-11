@@ -231,7 +231,7 @@ static void OptimizeMP3(const char * Infile, const ECTOptions& Options){
 }
 #endif
 
-static void PerFileWrapper(const char * Infile, const ECTOptions& Options){
+static void fileHandler(const char * Infile, const ECTOptions& Options){
     std::string Ext = Infile;
     std::string x = Ext.substr(Ext.find_last_of(".") + 1);
 
@@ -345,22 +345,45 @@ int main(int argc, const char * argv[]) {
         for (int j = 0; j < files; j++){
 #ifdef BOOST_SUPPORTED
             if (boost::filesystem::is_regular_file(argv[args[j]])){
-                PerFileWrapper(argv[args[j]], Options);
+                fileHandler(argv[args[j]], Options);
             }
             else if (boost::filesystem::is_directory(argv[args[j]])){
                 if(Options.Recurse){boost::filesystem::recursive_directory_iterator a(argv[args[j]]), b;
                     std::vector<boost::filesystem::path> paths(a, b);
-                    for(unsigned i = 0; i < paths.size(); i++){PerFileWrapper(paths[i].c_str(), Options);}
+                    for(unsigned i = 0; i < paths.size(); i++){
+#ifdef _WIN32
+                        char fstring[1024];
+                        size_t result = wcstombs(fstring, paths[i].c_str(), 1024);
+                        if (result > 1024){
+                            printf("%s: Filename not supported.\n", fstring);
+                            continue;
+                        }
+                        fileHandler(fstring, Options);
+#else
+                        fileHandler(paths[i].c_str(), Options);
+#endif
+                    }
                 }
                 else{
                     boost::filesystem::directory_iterator a(argv[args[j]]), b;
                     std::vector<boost::filesystem::path> paths(a, b);
                     for(unsigned i = 0; i < paths.size(); i++){
-                        PerFileWrapper(paths[i].c_str(), Options);}
+#ifdef _WIN32
+                        char fstring[1024];
+                        size_t result = wcstombs(fstring, paths[i].c_str(), 1024);
+                        if (result > 1024){
+                            printf("%s: Filename not supported.\n", fstring);
+                            continue;
+                        }
+                        fileHandler(fstring, Options);
+#else
+                        fileHandler(paths[i].c_str(), Options);
+#endif
+                    }
                 }
             }
 #else
-            PerFileWrapper(argv[args[j]], Options);
+            fileHandler(argv[args[j]], Options);
 #endif
         }
 
