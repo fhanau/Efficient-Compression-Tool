@@ -163,11 +163,11 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
         if (Options.Allfilters){
             x = Zopflipng(Options.strip, Infile, Options.Strict, mode, 6, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, mode, 0, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, mode, 5, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, mode, 1, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, mode, 2, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, mode, 3, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, mode, 4, Options.DeflateMultithreading);
-            Zopflipng(Options.strip, Infile, Options.Strict, mode, 5, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, mode, 7, Options.DeflateMultithreading);
         }
         else if (mode == 9){
