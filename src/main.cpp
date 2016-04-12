@@ -151,7 +151,10 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
     }
     //Disabled as using this causes libpng warnings
     //int filter = Optipng(Options.Mode, Infile, true, Options.Strict || Options.Mode > 1);
-    int filter = Options.Reuse ? 6 : Optipng(mode, Infile, false, Options.Strict || mode > 1);
+    int filter = 0;
+    if (!Options.Allfilters){
+        filter = Options.Reuse ? 6 : Optipng(mode, Infile, false, Options.Strict || mode > 1);
+    }
 
     if (filter == -1){
         return;
@@ -159,11 +162,12 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
     if (mode != 1){
         if (Options.Allfilters){
             x = Zopflipng(Options.strip, Infile, Options.Strict, mode, 6, Options.DeflateMultithreading);
-            Zopflipng(Options.strip, Infile, Options.Strict, mode, filter == 5 ? 0 : 5, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, mode, 0, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, mode, 1, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, mode, 2, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, mode, 3, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, mode, 4, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, mode, 5, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, mode, 7, Options.DeflateMultithreading);
         }
         else if (mode == 9){
