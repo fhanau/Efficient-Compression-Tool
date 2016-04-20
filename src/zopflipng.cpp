@@ -234,29 +234,6 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
     lodepng_color_mode_copy(&state.info_png.color, &inputstate.info_png.color);
   }
 
-  //Palette sorting (Should be in seperate function). This is an untested experiment and likely wont improve compression.
-  /*if (state.info_png.color.colortype == LCT_PALETTE){
-   unsigned char * pal = state.info_png.color.palette;
-   lodepng_palette_clear(&state.info_png.color);
-   std::vector<int> sort;
-   for (size_t x = 0; x < state.info_png.color.palettesize; x++){
-   int v=x*4;
-   sort[x]=pal[v]+pal[v+1]+pal[v+2];
-   }
-   for(size_t f = 0; f < state.info_png.color.palettesize; f++){
-   int d=0;
-   int highest = -1;
-   for(size_t y = 0; y < state.info_png.color.palettesize; y++){
-   if (sort[y]>d){
-   d = sort[y];
-   highest = y;}
-   }
-   sort[highest]=-1;
-   int t=d*4;
-   lodepng_palette_add(&state.info_png.color, pal[t], pal[t+1], pal[t+2], pal[t+3]);
-   }
-   }*/
-
   unsigned error = lodepng::encode(*out, image, w, h, state);
   // For very small output, also try without palette, it may be smaller thanks
   // to no palette storage overhead.

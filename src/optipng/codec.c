@@ -234,7 +234,7 @@ static void opng_read_data(png_structp png_ptr, png_bytep data, size_t length)
     if (fread(data, 1, length, stream) != length)
         png_error(png_ptr, "Can't read file or unexpected end of file");
 
-    if (stats->first == false)  /* first piece of PNG data */
+    if (!stats->first)  /* first piece of PNG data */
     {
         OPNG_ASSERT(length == 8, "PNG I/O must start with the first 8 bytes");
         stats->datastream_offset = ftell(stream) - 8;
@@ -506,7 +506,7 @@ int opng_encode_image(struct opng_codec_context *context, int filtered, FILE *st
     }
     Catch (err_msg)
     {
-        stats->idat_size = OPTK_INT64_MAX;
+        stats->idat_size = INT64_MAX;
         opng_error(fname, err_msg);
         return -1;
     }

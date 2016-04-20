@@ -239,9 +239,6 @@ static unsigned ucvector_push_back(ucvector* p, unsigned char c)
 }
 #endif /*defined(LODEPNG_COMPILE_PNG) || defined(LODEPNG_COMPILE_ENCODER)*/
 
-
-/* ////////////////////////////////////////////////////////////////////////// */
-
 #ifdef LODEPNG_COMPILE_PNG
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
 /*returns 1 if success, 0 if failure ==> nothing done*/
@@ -283,8 +280,6 @@ static void string_set(char** out, const char* in)
 }
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
 #endif /*LODEPNG_COMPILE_PNG*/
-
-/* ////////////////////////////////////////////////////////////////////////// */
 
 static unsigned lodepng_read32bitInt(const unsigned char* buffer)
 {
@@ -1553,8 +1548,6 @@ unsigned lodepng_add_text(LodePNGInfo* info, const char* key, const char* str)
 
   return 0;
 }
-
-/******************************************************************************/
 
 static void LodePNGIText_init(LodePNGInfo* info)
 {
@@ -3930,7 +3923,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       result = 15;
     }
 
-    int err = deflateInit2(&stream, 3, Z_DEFLATED, result * -1, 3, Z_FILTERED);
+    int err = deflateInit2(&stream, 3, Z_DEFLATED, -result, 3, Z_FILTERED);
     if (err != Z_OK) exit(1);
     unsigned char* dummy = (unsigned char *)malloc(deflateBound(&stream, linebytes));
     if(!dummy){

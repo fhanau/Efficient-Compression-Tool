@@ -1061,7 +1061,7 @@ void ZopfliDeflate(const ZopfliOptions* options, int final,
                    unsigned char* bp, unsigned char** out, size_t* outsize) {
   if (!insize){
     (*out) = (unsigned char*)realloc(*out, *outsize + 10);
-    AddBit(1, bp, out, outsize);
+    AddBit(final, bp, out, outsize);
     AddBits(1, 2, bp, *out, outsize);  // btype 01
     AddBits(0, 7, bp, *out, outsize);
     return;

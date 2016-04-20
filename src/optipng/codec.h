@@ -19,43 +19,17 @@
 #include "trans.h"
 #include "opngreduc/opngreduc.h"
 
-#ifndef __STDC_LIMIT_MACROS
-#define __STDC_LIMIT_MACROS 1
-#endif
-#ifndef __STDC_CONSTANT_MACROS
-#define __STDC_CONSTANT_MACROS 1
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/*
- * Use the Standard C minimum-width integer types.
- *
- * The exact-width types intN_t and uintN_t are not guaranteed to exist
- * for all N=8,16,32,64. For example, certain dedicated CPUs may handle
- * 32-bit and 64-bit integers only, with sizeof(int)==sizeof(char)==1.
- * On the other hand, any minimum-width integer type is guaranteed to be
- * the same as its exact-width counterpart, when the latter does exist.
- *
- * Since exact-width integer semantics is not strictly required, we use
- * int_leastN_t and uint_leastN_t, which are required to exist for all
- * N=8,16,32,64.
- */
-
-typedef int_least64_t  optk_int64_t;
-typedef uint_least64_t optk_uint64_t;
-
-#define OPTK_INT64_MAX  INT_LEAST64_MAX
 
 /*
  * The encoding statistics structure.
  */
 struct opng_encoding_stats
 {
-    optk_uint64_t idat_size;
-    optk_int64_t datastream_offset;
+    uint64_t idat_size;
+    int64_t datastream_offset;
     png_uint_32 flags;
     bool first;
 };
@@ -75,8 +49,8 @@ struct opng_codec_context
     png_structp libpng_ptr;
     png_infop info_ptr;
     const opng_transformer_t *transformer;
-    optk_int64_t crt_idat_offset;
-    optk_uint64_t crt_idat_size;
+    int64_t crt_idat_offset;
+    uint64_t crt_idat_size;
     png_uint_32 crt_idat_crc;
     int crt_chunk_is_allowed;
     int crt_chunk_is_idat;

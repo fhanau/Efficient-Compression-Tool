@@ -236,7 +236,7 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
         return 0;
     }
     else {
-        optk_uint64_t best_idat = 0;
+        uint64_t best_idat = 0;
         optimal_filter = 0;
         int level = 5;
         if (options->optim_level == 1){
