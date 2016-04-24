@@ -28,7 +28,6 @@
 #include "zopfli/deflate.h"
 #include "main.h"
 #include "lodepng/lodepng.h"
-#include <assert.h>
 
 struct ZopfliPNGOptions {
   ZopfliPNGOptions();
@@ -215,20 +214,9 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
     state.info_raw.bitdepth = 16;
   }
 
-  if (best_filter == 0)
-  {state.encoder.filter_strategy = LFS_ZERO;}
-  else if (best_filter == 1)
-  {state.encoder.filter_strategy = LFS_SUB;}
-  else if (best_filter == 2)
-  {state.encoder.filter_strategy = LFS_UP;}
-  else if (best_filter == 3)
-  {state.encoder.filter_strategy = LFS_AVG;}
-  else if (best_filter == 4)
-  {state.encoder.filter_strategy = LFS_PAETH;}
-  else if (best_filter == 5)
-  {state.encoder.filter_strategy = LFS_BRUTE_FORCE;}
-  else if (best_filter == 6)
-  {state.encoder.filter_strategy = LFS_PREDEFINED;
+  state.encoder.filter_strategy = (LodePNGFilterStrategy)best_filter;
+  if (best_filter == 6)
+  {
     state.encoder.predefined_filters = &filters[0];
     state.encoder.auto_convert = 0;
     lodepng_color_mode_copy(&state.info_png.color, &inputstate.info_png.color);

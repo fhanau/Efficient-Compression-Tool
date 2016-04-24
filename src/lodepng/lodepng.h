@@ -386,7 +386,7 @@ typedef enum LodePNGFilterStrategy
     LFS_PAETH = 4,
   /*Use the filter type that gives smallest Shannon entropy for this scanline. Depending
   on the image, this is better or worse than minsum.*/
-  LFS_ENTROPY = 55,
+  LFS_ENTROPY = 7,
   /*Brute-force-search PNG filters by compressing each filter for each scanline.*/
   LFS_BRUTE_FORCE = 5,
   /*use predefined_filters buffer: you specify the filter type for each scanline*/

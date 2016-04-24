@@ -3986,6 +3986,52 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       prevline = &in[inindex];
     }
   }
+  else if(strategy == LFS_ENTROPY)
+  {
+    float sum[5];
+    unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
+    float smallest = 0;
+    unsigned type, bestType = 0;
+    unsigned count[256];
+
+    for(type = 0; type != 5; ++type)
+    {
+      attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
+      if(!attempt[type]) return 83; /*alloc fail*/
+    }
+
+    for(y = 0; y != h; ++y)
+    {
+      /*try the 5 filter types*/
+      for(type = 0; type != 5; ++type)
+      {
+        filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+        for(x = 0; x != 256; ++x) count[x] = 0;
+        for(x = 0; x != linebytes; ++x) ++count[attempt[type][x]];
+        ++count[type]; /*the filter type itself is part of the scanline*/
+        sum[type] = 0;
+        for(x = 0; x != 256; ++x)
+        {
+          float p = count[x] / (float)(linebytes + 1);
+          sum[type] += count[x] == 0 ? 0 : log2f(1 / p) * p;
+        }
+        /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
+        if(type == 0 || sum[type] < smallest)
+        {
+          bestType = type;
+          smallest = sum[type];
+        }
+      }
+
+      prevline = &in[y * linebytes];
+
+      /*now fill the out values*/
+      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+      for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
+    }
+
+    for(type = 0; type != 5; ++type) free(attempt[type]);
+  }
   else return 88; /* unknown filter strategy */
 
   return error;
