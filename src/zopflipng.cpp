@@ -20,6 +20,7 @@
 /*Modified by Felix Hanau*/
 
 #include <cstdio>
+#include <cassert>
 #include <set>
 #include <vector>
 #include <string>
