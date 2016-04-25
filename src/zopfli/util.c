@@ -231,7 +231,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   options->noblocksplitlz = min.noblocksplitlz;
 
   options->num = mode < 5 ? 3 : 9;
-  options->blocksplittingmax = mode > 3 || isPNG ? 0 : multithreading > 15 ? multithreading : 15;
+  options->blocksplittingmax = mode > 2 ? 0 : multithreading > 15 ? multithreading : 15;//!!!!!!!!
 
   options->multithreading = multithreading;
   options->isPNG = isPNG;
@@ -240,7 +240,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   options->midsplit = mode == 2;
   options->ultra = mode >= 8;
 
-  options->replaceCodes = (2 * (mode > 5) + (mode == 9) * 18) * !options->ultra;
+  options->replaceCodes = mode == 3 ? 3 : (2 * (mode > 5) + (mode == 9) * 18) * !options->ultra;
   options->twice = 0;//mode == 9;
   options->greed = isPNG ? mode > 3 ? 258 : 50 : 258;
 }
