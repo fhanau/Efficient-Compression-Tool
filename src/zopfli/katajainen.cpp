@@ -33,17 +33,20 @@ Jyrki Katajainen, Alistair Moffat, Andrew Turpin".
 #include <assert.h>
 #include <algorithm>
 
-typedef struct Node Node;
-
 /*
 Nodes forming chains. Also used to represent leaves.
 */
-struct Node
+typedef struct Node
 {
   size_t weight;  /* Total weight (symbol count) of this chain. */
   Node* tail;  /* Previous node(s) of this chain, or 0 if none. */
   int count;  /* Leaf symbol index, or number of leaves before this chain. */
-};
+}
+#if defined(__GNUC__) && (defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
+__attribute__((packed)) Node;
+#else
+Node;
+#endif
 
 /*
 Memory pool for nodes.
@@ -111,12 +114,12 @@ static void BoundaryPMfinal(Node* (*lists)[2],
 
   if (lastcount < numsymbols && sum > leaves[lastcount].weight) {
 
-    Node* newchain = pool->next++;
-    Node* oldchain = lists[index][1];
+    Node* newchain = pool->next;
+    Node* oldchain = lists[index][1]->tail;
 
     lists[index][1] = newchain;
     newchain->count = lastcount + 1;
-    newchain->tail = oldchain->tail;
+    newchain->tail = oldchain;
 
   }
   else{

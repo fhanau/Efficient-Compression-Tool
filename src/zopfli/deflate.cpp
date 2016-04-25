@@ -663,7 +663,7 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
   }
 }
 
-static void ReplaceBadCodes(unsigned short** litlens,
+static unsigned char ReplaceBadCodes(unsigned short** litlens,
                             unsigned short** dists,
                             size_t* lend, const unsigned char* in, size_t instart, unsigned* ll_lengths, unsigned* d_lengths){
   size_t end = *lend;
@@ -679,7 +679,7 @@ static void ReplaceBadCodes(unsigned short** litlens,
   for (size_t i = 0; i < end; i++){
     unsigned char change = 0;
     size_t length = (*dists)[i] == 0 ? 1 : (*litlens)[i];
-    if (length >= 3 && length <= 6){
+    if (length >= 3 && length <= 7){
       //Check if the match is cheaper than several literals
       const unsigned char* litplace = &in[pos - (*dists)[i]];
       unsigned litprice = 0;
@@ -718,6 +718,7 @@ static void ReplaceBadCodes(unsigned short** litlens,
 
   (*litlens) = litlens2;
   (*dists) = dists2;
+  return end != *lend;
 }
 
 /*
@@ -770,19 +771,26 @@ static void AddLZ77Block(int btype, int final,
   }
   if (btype == 2){
 
+    unsigned char change = 1;
     for (unsigned i = 0; i < replaceCodes; i++){
       if (!(i & 1)){
         unsigned short * free1 = litlens;
         unsigned short * free2 = dists;
-        ReplaceBadCodes(&litlens, &dists, &lend, in, instart, ll_lengths, d_lengths);
+        change = ReplaceBadCodes(&litlens, &dists, &lend, in, instart, ll_lengths, d_lengths);
+        if (!change && i + 1 != replaceCodes && i){
+          outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
+        }
         free(free1);
         free(free2);
+        if (!change){
+          break;
+        }
       }
       else{
         //TODO: This may make compression worse due to longer huffman headers.
         outpred = 3;
-        outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 1, symbols);
-        if (replaceCodes == i + 1){
+        outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 1, symbols, 1);
+        if (replaceCodes - i  < 3){
           outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
         }
       }
@@ -792,11 +800,11 @@ static void AddLZ77Block(int btype, int final,
   }
   outpred += *outsize * 8 + *bp -((*bp != 0) * 8);
   (*out) = (unsigned char*)realloc(*out, outpred / 8 + 1 + 8);
-  memset(&((*out)[*outsize]), 0, outpred / 8 + (!!(outpred & 7)) - (*outsize) + 8);
-
   if (!(*out)){
     exit(1);
   }
+  memset(&((*out)[*outsize]), 0, outpred / 8 + (!!(outpred & 7)) - (*outsize) + 8);
+
   AddBit(final, bp, out, outsize);
   AddBit(btype & 1, bp, out, outsize);
   AddBit((btype & 2) >> 1, bp, out, outsize);
