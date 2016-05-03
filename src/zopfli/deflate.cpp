@@ -789,7 +789,7 @@ static void AddLZ77Block(int btype, int final,
       else{
         //TODO: This may make compression worse due to longer huffman headers.
         outpred = 3;
-        outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 1, symbols, 1);
+        outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 1, symbols);
         if (replaceCodes - i  < 3){
           outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
         }
