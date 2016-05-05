@@ -20,7 +20,7 @@
 #endif
 
 struct ECTOptions{
-  unsigned  Mode;
+  unsigned Mode;
   bool strip;
   bool Progressive;
   bool JPEG_ACTIVE;

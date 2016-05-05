@@ -334,6 +334,9 @@ static size_t CalculateTreeSize(const unsigned* ll_lengths,
   size_t result = 0;
   if (hq){
     for(unsigned i = 0; i < (hq == 2 ? 32 : 10); i++) {
+      if (!(i & 1) && (i & 8 || i & 16)){
+        continue;
+      }
       size_t size = EncodeTree(ll_lengths, d_lengths,
                                i & 1, i & 2, i & 4, i & 8, i & 16 || (hq == 1 && i == 9),
                                0, 0, 0);

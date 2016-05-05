@@ -245,9 +245,8 @@ static void GetBestLengths(const ZopfliOptions* options,
   }
 
   CMatchFinder p;
-  p.hash = 0;
   if (storeincache != 2){
-    if ((mfinexport & 1) && right){
+    if (mfinexport & right){
       p = mf;
       p.bufend = &in[inend];
 
@@ -260,10 +259,7 @@ static void GetBestLengths(const ZopfliOptions* options,
       p.bufend = &in[inend];
 
       MatchFinder_Create(&p);
-      if (instart - windowstart){
-        //Eliminate by reusing hash
-        Bt3Zip_MatchFinder_Skip(&p, instart - windowstart);
-      }
+      Bt3Zip_MatchFinder_Skip(&p, instart - windowstart);
     }
   }
   right = 0;
