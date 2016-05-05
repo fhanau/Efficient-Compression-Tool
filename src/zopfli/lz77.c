@@ -21,7 +21,6 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 
 #include "lz77.h"
 #include "util.h"
-#include "disttable.h"
 #include "match.h"
 
 #include <assert.h>
@@ -387,7 +386,7 @@ void ZopfliLZ77Lazy(const ZopfliOptions* options, const unsigned char* in,
 #endif
 
         unsigned lls = ZopfliGetLengthSymbol(leng);
-        ZopfliStoreLitLenDist(lls + ((leng - symtox(lls)) << 9), disttable[dist] + 1, store);
+        ZopfliStoreLitLenDist(lls + ((leng - symtox(lls)) << 9), ZopfliGetDistSymbol(dist) + 1, store);
         i += leng - 2;
         continue;
       }
@@ -405,7 +404,7 @@ void ZopfliLZ77Lazy(const ZopfliOptions* options, const unsigned char* in,
         ZopfliVerifyLenDist(in, inend, i, dist, leng);
 #endif
       unsigned lls = ZopfliGetLengthSymbol(leng);
-      ZopfliStoreLitLenDist(lls + ((leng - symtox(lls)) << 9), disttable[dist] + 1, store);
+      ZopfliStoreLitLenDist(lls + ((leng - symtox(lls)) << 9), ZopfliGetDistSymbol(dist) + 1, store);
 
     } else {
       leng = 1;
@@ -422,6 +421,8 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
   for (unsigned i = 0; i < 32; i++) {
     d_count[i] = 0;
   }
+  ll_count[256] = 1;  /* End symbol. */
+
   size_t i;
 
   if (symbols){
@@ -520,8 +521,6 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
     }
 #endif
 
-    ll_count[256] = 1;  /* End symbol. */
-
     return;
   }
 
@@ -531,15 +530,15 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
 
   if ((end - start) % 2){
     lenarrything[litlens[start] + !dists[start] * 259]++;
-    d_count[disttable[dists[start]]]++;
+    d_count[ZopfliGetDistSymbol(dists[start])]++;
     start++;
   }
   for (i = start; i < end; i++) {
     lenarrything[litlens[i] + !dists[i] * 259]++;
-    d_count[disttable[dists[i]]]++;
+    d_count[ZopfliGetDistSymbol(dists[i])]++;
     i++;
     lenarrything2[litlens[i] + !dists[i] * 259]++;
-    d_count2[disttable[dists[i]]]++;
+    d_count2[ZopfliGetDistSymbol(dists[i])]++;
   }
 
   for (i = 0; i < 256; i++){
@@ -552,7 +551,4 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
   for (i = 0; i < 32; i++){
     d_count[i] += d_count2[i];
   }
-
-  d_count[30] = 0;
-  ll_count[256] = 1;  /* End symbol. */
 }
