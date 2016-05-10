@@ -103,6 +103,9 @@ typedef struct ZopfliOptions {
 
   /*Use greedy search instead of lazy search above this value.*/
   unsigned greed;
+
+  /*Use shannon entropy instead of real code lengths in blocksplitting.*/
+  unsigned entropysplit;
 } ZopfliOptions;
 
 typedef struct ZopfliOptionsMin {

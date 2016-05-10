@@ -585,10 +585,8 @@ static size_t GetDynamicLengths(const unsigned short* litlens,
   size_t d_counts2[32];
 
   ZopfliLZ77Counts(litlens, dists, lstart, lend, ll_counts, d_counts, symbols);
-  if (count){
-    memcpy(ll_counts2, ll_counts, 288 * sizeof(size_t));
-    memcpy(d_counts2, d_counts, 32 * sizeof(size_t));
-  }
+  memcpy(ll_counts2, ll_counts, 288 * sizeof(size_t));
+  memcpy(d_counts2, d_counts, 32 * sizeof(size_t));
   OptimizeHuffmanCountsForRle(32, d_counts);
   OptimizeHuffmanCountsForRle(288, ll_counts);
 

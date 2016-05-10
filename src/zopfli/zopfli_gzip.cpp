@@ -45,7 +45,6 @@ static void ZopfliZipCompress(const ZopfliOptions* options,
   unsigned long i;
   std::string x = name.substr(name.find_last_of("/") + 1);
   const char* infilename = x.c_str();
-  unsigned long rawdeflsize = 0;
   unsigned char bp = 0;
   size_t max = x.size();
   *out = (unsigned char*)realloc(*out, 200);
@@ -56,8 +55,6 @@ static void ZopfliZipCompress(const ZopfliOptions* options,
 
   /* MS-DOS TIME */
   for(i=0; i < 4; ++i) ZOPFLI_APPEND_DATA(0, out, outsize);
-  //for(i=0; i < 4; ++i) ZOPFLI_APPEND_DATA(time >> (i*8) % 256, out, outsize);
-
 
   /* CRC */
   for(i=0;i<4;++i) ZOPFLI_APPEND_DATA((crcvalue >> (i*8)) % 256, out, outsize);
@@ -76,7 +73,7 @@ static void ZopfliZipCompress(const ZopfliOptions* options,
 
   /* FILENAME */
   for(i=0;i<max;++i) ZOPFLI_APPEND_DATA(infilename[i], out, outsize);
-  rawdeflsize = *outsize;
+  unsigned long rawdeflsize = *outsize;
 
   ZopfliDeflate(options, 1, in, insize, &bp, out, outsize);
   *out = (unsigned char*)realloc(*out, 200 + *outsize);
@@ -90,7 +87,6 @@ static void ZopfliZipCompress(const ZopfliOptions* options,
   /* MS-DOS TIME, CRC, OSIZE, ISIZE FROM */
 
   for(i=0; i < 4; ++i) ZOPFLI_APPEND_DATA(0, out, outsize);
-  //for(i=0; i < 4; ++i) ZOPFLI_APPEND_DATA(time >> (i*8) % 256, out, outsize);
 
   /* CRC */
   for(i=0;i<4;++i) ZOPFLI_APPEND_DATA((crcvalue >> (i*8)) % 256,out,outsize);
@@ -110,7 +106,7 @@ static void ZopfliZipCompress(const ZopfliOptions* options,
 
   /* FilePK offset in ZIP file */
   for(i=0;i<4;++i) ZOPFLI_APPEND_DATA(0,out,outsize);
-  unsigned long cdiroffset=(unsigned long)(rawdeflsize+30+max);
+  unsigned long cdiroffset= rawdeflsize + 30 + max;
 
   /* FILENAME */
   for(i=0; i<max;++i) ZOPFLI_APPEND_DATA(infilename[i],out,outsize);

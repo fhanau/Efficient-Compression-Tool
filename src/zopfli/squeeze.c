@@ -240,9 +240,6 @@ static void GetBestLengths(const ZopfliOptions* options,
   memset(costs + 1, 127, sizeof(float) * blocksize);
 
   size_t windowstart = instart > ZOPFLI_WINDOW_SIZE ? instart - ZOPFLI_WINDOW_SIZE : 0;
-  if (blocksize < ZOPFLI_MIN_MATCH){
-    windowstart = instart;
-  }
 
   CMatchFinder p;
   if (storeincache != 2){
@@ -669,7 +666,6 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
 
     }
   }
-
 
   if (options->useCache){
     CleanCache(&c);

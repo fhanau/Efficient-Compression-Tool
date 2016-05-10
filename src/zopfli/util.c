@@ -22,9 +22,6 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "util.h"
 #include "zopfli.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-
 unsigned ZopfliGetDistExtraBits(unsigned dist) {
 #ifdef __GNUC__
   if (dist < 5) return 0;
@@ -74,7 +71,7 @@ unsigned ZopfliGetDistExtraBitsValue(unsigned dist) {
 }
 
 int ZopfliGetDistSymbol(int dist) {
-#ifdef __GNUC__ 
+#ifdef __GNUC__
   if (dist < 5) {
     return dist - 1;
   } else {
@@ -241,6 +238,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   options->ultra = mode >= 8;
 
   options->replaceCodes = mode == 3 ? 3 : (2 * (mode > 5) + (mode == 9) * 18) * !options->ultra;
+  options->entropysplit = mode < 3;
   options->twice = 0;//mode == 9;
   options->greed = isPNG ? mode > 3 ? 258 : 50 : 258;
 }

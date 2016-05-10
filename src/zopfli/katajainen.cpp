@@ -29,7 +29,6 @@ Jyrki Katajainen, Alistair Moffat, Andrew Turpin".
 #include "util.h"
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <assert.h>
 #include <algorithm>
 
