@@ -578,7 +578,7 @@ bit lengths.
 static size_t GetDynamicLengths(const unsigned short* litlens,
                                 const unsigned short* dists,
                                 size_t lstart, size_t lend,
-                                unsigned* ll_lengths, unsigned* d_lengths, unsigned count, unsigned char symbols) {
+                                unsigned* ll_lengths, unsigned* d_lengths, unsigned char symbols) {
   size_t ll_counts[288];
   size_t d_counts[32];
   size_t ll_counts2[288];
@@ -593,38 +593,34 @@ static size_t GetDynamicLengths(const unsigned short* litlens,
   ZopfliLengthLimitedCodeLengths(ll_counts, 288, 15, ll_lengths);
   ZopfliLengthLimitedCodeLengths(d_counts, 32, 15, d_lengths);
   PatchDistanceCodesForBuggyDecoders(d_lengths);
-  if (count){
-    size_t result = 0;
-    unsigned i;
 
-    for (i = 0; i < 286; i++){
-      result += ll_lengths[i] * ll_counts2[i];
-    }
-    for (i = 265; i < 269; i++){
-      result += ll_counts2[i];
-    }
-    for (i = 269; i < 273; i++){
-      result += ll_counts2[i] * 2;
-    }
-    for (i = 273; i < 277; i++){
-      result += ll_counts2[i] * 3;
-    }
-    for (i = 277; i < 281; i++){
-      result += ll_counts2[i] * 4;
-    }
-    for (i = 281; i < 285; i++){
-      result += ll_counts2[i] * 5;
-    }
-    for (i = 0; i < 30; i++){
-      result += d_lengths[i] * d_counts2[i];
-    }
-    for (i = 4; i < 30; i++){
-      result += ((i - 2) / 2) * d_counts2[i];
-    }
-    return result;
-
+  size_t result = 0;
+  unsigned i;
+  for (i = 0; i < 286; i++){
+    result += ll_lengths[i] * ll_counts2[i];
   }
-  return 0;
+  for (i = 265; i < 269; i++){
+    result += ll_counts2[i];
+  }
+  for (i = 269; i < 273; i++){
+    result += ll_counts2[i] * 2;
+  }
+  for (i = 273; i < 277; i++){
+    result += ll_counts2[i] * 3;
+  }
+  for (i = 277; i < 281; i++){
+    result += ll_counts2[i] * 4;
+  }
+  for (i = 281; i < 285; i++){
+    result += ll_counts2[i] * 5;
+  }
+  for (i = 0; i < 30; i++){
+    result += d_lengths[i] * d_counts2[i];
+  }
+  for (i = 4; i < 30; i++){
+    result += ((i - 2) / 2) * d_counts2[i];
+  }
+  return result;
 }
 
 double ZopfliCalculateBlockSize(const unsigned short* litlens,
@@ -657,9 +653,8 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
   } else {
     unsigned d_lengths[32];
     unsigned dummy = 0;
-    result += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, 1, symbols);
+    result += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
     result += CalculateTreeSize(ll_lengths, d_lengths, hq, &dummy);
-
     return result;
   }
 }
@@ -767,7 +762,7 @@ static void AddLZ77Block(int btype, int final,
   } else {
     /* Dynamic block. */
     outpred = 3;
-    outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 1, symbols);
+    outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, symbols);
     outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
   }
   if (btype == 2){
@@ -790,7 +785,7 @@ static void AddLZ77Block(int btype, int final,
       else{
         //TODO: This may make compression worse due to longer huffman headers.
         outpred = 3;
-        outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 1, symbols);
+        outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, symbols);
         if (replaceCodes - i  < 3){
           outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
         }
