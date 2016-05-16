@@ -291,7 +291,17 @@ static void GetBestLengths(const ZopfliOptions* options,
         }
 
         if (storeincache != 2){
-          Bt3Zip_MatchFinder_Skip(&p, match);
+          if (mfinexport & 2 && i + match > inend - ZOPFLI_MAX_MATCH - 1 && i <= inend - ZOPFLI_MAX_MATCH - 1) {
+            unsigned now = inend - ZOPFLI_MAX_MATCH - i;
+            Bt3Zip_MatchFinder_Skip(&p, now);
+            CopyMF(&p, &mf);
+            right = 1;
+            Bt3Zip_MatchFinder_Skip(&p, match - now);
+
+          }
+          else{
+            Bt3Zip_MatchFinder_Skip(&p, match);
+          }
         }
         notenoughsame = i + same + ZOPFLI_MAX_MATCH - 1;
 
@@ -593,7 +603,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
 
     LZ77OptimalRun(options, in, instart, inend, length_array, &stats, &currentstore, options->useCache ? i == 1 ? 1 : 2 : 0, &c, mfinexport);
 
-    cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists, 0, currentstore.size, 2, options->searchext, currentstore.symbols);
+    cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists, 0, currentstore.size, 2, options->searchext, currentstore.symbols, 0);
     if (cost < bestcost) {
       /* Copy to the output store. */
       ZopfliCopyLZ77Store(&currentstore, store);
@@ -647,7 +657,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
       ZopfliLZ77Store peace;
       ZopfliInitLZ77Store(&peace);
       LZ77OptimalRun(options, in, instart, inend, length_array, &sta, &peace, options->useCache ? 2 : 0, &c, mfinexport);
-      double newcost = ZopfliCalculateBlockSize(peace.litlens, peace.dists, 0, peace.size, 2, options->searchext, peace.symbols);
+      double newcost = ZopfliCalculateBlockSize(peace.litlens, peace.dists, 0, peace.size, 2, options->searchext, peace.symbols, 0);
       if (newcost < bestcost){
         bestcost = newcost;
         ZopfliCopyLZ77Store(&peace, store);
