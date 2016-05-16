@@ -23,8 +23,8 @@ static long long savings;
 static void Usage() {
     printf (
             "Efficient Compression Tool\n"
-            "(C) 2014-2016 Felix Hanau.\n"
-            "Version 0.3"
+            "(c) 2014-2016 Felix Hanau.\n"
+            "Version 0.4"
 #ifdef __DATE__
             " compiled on %s\n"
 #endif
