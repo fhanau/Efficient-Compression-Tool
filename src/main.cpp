@@ -213,7 +213,6 @@ static void OptimizeMP3(const char * Infile, const ECTOptions& Options){
         if (mime){
             char mimetxt[20];
             mime->Get(mimetxt, 19);
-            //printf("%s", mimetxt);
             ID3_Field* pic = picFrame->GetField(ID3FN_DATA);
             bool ispng = memcmp(mimetxt, "image/png", 9) == 0 || memcmp(mimetxt, "PNG", 3) == 0;
             if (pic && (memcmp(mimetxt, "image/jpeg", 10) == 0 || ispng)){
@@ -256,7 +255,6 @@ static void fileHandler(const char * Infile, const ECTOptions& Options){
                 OptimizeJPEG(Infile, Options);
             }
             else if (Options.Gzip){
-                //if (!size)
                 statcompressedfile = ECTGzip(Infile, Options.Mode, Options.DeflateMultithreading, size, Options.Zip);
                 if (statcompressedfile == 2){
                     return;

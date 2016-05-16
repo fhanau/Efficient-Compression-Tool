@@ -265,7 +265,7 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
   /* Unintuitively, Using a simple LZ77 method here instead of ZopfliLZ77Optimal
   results in better blocks. */
   ZopfliInitLZ77Store(&store);
-  if (twiceMode != 2){
+  if (!(twiceMode & 2)){
     ZopfliLZ77Lazy(options, in, instart, inend, &store);
     store.symbols = 1;
   }

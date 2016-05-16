@@ -198,10 +198,8 @@ static void GetBestLengths(const ZopfliOptions* options,
     }
   }
   else {
-    literals = (float*)malloc(256 * sizeof(float));
-    if (!literals){
-      exit(1);
-    }
+    float litstack [256];
+    literals = litstack;
 
     for (i = 0; i < 144; i++){
       literals[i] = 8;
@@ -393,9 +391,6 @@ static void GetBestLengths(const ZopfliOptions* options,
     c->pointer = 0;
   }
 
-  if (!costcontext){
-    free(literals);
-  }
   free(disttable);
   free(costs);
 }
@@ -579,7 +574,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
     ZopfliInitLZ77Store(&currentstore);
 
     //TODO: This is very powerful and needs additional tuning.
-    if ((i == options->numiterations - 1 && options->numiterations > 5)|| i == 9 || i == 30){
+    if ((i == options->numiterations - 1 && options->numiterations > 5)|| (i == 9/* && !options->ultra*/) || i == 30 || (i >30 && i % 3 == 0)){
       unsigned bl[288];
 
       OptimizeHuffmanCountsForRle(32, beststats.dists);

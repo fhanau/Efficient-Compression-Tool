@@ -866,7 +866,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
     }
   }
 
-  if (twiceMode == 1){
+  if (twiceMode & 1){
     ZopfliInitLZ77Store(twiceStore);
     twiceStore->dists = store.dists;
     twiceStore->litlens = store.litlens;
@@ -956,7 +956,7 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
     }
   }
 
-  if (twiceMode == 1){
+  if (twiceMode & 1){
     ZopfliInitLZ77Store(twiceStore);
     for(int j = 0; j < npoints + 1; j++){
 
@@ -1004,7 +1004,7 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
   ZopfliBlockSplit(options, in, instart, inend, &splitpoints, &npoints, &statsp, twiceMode, *twiceStore);
 
   ZopfliLZ77Store* stores;
-  if (twiceMode == 1){
+  if (twiceMode & 1){
     stores = (ZopfliLZ77Store*)malloc((npoints + 1) * sizeof(ZopfliLZ77Store));
     if(!stores){
       exit(1);
@@ -1017,7 +1017,7 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
     DeflateDynamicBlock(options, i == npoints && final, in, start, end,
                         bp, out, outsize, costmodelnotinited, &(statsp[i]), twiceMode, stores + i, x);
   }
-  if (twiceMode == 1){
+  if (twiceMode & 1){
     ZopfliInitLZ77Store(twiceStore);
     for(int i = 0; i < npoints + 1; i++){
       twiceStore->litlens = (unsigned short*)realloc(twiceStore->litlens, sizeof(unsigned short) * (twiceStore->size + stores->size));
@@ -1091,14 +1091,11 @@ void ZopfliDeflate(const ZopfliOptions* options, int final,
     else{
       unsigned char cache = costmodelnotinited;
       ZopfliDeflatePart(options, final2, in, i, i + size, bp, out, outsize, &costmodelnotinited, 1, &lf);
-      //Seems to worsen on png,
-      unsigned char set = costmodelnotinited;
-      costmodelnotinited = cache;
-
-      ZopfliDeflatePart(options, final2, in, i, i + size, bp, out, outsize, &costmodelnotinited, 2, &lf);
-      costmodelnotinited = set;
+      for (int it = 0; it < options->twice; it++) {
+        costmodelnotinited = cache;
+        ZopfliDeflatePart(options, final2, in, i, i + size, bp, out, outsize, &costmodelnotinited, 2 + (it != options->twice - 1), &lf);
+      }
     }
-
     i += size;
   }
 #endif

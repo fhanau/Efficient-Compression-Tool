@@ -212,7 +212,6 @@ static const ZopfliOptionsMin opt[8] =
   {60, 2, 3,    800, 3000,  80,  100} /* 9 */
 };
 
-//TODO: Rename ZopfliOptions to ZSettings?
 void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithreading, unsigned isPNG) {
   if (mode < 2){
     mode = 2;
