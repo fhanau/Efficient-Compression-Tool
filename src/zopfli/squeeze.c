@@ -574,7 +574,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
     ZopfliInitLZ77Store(&currentstore);
 
     //TODO: This is very powerful and needs additional tuning.
-    if ((i == options->numiterations - 1 && options->numiterations > 5)|| (i == 9/* && !options->ultra*/) || i == 30 || (i >30 && i % 3 == 0)){
+    if ((i == options->numiterations - 1 && options->numiterations > 5)|| (i == 9/* && !options->ultra*/) || i == 30){
       unsigned bl[288];
 
       OptimizeHuffmanCountsForRle(32, beststats.dists);
