@@ -188,7 +188,7 @@ static void LZ4HC_Insert (LZ4HC_Data_Structure* hc4, const BYTE* ip)
   while(idx < target)
   {
     U32 h = LZ4HC_hashPtr(base+idx);
-    size_t delta = idx - HashTable[h];
+    U32 delta = idx - HashTable[h];
     if (delta>MAX_DISTANCE) delta = MAX_DISTANCE;
     chainTable[idx & MAX_DISTANCE] = (U16)delta;
     HashTable[h] = idx;
@@ -210,7 +210,7 @@ static void LZ4HC_Insert3 (LZ3HC_Data_Structure* hc4, const BYTE* ip)
   while(idx < target)
   {
     U32 h = LZ4HC_hashPtr3(base+idx);
-    size_t delta = idx - HashTable[h];
+    U32 delta = idx - HashTable[h];
     if (delta>MAX_DISTANCE3) delta = MAX_DISTANCE3;
     chainTable[idx & MAX_DISTANCE3] = (U16)delta;
     HashTable[h] = idx;
@@ -307,7 +307,7 @@ size_t ZopfliLZ77LazyLauncher(const unsigned char* in,
   ZopfliLZ77Lazy(&options, in,
                  instart, inend,
                  &store);
-  size_t ret = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, 0, 1);
+  size_t ret = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, 0, 1, 0);
   ZopfliCleanLZ77Store(&store);
   return ret;
 }

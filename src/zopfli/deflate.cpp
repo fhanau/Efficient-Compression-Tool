@@ -30,6 +30,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <math.h>
 
 #ifndef NOMULTI
 #include <thread>
@@ -623,9 +624,74 @@ static size_t GetDynamicLengths(const unsigned short* litlens,
   return result;
 }
 
+static double ZopfliCalculateEntropy2(const size_t* count, size_t n, unsigned* lengths) {
+  unsigned sum = 0;
+  unsigned i;
+  for (i = 0; i < n; ++i) {
+    sum += count[i];
+  }
+  if (!sum){
+    memset(lengths, 0, n * sizeof(unsigned));
+    return 0;
+  }
+  float log2sum = log2f(sum);
+  double result = 0;
+
+  for (i = 0; i < n; ++i) {
+    /* When the count of the symbol is 0, but its cost is requested anyway, it
+     means the symbol will appear at least once anyway, so give it the cost as if
+     its count is 1.*/
+    if (!count[i]) lengths[i] = log2sum;//TODO: log2sum for ENWIK, 0 for PNG. Makes a big difference
+    else {
+      float val = log2sum - log2f(count[i]);
+      if (val > 15){
+        val = 15;
+      }
+      lengths[i] = val;
+      result += val * count[i];
+    }
+  }
+  return result;
+}
+
+static size_t GetDynamicLengths2(const unsigned short* litlens,
+                                const unsigned short* dists,
+                                size_t lstart, size_t lend,
+                                unsigned* ll_lengths, unsigned* d_lengths, unsigned char symbols) {
+  size_t ll_counts[288];
+  size_t d_counts[32];
+
+  ZopfliLZ77Counts(litlens, dists, lstart, lend, ll_counts, d_counts, symbols);
+
+  unsigned i;
+  size_t result = 0;
+
+  result += ZopfliCalculateEntropy2(ll_counts, 288, ll_lengths);
+  result += ZopfliCalculateEntropy2(d_counts, 32, d_lengths);
+  for (i = 265; i < 269; i++){
+    result += ll_counts[i];
+  }
+  for (i = 269; i < 273; i++){
+    result += ll_counts[i] * 2;
+  }
+  for (i = 273; i < 277; i++){
+    result += ll_counts[i] * 3;
+  }
+  for (i = 277; i < 281; i++){
+    result += ll_counts[i] * 4;
+  }
+  for (i = 281; i < 285; i++){
+    result += ll_counts[i] * 5;
+  }
+  for (i = 4; i < 30; i++){
+    result += ((i - 2) / 2) * d_counts[i];
+  }
+  return result;
+}
+
 double ZopfliCalculateBlockSize(const unsigned short* litlens,
                                 const unsigned short* dists,
-                                size_t lstart, size_t lend, int btype, unsigned char hq, unsigned char symbols) {
+                                size_t lstart, size_t lend, int btype, unsigned char hq, unsigned char symbols, unsigned entropysplit) {
   unsigned ll_lengths[288];
   double result = 3; /* bfinal and btype bits */
 
@@ -653,7 +719,11 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
   } else {
     unsigned d_lengths[32];
     unsigned dummy = 0;
-    result += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
+    if (entropysplit){
+      result += GetDynamicLengths2(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
+    } else{
+      result += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
+    }
     result += CalculateTreeSize(ll_lengths, d_lengths, hq, &dummy);
     return result;
   }
@@ -758,7 +828,7 @@ static void AddLZ77Block(int btype, int final,
     for (i = 256; i < 280; i++) ll_lengths[i] = 7;
     for (i = 280; i < 288; i++) ll_lengths[i] = 8;
     for (i = 0; i < 32; i++) d_lengths[i] = 5;
-    outpred = ZopfliCalculateBlockSize(litlens, dists, 0, lend, btype, hq, symbols);
+    outpred = ZopfliCalculateBlockSize(litlens, dists, 0, lend, btype, hq, symbols, 0);
   } else {
     /* Dynamic block. */
     outpred = 3;
@@ -855,8 +925,8 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
     ZopfliLZ77Store fixedstore;
     ZopfliInitLZ77Store(&fixedstore);
     ZopfliLZ77OptimalFixed(options, in, instart, inend, &fixedstore, 0);
-    double dyncost = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, options->searchext, store.symbols);
-    double fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, options->searchext, store.symbols);
+    double dyncost = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, options->searchext, store.symbols, 0);
+    double fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, options->searchext, store.symbols, 0);
     if (fixedcost <= dyncost) {
       btype = 1;
       ZopfliCleanLZ77Store(&store);
@@ -912,8 +982,8 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
     ZopfliLZ77Store fixedstore;
     ZopfliInitLZ77Store(&fixedstore);
     ZopfliLZ77OptimalFixed(options, in, instart, inend, &fixedstore, 0);
-    dyncost = ZopfliCalculateBlockSize(store->store.litlens, store->store.dists, 0, store->store.size, 2, options->searchext, store->store.symbols);
-    fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, options->searchext, fixedstore.symbols);
+    dyncost = ZopfliCalculateBlockSize(store->store.litlens, store->store.dists, 0, store->store.size, 2, options->searchext, store->store.symbols, 0);
+    fixedcost = ZopfliCalculateBlockSize(fixedstore.litlens, fixedstore.dists, 0, fixedstore.size, 1, options->searchext, fixedstore.symbols, 0);
     if (fixedcost <= dyncost) {
       store->btype = 1;
       ZopfliCleanLZ77Store(&store->store);

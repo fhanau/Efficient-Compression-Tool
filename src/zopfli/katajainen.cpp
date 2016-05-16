@@ -222,11 +222,6 @@ void ZopfliLengthLimitedCodeLengths(const size_t* frequencies, int n, int maxbit
   /* Initialize node memory pool. */
   NodePool pool;
   Node stack[8580]; //maxbits(<=15) * 2 * numsymbols(<=286), the theoretical maximum. This needs about 170kb of memory, but is much faster than a node pool using garbage collection.
-  //If you need to conserve stack size.
-  /*Node* stack = (Node*)malloc(maxbits * 2 * numsymbols * sizeof(Node));
-  if (!stack){
-    exit(1);
-  }*/
   pool.next = stack;
 
 
@@ -243,5 +238,4 @@ void ZopfliLengthLimitedCodeLengths(const size_t* frequencies, int n, int maxbit
   BoundaryPMfinal(lists, leaves, numsymbols, &pool, maxbits - 1);
 
   ExtractBitLengths(lists[maxbits - 1][1], leaves, bitlengths);
-  //free(stack);
 }

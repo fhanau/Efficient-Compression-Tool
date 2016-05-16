@@ -112,7 +112,7 @@ typedef struct _LZCache{
 } LZCache;
 
 static void CreateCache(size_t len, LZCache* c){
-  c->size = len + (ZOPFLI_MAX_MATCH - ZOPFLI_MIN_MATCH + 1) * 2;
+  c->size = len + 513;
   c->cache = (unsigned*)malloc(c->size * sizeof(unsigned));
   if (!c->cache){
     exit(1);
@@ -261,7 +261,7 @@ static void GetBestLengths(const ZopfliOptions* options,
 
   unsigned* matches;
   if (!storeincache){
-    unsigned matchesarr[(ZOPFLI_MAX_MATCH - ZOPFLI_MIN_MATCH + 1) * 2];
+    unsigned matchesarr[513];
     matches = matchesarr;
   }
 

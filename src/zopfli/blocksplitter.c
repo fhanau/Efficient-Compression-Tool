@@ -41,9 +41,9 @@ typedef struct SplitCostContext {
  Gets the cost which is the sum of the cost of the left and the right section
  of the data.
  */
-static double SplitCost(size_t i, SplitCostContext* c, double* first, double* second, unsigned char searchext) {
-  *first = ZopfliCalculateBlockSize(c->litlens, c->dists, c->start, i, 2, searchext, c->symbols);
-  *second = ZopfliCalculateBlockSize(c->litlens, c->dists, i, c->end, 2, searchext, c->symbols);
+static double SplitCost(size_t i, SplitCostContext* c, double* first, double* second, unsigned char searchext, unsigned entropysplit) {
+  *first = ZopfliCalculateBlockSize(c->litlens, c->dists, c->start, i, 2, searchext, c->symbols, entropysplit);
+  *second = ZopfliCalculateBlockSize(c->litlens, c->dists, i, c->end, 2, searchext, c->symbols, entropysplit);
   return *first + *second;
 }
 
@@ -55,7 +55,7 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, d
   double first, second;
 
   if (options->midsplit){
-    *size = SplitCost(start + (end - start) / 2, context, &first, &second, options->searchext & 2);
+    *size = SplitCost(start + (end - start) / 2, context, &first, &second, options->searchext & 2, options->entropysplit);
     *biggersize = end - start + (end - start) / 2 > start + (end - start) / 2 - start ? second : first;
     return start + (end - start) / 2;
   }
@@ -78,7 +78,7 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, d
     if (end - start <= options->num){
       if (options->numiterations > 50){
         for (unsigned j = 0; j < end - start; j++){
-          double cost = SplitCost(start + j, context, &first, &second, options->searchext & 2);
+          double cost = SplitCost(start + j, context, &first, &second, options->searchext & 2, options->entropysplit);
           if (cost < best){
             best = cost;
             pos = start + j;
@@ -95,7 +95,7 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, d
         vp[i] = best;
         continue;
       }
-      vp[i] = SplitCost(p[i], context, &first, &second, options->searchext & 2);
+      vp[i] = SplitCost(p[i], context, &first, &second, options->searchext & 2, options->entropysplit);
     }
     besti = 0;
     best = vp[0];
@@ -205,7 +205,7 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
     assert(llpos < lend);
 
     if (prevcost == ZOPFLI_LARGE_FLOAT || splittingleft == 1 || options->num == 9){
-    origcost = ZopfliCalculateBlockSize(litlens, dists, lstart, lend, 2, options->searchext & 2, symbols);
+    origcost = ZopfliCalculateBlockSize(litlens, dists, lstart, lend, 2, options->searchext & 2, symbols, options->entropysplit);
     }
     else {
       origcost = prevcost;

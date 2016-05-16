@@ -65,7 +65,7 @@ lend: end of block (not inclusive)
 */
 double ZopfliCalculateBlockSize(const unsigned short* litlens,
                                 const unsigned short* dists,
-                                size_t lstart, size_t lend, int btype, unsigned char hq, unsigned char symbols);
+                                size_t lstart, size_t lend, int btype, unsigned char hq, unsigned char symbols, unsigned entropysplit);
 
 void OptimizeHuffmanCountsForRle(int length, size_t* counts);
 
