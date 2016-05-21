@@ -316,7 +316,7 @@ typedef struct LodePNGInfo
   The 3 buffers are the unknown chunks between certain critical chunks:
   0: IHDR-PLTE, 1: PLTE-IDAT, 2: IDAT-IEND
   Do not allocate or traverse this data yourself. Use the chunk traversing functions declared
-  later, such as lodepng_chunk_next and lodepng_chunk_append, to read/write this struct.
+  later, such as lodepng_chunk_next, to read/write this struct.
   */
   unsigned char* unknown_chunks_data[3];
   size_t unknown_chunks_size[3]; /*size in bytes of the unknown chunks, given for protection*/
@@ -413,6 +413,8 @@ typedef struct LodePNGColorProfile
   unsigned char palette[1024]; /*Remembers up to the first 256 RGBA colors, in no particular order*/
   unsigned bits; /*bits per channel (not for palette). 1,2 or 4 for greyscale only. 16 if 16-bit per channel required.*/
 } LodePNGColorProfile;
+
+unsigned lodepng_can_have_alpha(const LodePNGColorMode* info);
 
 void lodepng_color_profile_init(LodePNGColorProfile* profile);
 
@@ -541,22 +543,9 @@ unsigned char lodepng_chunk_ancillary(const unsigned char* chunk);
 /*get pointer to the data of the chunk, where the input points to the header of the chunk*/
 const unsigned char* lodepng_chunk_data_const(const unsigned char* chunk);
 
-/*returns 0 if the crc is correct, 1 if it's incorrect (0 for OK as usual!)*/
-unsigned lodepng_chunk_check_crc(const unsigned char* chunk);
-
-/*generates the correct CRC from the data and puts it in the last 4 bytes of the chunk*/
-void lodepng_chunk_generate_crc(unsigned char* chunk);
-
 /*iterate to next chunks. don't use on IEND chunk, as there is no next chunk then*/
 unsigned char* lodepng_chunk_next(unsigned char* chunk);
 const unsigned char* lodepng_chunk_next_const(const unsigned char* chunk);
-
-/*
-Appends chunk to the data in out. The given chunk should already have its chunk header.
-The out variable and outlength are updated to reflect the new reallocated buffer.
-Returns error code (0 if it went ok)
-*/
-unsigned lodepng_chunk_append(unsigned char** out, size_t* outlength, const unsigned char* chunk);
 
 /*
 Appends new chunk to out. The chunk to append is given by giving its length, type
@@ -1167,7 +1156,6 @@ Iterate to the next chunk. This works if you have a buffer with consecutive chun
 functions do no boundary checking of the allocated data whatsoever, so make sure there is enough
 data available in the buffer to be able to go to the next chunk.
 
-unsigned lodepng_chunk_append(unsigned char** out, size_t* outlength, const unsigned char* chunk):
 unsigned lodepng_chunk_create(unsigned char** out, size_t* outlength, unsigned length,
                               const char* type, const unsigned char* data):
 
@@ -1200,7 +1188,7 @@ option is off (0).
 
 The encoder will always encode unknown chunks that are stored in the info_png.
 If you need it to add a particular chunk that isn't known by LodePNG, you can
-use lodepng_chunk_append or lodepng_chunk_create to the chunk data in
+use lodepng_chunk_create to the chunk data in
 info_png.unknown_chunks_data[x].
 
 Chunks that are known by LodePNG should not be added in that way. E.g. to make

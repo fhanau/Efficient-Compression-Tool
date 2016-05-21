@@ -1210,7 +1210,7 @@ const unsigned char* lodepng_chunk_data_const(const unsigned char* chunk)
   return &chunk[8];
 }
 
-unsigned lodepng_chunk_check_crc(const unsigned char* chunk)
+static unsigned lodepng_chunk_check_crc(const unsigned char* chunk)
 {
   unsigned length = lodepng_chunk_length(chunk);
   unsigned CRC = lodepng_read32bitInt(&chunk[length + 8]);
@@ -1220,7 +1220,7 @@ unsigned lodepng_chunk_check_crc(const unsigned char* chunk)
   else return 0;
 }
 
-void lodepng_chunk_generate_crc(unsigned char* chunk)
+static void lodepng_chunk_generate_crc(unsigned char* chunk)
 {
   unsigned length = lodepng_chunk_length(chunk);
   unsigned CRC = lodepng_crc32(&chunk[4], length + 4);
@@ -1239,7 +1239,7 @@ const unsigned char* lodepng_chunk_next_const(const unsigned char* chunk)
   return &chunk[total_chunk_length];
 }
 
-unsigned lodepng_chunk_append(unsigned char** out, size_t* outlength, const unsigned char* chunk)
+static unsigned lodepng_chunk_append(unsigned char** out, size_t* outlength, const unsigned char* chunk)
 {
   unsigned i;
   unsigned total_chunk_length = lodepng_chunk_length(chunk) + 12;
@@ -1326,8 +1326,6 @@ static unsigned lodepng_get_bpp_lct(LodePNGColorType colortype, unsigned bitdept
   /*bits per pixel is amount of channels * bits per channel*/
   return getNumColorChannels(colortype) * bitdepth;
 }
-
-/* ////////////////////////////////////////////////////////////////////////// */
 
 void lodepng_color_mode_init(LodePNGColorMode* info)
 {
@@ -1432,7 +1430,7 @@ unsigned lodepng_has_palette_alpha(const LodePNGColorMode* info)
   return 0;
 }
 
-static unsigned lodepng_can_have_alpha(const LodePNGColorMode* info)
+unsigned lodepng_can_have_alpha(const LodePNGColorMode* info)
 {
   return info->key_defined
       || lodepng_is_alpha_type(info)
@@ -1673,8 +1671,6 @@ unsigned lodepng_info_copy(LodePNGInfo* dest, const LodePNGInfo* source)
   return 0;
 }
 
-/* ////////////////////////////////////////////////////////////////////////// */
-
 /*index: bitgroup index, bits: bitgroup size(1, 2 or 4), in: bitgroup value, out: octet array to add bits to*/
 static void addColorBits(unsigned char* out, size_t index, unsigned bits, unsigned in)
 {
@@ -1769,7 +1765,7 @@ static int color_tree_get(ColorTree* tree, unsigned char r, unsigned char g, uns
 
   for(int bit = 0; bit < 8; ++bit)
   {
-    int i = x & 15;
+    unsigned i = x & 15;
     if(!tree->children[i]) return -1;
     else tree = tree->children[i];
     x>>=4;
@@ -2455,7 +2451,7 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
 
         if(alpha_done && numcolors_done && colored_done && bits_done) break;
       }
-      
+
     }
     else{
 
