@@ -503,7 +503,7 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
     }
   }
   std::vector<unsigned char> temp;
-  error = TryOptimize(image, w, h, bit16, inputstate, &png_options, &temp, best_filter, filters);
+  error = TryOptimize(image, w, h, bit16, inputstate, &png_options, &temp, best_filter, filters, palette_filter);
   if (!error) {
     (*resultpng).swap(temp);  // Store best result so far in the output.
   }
@@ -520,6 +520,8 @@ int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int f
   ZopfliPNGOptions png_options;
   png_options.Mode = Mode;
   png_options.multithreading = multithreading;
+  unsigned palette_filter = (filter & 0xFF00) >> 8;
+  filter &= 0xFF;
   png_options.lossy_transparent = !strict && filter != 6;
   png_options.strip = strip;
   std::vector<unsigned char> origpng;
@@ -531,7 +533,7 @@ int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int f
     assert(filters.size());
   }
   std::vector<unsigned char> resultpng;
-  if (ZopfliPNGOptimize(origpng, png_options, &resultpng, filter, filters)) {return -1;}
+  if (ZopfliPNGOptimize(origpng, png_options, &resultpng, filter, filters, palette_filter)) {return -1;}
   if (resultpng.size() >= origpng.size()) {return 1;}
   lodepng::save_file(resultpng, Infile);
   return 0;
