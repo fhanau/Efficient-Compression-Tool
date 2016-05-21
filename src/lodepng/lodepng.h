@@ -202,8 +202,6 @@ typedef struct LodePNGColorMode
   palette (PLTE and tRNS)
 
   Dynamically allocated with the colors of the palette, including alpha.
-  When encoding a PNG, to store your colors in the palette of the LodePNGColorMode, first use
-  lodepng_palette_clear, then for each color use lodepng_palette_add.
   If you encode an image without alpha with palette, don't forget to put value 255 in each A byte of the palette.
 
   When decoding, by default you can ignore this palette, since LodePNG already
@@ -239,11 +237,7 @@ unsigned lodepng_color_mode_copy(LodePNGColorMode* dest, const LodePNGColorMode*
 
 void lodepng_palette_clear(LodePNGColorMode* info);
 /*add 1 color to the palette*/
-unsigned lodepng_palette_add(LodePNGColorMode* info,
-                             unsigned char r, unsigned char g, unsigned char b, unsigned char a);
 
-/*get the total amount of bits per pixel, based on colortype and bitdepth in the struct*/
-unsigned lodepng_get_bpp(const LodePNGColorMode* info);
 /*is it a greyscale type? (only colortype 0 or 4)*/
 unsigned lodepng_is_greyscale_type(const LodePNGColorMode* info);
 /*has it got an alpha channel? (only colortype 2 or 6)*/
@@ -323,12 +317,6 @@ typedef struct LodePNGInfo
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
 } LodePNGInfo;
 
-/*init, cleanup and copy functions to use with this struct*/
-void lodepng_info_init(LodePNGInfo* info);
-void lodepng_info_cleanup(LodePNGInfo* info);
-/*return value is error code (0 means no error)*/
-unsigned lodepng_info_copy(LodePNGInfo* dest, const LodePNGInfo* source);
-
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
 unsigned lodepng_add_text(LodePNGInfo* info, const char* key, const char* str); /*push back both texts at once*/
 
@@ -370,8 +358,6 @@ typedef struct LodePNGDecoderSettings
   unsigned remember_unknown_chunks;
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
 } LodePNGDecoderSettings;
-
-void lodepng_decoder_settings_init(LodePNGDecoderSettings* settings);
 #endif /*LODEPNG_COMPILE_DECODER*/
 
 #ifdef LODEPNG_COMPILE_ENCODER
@@ -399,6 +385,58 @@ typedef enum LodePNGFilterStrategy
   LFS_INCREMENTAL = 11
 } LodePNGFilterStrategy;
 
+typedef enum LodePNGPalettePriorityStrategy
+{
+  /*Prioritize by frequency of color*/
+  LPPS_POPULARITY = 0,
+  /*Prioritize by RGB color space*/
+  LPPS_RGB = 2,
+  /*Prioritize by Y'UV color space*/
+  LPPS_YUV = 4,
+  /*Prioritize by L*a*b* color space*/
+  LPPS_LAB = 3,
+  /*Prioritize by most significant bits of each RGB channel*/
+  LPPS_MSB = 1
+} LodePNGPalettePriorityStrategy;
+
+typedef enum LodePNGPaletteDirectionStrategy
+{
+  /*Sort in ascending direction*/
+  LPDS_ASCENDING = 0,
+  /*Sort in descending direction*/
+  LPDS_DESCENDING = 1
+} LodePNGPaletteDirectionStrategy;
+
+typedef enum LodePNGPaletteTransparencyStrategy
+{
+  /*Don't consider transparency*/
+  LPTS_IGNORE = 1,
+  /*Sort transparency as additional color channel*/
+  LPTS_SORT = 2,
+  /*Put colors with transparency first*/
+  LPTS_FIRST = 0
+} LodePNGPaletteTransparencyStrategy;
+
+typedef enum LodePNGPaletteOrderStrategy
+{
+  /*Do not change palette*/
+  LPOS_NONE = -1,
+  /*Consider all colors when ordering*/
+  LPOS_GLOBAL = 0,
+  /*Order by nearest color (Euclidean distance in RGB space)*/
+  LPOS_NEAREST = 1,
+  /*Order by nearest color (Euclidean distance in RGB space) multiplied by overall popularity*/
+  LPOS_NEAREST_WEIGHT = 2,
+  /*Order by nearest color (Euclidean distance in RGB space), only taking into account neighbors*/
+  LPOS_NEAREST_NEIGHBOR = 3
+} LodePNGPaletteOrderStrategy;
+
+typedef struct LodePNGPaletteSettings{
+  LodePNGPalettePriorityStrategy priority;
+  LodePNGPaletteDirectionStrategy direction;
+  LodePNGPaletteTransparencyStrategy trans;
+  LodePNGPaletteOrderStrategy order;
+} LodePNGPaletteSettings;
 /*Gives characteristics about the colors of the image, which helps decide which color model to use for encoding.
 Used internally by default if "auto_convert" is enabled. Public because it's useful for custom algorithms.*/
 typedef struct LodePNGColorProfile
