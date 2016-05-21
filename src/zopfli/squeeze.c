@@ -240,6 +240,7 @@ static void GetBestLengths(const ZopfliOptions* options,
   size_t windowstart = instart > ZOPFLI_WINDOW_SIZE ? instart - ZOPFLI_WINDOW_SIZE : 0;
 
   CMatchFinder p;
+  p.hash = 0;
   if (storeincache != 2){
     if (mfinexport & right){
       p = mf;
