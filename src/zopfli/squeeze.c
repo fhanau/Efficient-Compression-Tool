@@ -126,10 +126,8 @@ static void CleanCache(LZCache* c){
 
 CMatchFinder mf;
 int right;
-static void GetBestLengths(const ZopfliOptions* options,
-                             const unsigned char* in,
-                             size_t instart, size_t inend,
-                             SymbolStats* costcontext, unsigned* length_array, unsigned char storeincache, LZCache* c, unsigned mfinexport) {
+static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in, size_t instart, size_t inend,
+                           SymbolStats* costcontext, unsigned* length_array, unsigned char storeincache, LZCache* c, unsigned mfinexport) {
   size_t i;
 
   /*TODO: Put this in seperate function*/
@@ -371,7 +369,6 @@ static void GetBestLengths(const ZopfliOptions* options,
 
         unsigned curr = ZOPFLI_MIN_MATCH;
         while (mp < mend){
-
           unsigned len = *mp++;
           unsigned dist = *mp++;
           float price2 = price + disttable[dist];
@@ -639,12 +636,12 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
   }
 
   if (options->ultra){
+    unsigned bl[288];
+    unsigned bld[32];
 
     for (;;){
       SymbolStats sta;
       GetStatistics(store, &sta);
-
-      unsigned bl[288];
 
       OptimizeHuffmanCountsForRle(32, sta.dists);
       OptimizeHuffmanCountsForRle(288, sta.litlens);
@@ -653,12 +650,10 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
       for (int j = 0; j < 286; j++){
         sta.ll_symbols[j] = bl[j];
       }
-      unsigned bld[32];
       ZopfliLengthLimitedCodeLengths(sta.dists, 32, 15, bld);
       for (int j = 0; j < 30; j++){
         sta.d_symbols[j] = bld[j];
       }
-
 
       ZopfliLZ77Store peace;
       ZopfliInitLZ77Store(&peace);
@@ -668,7 +663,6 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
         bestcost = newcost;
         ZopfliCopyLZ77Store(&peace, store);
         ZopfliCleanLZ77Store(&peace);
-
       }
       else{
         ZopfliCleanLZ77Store(&peace);
