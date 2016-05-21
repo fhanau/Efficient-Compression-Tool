@@ -530,15 +530,15 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
 
   if ((end - start) % 2){
     lenarrything[litlens[start] + !dists[start] * 259]++;
-    d_count[ZopfliGetDistSymbol(dists[start])]++;
+    d_count[dists[start] ? ZopfliGetDistSymbol(dists[start]) : 31]++;
     start++;
   }
   for (i = start; i < end; i++) {
     lenarrything[litlens[i] + !dists[i] * 259]++;
-    d_count[ZopfliGetDistSymbol(dists[i])]++;
+    d_count[dists[i] ? ZopfliGetDistSymbol(dists[i]) : 31]++;
     i++;
     lenarrything2[litlens[i] + !dists[i] * 259]++;
-    d_count2[ZopfliGetDistSymbol(dists[i])]++;
+    d_count2[dists[i] ? ZopfliGetDistSymbol(dists[i]) : 31]++;
   }
 
   for (i = 0; i < 256; i++){
@@ -551,4 +551,5 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
   for (i = 0; i < 32; i++){
     d_count[i] += d_count2[i];
   }
+  d_count[31] = 0;
 }
