@@ -41,7 +41,7 @@ typedef struct {
    */
   JOCTET * next_output_byte;    /* => next byte to write in buffer */
   size_t free_in_buffer;        /* # of byte spaces remaining in buffer */
-  INT32 put_buffer;             /* current bit-accumulation buffer */
+  size_t put_buffer;             /* current bit-accumulation buffer */
   int put_bits;                 /* # of bits now in it */
   j_compress_ptr cinfo;         /* link to cinfo (needed for dump_buffer) */
 
@@ -76,7 +76,7 @@ typedef phuff_entropy_encoder * phuff_entropy_ptr;
  * The minimum safe size is 64 bits.
  */
 
-#define MAX_CORR_BITS  1000     /* Max # of correction bits I can buffer */
+#define MAX_CORR_BITS  2000     /* Max # of correction bits I can buffer */
 
 /* IRIGHT_SHIFT is like RIGHT_SHIFT, but works on int rather than INT32.
  * We assume that int right shift is unsigned if INT32 right shift is,
@@ -176,6 +176,14 @@ start_pass_phuff (j_compress_ptr cinfo, boolean gather_statistics)
           (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_IMAGE,
                                       257 * sizeof(long));
       MEMZERO(entropy->count_ptrs[tbl], 257 * sizeof(long));
+      if (cinfo->master->trellis_passes) {
+        /* When generating tables for trellis passes, make sure that all */
+        /* codewords have an assigned length */
+        int i, j;
+        for (i = 0; i < 16; i++)
+          for (j = 0; j < 12; j++)
+            entropy->count_ptrs[tbl][16 * i + j] = 1;
+      }
     } else {
       /* Compute derived values for Huffman table */
       /* We may do this more than once for a table, but it's not expensive */
@@ -237,7 +245,7 @@ emit_bits (phuff_entropy_ptr entropy, unsigned int code, int size)
 /* Emit some bits, unless we are in gather mode */
 {
   /* This routine is heavily used, so it's worth coding tightly. */
-  register INT32 put_buffer = (INT32) code;
+  register size_t put_buffer = (size_t) code;
   register int put_bits = entropy->put_bits;
 
   /* if size is 0, caller used an invalid Huffman table entry */
@@ -247,7 +255,7 @@ emit_bits (phuff_entropy_ptr entropy, unsigned int code, int size)
   if (entropy->gather_statistics)
     return;                     /* do nothing if we're only getting stats */
 
-  put_buffer &= (((INT32) 1)<<size) - 1; /* mask off any extra bits in code */
+  put_buffer &= (((size_t) 1)<<size) - 1; /* mask off any extra bits in code */
 
   put_bits += size;             /* new number of bits in buffer */
 

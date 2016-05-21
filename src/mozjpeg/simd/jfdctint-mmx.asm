@@ -91,10 +91,10 @@ PW_DESCALE_P2X  times 4 dw  1 << (PASS1_BITS-1)
 ; Perform the forward DCT on one block of samples.
 ;
 ; GLOBAL(void)
-; jsimd_fdct_islow_mmx (DCTELEM * data)
+; jsimd_fdct_islow_mmx (DCTELEM *data)
 ;
 
-%define data(b)         (b)+8           ; DCTELEM * data
+%define data(b)         (b)+8           ; DCTELEM *data
 
 %define original_ebp    ebp+0
 %define wk(i)           ebp-(WK_NUM-(i))*SIZEOF_MMWORD  ; mmword wk[WK_NUM]
@@ -444,11 +444,11 @@ EXTN(jsimd_fdct_islow_mmx):
         psubw   mm6,mm4                 ; mm6=tmp12
 
         movq    mm7,mm5
-        paddsw   mm5,mm0                 ; mm5=tmp10+tmp11
-        psubsw   mm7,mm0                 ; mm7=tmp10-tmp11
+        paddw   mm5,mm0                 ; mm5=tmp10+tmp11
+        psubw   mm7,mm0                 ; mm7=tmp10-tmp11
 
-        paddsw   mm5,[GOTOFF(ebx,PW_DESCALE_P2X)]
-        paddsw   mm7,[GOTOFF(ebx,PW_DESCALE_P2X)]
+        paddw   mm5,[GOTOFF(ebx,PW_DESCALE_P2X)]
+        paddw   mm7,[GOTOFF(ebx,PW_DESCALE_P2X)]
         psraw   mm5,PASS1_BITS          ; mm5=data0
         psraw   mm7,PASS1_BITS          ; mm7=data4
 

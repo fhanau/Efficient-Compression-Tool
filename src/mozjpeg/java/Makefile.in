@@ -262,6 +262,7 @@ JAVASOURCES = org/libjpegturbo/turbojpeg/TJ.java \
 	org/libjpegturbo/turbojpeg/TJCompressor.java \
 	org/libjpegturbo/turbojpeg/TJCustomFilter.java \
 	org/libjpegturbo/turbojpeg/TJDecompressor.java \
+	org/libjpegturbo/turbojpeg/TJException.java \
 	org/libjpegturbo/turbojpeg/TJScalingFactor.java \
 	org/libjpegturbo/turbojpeg/TJTransform.java \
 	org/libjpegturbo/turbojpeg/TJTransformer.java \
@@ -280,6 +281,7 @@ JNIHEADERS = org_libjpegturbo_turbojpeg_TJ.h \
 @WITH_JAVA_TRUE@	org/libjpegturbo/turbojpeg/TJCompressor.class \
 @WITH_JAVA_TRUE@	org/libjpegturbo/turbojpeg/TJCustomFilter.class \
 @WITH_JAVA_TRUE@	org/libjpegturbo/turbojpeg/TJDecompressor.class \
+@WITH_JAVA_TRUE@	org/libjpegturbo/turbojpeg/TJException.class \
 @WITH_JAVA_TRUE@	org/libjpegturbo/turbojpeg/TJLoader.class \
 @WITH_JAVA_TRUE@	org/libjpegturbo/turbojpeg/TJScalingFactor.class \
 @WITH_JAVA_TRUE@	org/libjpegturbo/turbojpeg/TJTransform.class \
@@ -417,9 +419,9 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
+@WITH_JAVA_FALSE@uninstall-local:
 @WITH_JAVA_FALSE@clean-local:
 @WITH_JAVA_FALSE@install-exec-local:
-@WITH_JAVA_FALSE@uninstall-local:
 clean: clean-am
 
 clean-am: clean-generic clean-libtool clean-local clean-noinstJAVA \
@@ -510,7 +512,7 @@ org/libjpegturbo/turbojpeg/TJLoader.java: $(srcdir)/org/libjpegturbo/turbojpeg/T
 
 @WITH_JAVA_TRUE@all: all-am turbojpeg.jar
 
-@WITH_JAVA_TRUE@turbojpeg.jar: $(JAVA_CLASSES) ${srcdir}/MANIFEST.MF
+@WITH_JAVA_TRUE@turbojpeg.jar: classnoinst.stamp ${srcdir}/MANIFEST.MF
 @WITH_JAVA_TRUE@	$(JAR) cfm turbojpeg.jar ${srcdir}/MANIFEST.MF $(JAVA_CLASSES)
 
 @WITH_JAVA_TRUE@clean-local:

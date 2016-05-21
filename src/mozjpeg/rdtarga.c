@@ -5,7 +5,8 @@
  * Copyright (C) 1991-1996, Thomas G. Lane.
  * It was modified by The libjpeg-turbo Project to include only code relevant
  * to libjpeg-turbo.
- * For conditions of distribution and use, see the accompanying README file.
+ * For conditions of distribution and use, see the accompanying README.ijg
+ * file.
  *
  * This file contains routines to read input images in Targa format.
  *
@@ -45,7 +46,7 @@ typedef char U_CHAR;
 
 /* Private version of data source object */
 
-typedef struct _tga_source_struct * tga_source_ptr;
+typedef struct _tga_source_struct *tga_source_ptr;
 
 typedef struct _tga_source_struct {
   struct cjpeg_source_struct pub; /* public fields */
@@ -365,7 +366,7 @@ start_input_tga (j_compress_ptr cinfo, cjpeg_source_ptr sinfo)
       source->pixel_size < 1 || source->pixel_size > 4 ||
       (UCH(targaheader[16]) & 7) != 0 || /* bits/pixel must be multiple of 8 */
       interlace_type != 0 ||      /* currently don't allow interlaced image */
-      width == 0 || height == 0)  /* image width/height must be nonzero */
+      width == 0 || height == 0)  /* image width/height must be non-zero */
     ERREXIT(cinfo, JERR_TGA_BADPARMS);
 
   if (subtype > 8) {

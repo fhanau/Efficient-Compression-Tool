@@ -5,7 +5,8 @@
  * Copyright (C) 1997-2011, Thomas G. Lane, Guido Vollbeding.
  * It was modified by The libjpeg-turbo Project to include only code relevant
  * to libjpeg-turbo.
- * For conditions of distribution and use, see the accompanying README file.
+ * For conditions of distribution and use, see the accompanying README.ijg
+ * file.
  *
  * This file contains declarations for image transformation routines and
  * other utility code used by the jpegtran sample application.  These are
@@ -18,8 +19,6 @@
  * source and destination files.  See the comments in transupp.c, or see
  * jpegtran.c for an example of correct usage.
  */
-
-/*Modified by Felix Hanau: Undefined TRANSFORMS_SUPPORTED*/
 
 /* If you happen not to want the image transform support, disable it here */
 #ifndef TRANSFORMS_SUPPORTED
@@ -144,7 +143,7 @@ typedef struct {
 
   /* Internal workspace: caller should not touch these */
   int num_components;           /* # of components in workspace */
-  jvirt_barray_ptr * workspace_coef_arrays; /* workspace for transformations */
+  jvirt_barray_ptr *workspace_coef_arrays; /* workspace for transformations */
   JDIMENSION output_width;      /* cropped destination dimensions */
   JDIMENSION output_height;
   JDIMENSION x_crop_offset;     /* destination crop offsets measured in iMCUs */

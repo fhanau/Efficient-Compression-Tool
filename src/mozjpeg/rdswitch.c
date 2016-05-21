@@ -5,7 +5,8 @@
  * Copyright (C) 1991-1996, Thomas G. Lane.
  * libjpeg-turbo Modifications:
  * Copyright (C) 2010, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README file.
+ * For conditions of distribution and use, see the accompanying README.ijg
+ * file.
  *
  * This file contains routines to process some of cjpeg's more complicated
  * command-line switches.  Switches processed here are:
@@ -21,7 +22,7 @@
 
 
 LOCAL(int)
-text_getc (FILE * file)
+text_getc (FILE *file)
 /* Read next char, skipping over any comments (# to end of line) */
 /* A comment/newline sequence is returned as a newline */
 {
@@ -38,7 +39,7 @@ text_getc (FILE * file)
 
 
 LOCAL(boolean)
-read_text_integer (FILE * file, long * result, int * termchar)
+read_text_integer (FILE *file, long *result, int *termchar)
 /* Read an unsigned decimal integer from a file, store it in result */
 /* Reads one trailing character after the integer; returns it in termchar */
 {
@@ -77,7 +78,8 @@ static int q_scale_factor[NUM_QUANT_TBLS] = {100, 100, 100, 100};
 #endif
 
 GLOBAL(boolean)
-read_quant_tables (j_compress_ptr cinfo, char * filename, boolean force_baseline)
+read_quant_tables (j_compress_ptr cinfo, char *filename,
+                   boolean force_baseline)
 /* Read a set of quantization tables from the specified file.
  * The file is plain ASCII text: decimal numbers with whitespace between.
  * Comments preceded by '#' may be included in the file.
@@ -88,7 +90,7 @@ read_quant_tables (j_compress_ptr cinfo, char * filename, boolean force_baseline
  * You must use -qslots if you want a different component->table mapping.
  */
 {
-  FILE * fp;
+  FILE *fp;
   int tblno, i, termchar;
   long val;
   unsigned int table[DCTSIZE2];
@@ -138,7 +140,7 @@ read_quant_tables (j_compress_ptr cinfo, char * filename, boolean force_baseline
 #ifdef C_MULTISCAN_FILES_SUPPORTED
 
 LOCAL(boolean)
-read_scan_integer (FILE * file, long * result, int * termchar)
+read_scan_integer (FILE *file, long *result, int *termchar)
 /* Variant of read_text_integer that always looks for a non-space termchar;
  * this simplifies parsing of punctuation in scan scripts.
  */
@@ -167,7 +169,7 @@ read_scan_integer (FILE * file, long * result, int * termchar)
 
 
 GLOBAL(boolean)
-read_scan_script (j_compress_ptr cinfo, char * filename)
+read_scan_script (j_compress_ptr cinfo, char *filename)
 /* Read a scan script from the specified text file.
  * Each entry in the file defines one scan to be emitted.
  * Entries are separated by semicolons ';'.
@@ -184,10 +186,10 @@ read_scan_script (j_compress_ptr cinfo, char * filename)
  * jcmaster.c will validate the script parameters.
  */
 {
-  FILE * fp;
+  FILE *fp;
   int scanno, ncomps, termchar;
   long val;
-  jpeg_scan_info * scanptr;
+  jpeg_scan_info *scanptr;
 #define MAX_SCANS  100          /* quite arbitrary limit */
   jpeg_scan_info scans[MAX_SCANS];
 
@@ -286,14 +288,14 @@ static const unsigned int std_luminance_quant_tbl[9][DCTSIZE2] = {
   {
     /* JPEG Annex K
      */
-    16,  11,  10,  16,  24,  40,  51,  61,
-    12,  12,  14,  19,  26,  58,  60,  55,
-    14,  13,  16,  24,  40,  57,  69,  56,
-    14,  17,  22,  29,  51,  87,  80,  62,
-    18,  22,  37,  56,  68, 109, 103,  77,
-    24,  35,  55,  64,  81, 104, 113,  92,
-    49,  64,  78,  87, 103, 121, 120, 101,
-    72,  92,  95,  98, 112, 100, 103,  99
+  16,  11,  10,  16,  24,  40,  51,  61,
+  12,  12,  14,  19,  26,  58,  60,  55,
+  14,  13,  16,  24,  40,  57,  69,  56,
+  14,  17,  22,  29,  51,  87,  80,  62,
+  18,  22,  37,  56,  68, 109, 103,  77,
+  24,  35,  55,  64,  81, 104, 113,  92,
+  49,  64,  78,  87, 103, 121, 120, 101,
+  72,  92,  95,  98, 112, 100, 103,  99
   },
   {
     /* flat
@@ -393,14 +395,14 @@ static const unsigned int std_chrominance_quant_tbl[9][DCTSIZE2] = {
   {
     /* JPEG Annex K
      */
-    17,  18,  24,  47,  99,  99,  99,  99,
-    18,  21,  26,  66,  99,  99,  99,  99,
-    24,  26,  56,  99,  99,  99,  99,  99,
-    47,  66,  99,  99,  99,  99,  99,  99,
-    99,  99,  99,  99,  99,  99,  99,  99,
-    99,  99,  99,  99,  99,  99,  99,  99,
-    99,  99,  99,  99,  99,  99,  99,  99,
-    99,  99,  99,  99,  99,  99,  99,  99
+  17,  18,  24,  47,  99,  99,  99,  99,
+  18,  21,  26,  66,  99,  99,  99,  99,
+  24,  26,  56,  99,  99,  99,  99,  99,
+  47,  66,  99,  99,  99,  99,  99,  99,
+  99,  99,  99,  99,  99,  99,  99,  99,
+  99,  99,  99,  99,  99,  99,  99,  99,
+  99,  99,  99,  99,  99,  99,  99,  99,
+  99,  99,  99,  99,  99,  99,  99,  99
   },
   {
     /* flat

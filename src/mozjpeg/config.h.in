@@ -116,8 +116,8 @@
    unsigned. */
 #undef RIGHT_SHIFT_IS_UNSIGNED
 
-/* The size of `long', as computed by sizeof. */
-#undef SIZEOF_LONG
+/* The size of `size_t', as computed by sizeof. */
+#undef SIZEOF_SIZE_T
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
