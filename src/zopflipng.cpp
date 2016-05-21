@@ -97,39 +97,215 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
 
   // If true, means palette is possible so avoid using different RGB values for
   // the transparent color.
-  bool palette;
-  if(inputstate->info_png.color.colortype == LCT_PALETTE) {
-    palette = w * h < inputstate->info_png.color.palettesize * 2;
-  }
-  else{
-    CountColors(&count, image, w, h, true);
-    unsigned long colors = count.size();
-    palette = colors <= 256 && w * h < colors * 2;
+  CountColors(&count, image, w, h, true);
+  unsigned long colors = count.size();
+  bool palette = colors <= 256 && w * h < colors * 2;
+
+  // First check if we want to preserve potential color-key background color,
+  // or instead use the last encountered RGB value all the time to save bytes.
+  bool key = true;
+  // Makes no difference if palette
+  if (!palette){
+    for (size_t i = 0; i < w * h; i++) {
+      if (image[i * 4 + 3] > 0 && image[i * 4 + 3] < 255) {
+        key = false;
+        break;
+      }
+    }
   }
 
-  if (!filter && !palette) {
-    for (size_t i = 0; i < w * h; i++) {
-      // if alpha is 0, alter the RGB values to 0.
-      if (image[i * 4 + 3] == 0) {
-        image[i * 4] = 0;
-        image[i * 4 + 1] = 0;
-        image[i * 4 + 2] = 0;
+  if (!palette && !key) {
+    int pre = 0, pgr = 0, pbl = 0;
+
+    if (!filter){
+      for (size_t i = 0; i < w * h; i++) {
+        // if alpha is 0, alter the RGB values to 0.
+        if (image[i * 4 + 3] == 0) {
+          image[i * 4] = 0;
+          image[i * 4 + 1] = 0;
+          image[i * 4 + 2] = 0;
+        }
+      }
+    }
+    else if (filter == 1){
+      for (size_t i = 0; i < ((w << 2) * h); i += (w << 2)) {
+        for (size_t j = 3; j < (w << 2); j += 4) {
+          // if alpha is 0, set the RGB values to those of the pixel on the
+          // left.
+          if (image[i + j] == 0) {
+            image[i + j - 3] = pre;
+            image[i + j - 2] = pgr;
+            image[i + j - 1] = pbl;
+          } else {
+            // Use the last encountered RGB value.
+            pre = image[i + j - 3];
+            pgr = image[i + j - 2];
+            pbl = image[i + j - 1];
+          }
+        }
+        if (w > 1) {
+          for (size_t j = ((w - 2) << 2) + 3; j + 1 > 0; j -= 4) {
+            // if alpha is 0, set the RGB values to those of the pixel on the
+            // right.
+            if (image[i + j] == 0) {
+              image[i + j - 3] = pre;
+              image[i + j - 2] = pgr;
+              image[i + j - 1] = pbl;
+            } else {
+              // Use the last encountered RGB value.
+              pre = image[i + j - 3];
+              pgr = image[i + j - 2];
+              pbl = image[i + j - 1];
+            }
+          }
+        }
+        pre = pgr = pbl = 0;   // reset to zero at each new line
+      }
+
+    }
+    else if (filter == 2){
+      for (size_t j = 3; j < (w << 2); j += 4) {
+        // if alpha is 0, set the RGB values to zero (black), first line only.
+        if (image[j] == 0) {
+          image[j - 3] = 0;
+          image[j - 2] = 0;
+          image[j - 1] = 0;
+        }
+      }
+      if (h > 1) {
+        for (size_t j = 3; j < (w << 2); j += 4) {
+          for (size_t i = (w << 2); i < ((w << 2) * h); i += (w << 2)) {
+            // if alpha is 0, set the RGB values to those of the upper pixel.
+            if (image[i + j] == 0) {
+              image[i + j - 3] = image[i + j - 3 - (w << 2)];
+              image[i + j - 2] = image[i + j - 2 - (w << 2)];
+              image[i + j - 1] = image[i + j - 1 - (w << 2)];
+            }
+          }
+          for (size_t i = (w << 2) * (h - 2); i + (w << 2) > 0; i -= (w << 2)) {
+            // if alpha is 0, set the RGB values to those of the lower pixel.
+            if (image[i + j] == 0) {
+              image[i + j - 3] = image[i + j - 3 + (w << 2)];
+              image[i + j - 2] = image[i + j - 2 + (w << 2)];
+              image[i + j - 1] = image[i + j - 1 + (w << 2)];
+            }
+          }
+        }
+      }
+    }
+    else if (filter == 3){
+      for (size_t j = 3; j < (w << 2); j += 4) {
+        // if alpha is 0, set the RGB values to the half of those of the pixel
+        // on the left, first line only.
+        if (image[j] == 0) {
+          pre = pre >> 1;
+          pgr = pgr >> 1;
+          pbl = pbl >> 1;
+          image[j - 3] = pre;
+          image[j - 2] = pgr;
+          image[j - 1] = pbl;
+        } else {
+          pre = image[j - 3];
+          pgr = image[j - 2];
+          pbl = image[j - 1];
+        }
+      }
+      if (h > 1) {
+        for (size_t i = (w << 2); i < ((w << 2) * h); i += (w << 2)) {
+          pre = pgr = pbl = 0;   // reset to zero at each new line
+          for (size_t j = 3; j < (w << 2); j += 4) {
+            // if alpha is 0, set the RGB values to the half of the sum of the
+            // pixel on the left and the upper pixel.
+            if (image[i + j] == 0) {
+              pre = (pre + (int)image[i + j - (3 + (w << 2))]) >> 1;
+              pgr = (pgr + (int)image[i + j - (2 + (w << 2))]) >> 1;
+              pbl = (pbl + (int)image[i + j - (1 + (w << 2))]) >> 1;
+              image[i + j - 3] = pre;
+              image[i + j - 2] = pgr;
+              image[i + j - 1] = pbl;
+            } else {
+              pre = image[i + j - 3];
+              pgr = image[i + j - 2];
+              pbl = image[i + j - 1];
+            }
+          }
+        }
+      }
+    }
+    else if (filter == 4){
+      for (size_t j = 3; j < (w << 2); j += 4) {  // First line (border effects)
+        // if alpha is 0, alter the RGB value to a possibly more efficient one.
+        if (image[j] == 0) {
+          image[j - 3] = pre;
+          image[j - 2] = pgr;
+          image[j - 1] = pbl;
+        } else {
+          pre = image[j - 3];
+          pgr = image[j - 2];
+          pbl = image[j - 1];
+        }
+      }
+      if (h > 1) {
+        int a, b, c, pa, pb, pc, p;
+        for (size_t i = (w << 2); i < ((w << 2) * h); i += (w << 2)) {
+          pre = pgr = pbl = 0;   // reset to zero at each new line
+          for (size_t j = 3; j < (w << 2); j += 4) {
+            // if alpha is 0, set the RGB values to the Paeth predictor.
+            if (image[i + j] == 0) {
+              if (j != 3) {  // not in first column
+                a = pre;
+                b = (int)image[i + j - (3 + (w << 2))];
+                c = (int)image[i + j - (7 + (w << 2))];
+                p = b - c;
+                pc = a - c;
+                pa = abs(p);
+                pb = abs(pc);
+                pc = abs(p + pc);
+                pre = (pa <= pb && pa <=pc) ? a : (pb <= pc) ? b : c;
+
+                a = pgr;
+                b = (int)image[i + j - (2 + (w << 2))];
+                c = (int)image[i + j - (6 + (w << 2))];
+                p = b - c;
+                pc = a - c;
+                pa = abs(p);
+                pb = abs(pc);
+                pc = abs(p + pc);
+                pgr = (pa <= pb && pa <=pc) ? a : (pb <= pc) ? b : c;
+
+                a = pbl;
+                b = (int)image[i + j - (1 + (w << 2))];
+                c = (int)image[i + j - (5 + (w << 2))];
+                p = b - c;
+                pc = a - c;
+                pa = abs(p);
+                pb = abs(pc);
+                pc = abs(p + pc);
+                pbl = (pa <= pb && pa <=pc) ? a : (pb <= pc) ? b : c;
+
+                image[i + j - 3] = pre;
+                image[i + j - 2] = pgr;
+                image[i + j - 1] = pbl;
+              } else {
+                // first column, set the RGB values to those of the upper pixel.
+                pre = (int)image[i + j - (3 + (w << 2))];
+                pgr = (int)image[i + j - (2 + (w << 2))];
+                pbl = (int)image[i + j - (1 + (w << 2))];
+                image[i + j - 3] = pre;
+                image[i + j - 2] = pgr;
+                image[i + j - 1] = pbl;
+              }
+            } else {
+              pre = image[i + j - 3];
+              pgr = image[i + j - 2];
+              pbl = image[i + j - 1];
+            }
+          }
+        }
       }
     }
   }
   else {
-    // First check if we want to preserve potential color-key background color,
-    // or instead use the last encountered RGB value all the time to save bytes.
-    bool key = true;
-    // Makes no difference if palette
-    if (!palette){
-      for (size_t i = 0; i < w * h; i++) {
-        if (image[i * 4 + 3] > 0 && image[i * 4 + 3] < 255) {
-          key = false;
-          break;
-        }
-      }
-    }
     unsigned char r = 0, g = 0, b = 0;
     if (palette && !filter){
       // Use RGB value of first encountered pixel. This can be
@@ -290,7 +466,7 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
   if (!error) {
     // If lossy_transparent, remove RGB information from pixels with alpha=0
     if (png_options.lossy_transparent && !bit16) {
-      LossyOptimizeTransparent(&inputstate, &image[0], w, h, best_filter);
+      LossyOptimizeTransparent(&inputstate, &image[0], w, h, best_filter < 5 ? best_filter : 1);
     }
   }
   std::vector<unsigned char> temp;
