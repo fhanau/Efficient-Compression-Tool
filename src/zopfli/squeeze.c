@@ -198,8 +198,10 @@ static void GetBestLengths(const ZopfliOptions* options,
     }
   }
   else {
-    float litstack [256];
-    literals = litstack;
+    literals = (float*)malloc(256 * sizeof(float));
+    if (!literals){
+      exit(1);
+    }
 
     for (i = 0; i < 144; i++){
       literals[i] = 8;
@@ -402,6 +404,9 @@ static void GetBestLengths(const ZopfliOptions* options,
     c->pointer = 0;
   }
 
+  if (!costcontext){
+    free(literals);
+  }
   free(disttable);
   free(costs);
 }
