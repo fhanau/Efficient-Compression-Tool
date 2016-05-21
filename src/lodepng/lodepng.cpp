@@ -3972,7 +3972,6 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
     deflateEnd(&stream);
 
     for(type = 0; type != 5; ++type) ucvector_cleanup(&attempt[type]);
-    }
   }
   else if(strategy == LFS_INCREMENTAL)
   {
