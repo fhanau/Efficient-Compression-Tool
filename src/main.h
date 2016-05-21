@@ -21,6 +21,7 @@
 
 struct ECTOptions{
   unsigned Mode;
+  unsigned palette_sort;
   bool strip;
   bool Progressive;
   bool JPEG_ACTIVE;
@@ -32,6 +33,7 @@ struct ECTOptions{
   bool Zip;
   bool Reuse;
   bool Allfilters;
+  bool Allfiltersbrute;
 #ifdef BOOST_SUPPORTED
   bool Recurse;
 #endif

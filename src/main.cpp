@@ -193,10 +193,11 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
 }
 
 static void OptimizeJPEG(const char * Infile, const ECTOptions& Options){
-    mozjpegtran(Options.Arithmetic, Options.Progressive, Options.strip, Infile, Infile);
-    if (Options.Progressive){
+
+    mozjpegtran(Options.Arithmetic, Options.Progressive && (Options.Mode > 1 || filesize(Infile) > 5000), Options.strip, Infile, Infile);
+    if (Options.Progressive && Options.Mode > 1){
         long long fs = filesize(Infile);
-        if((Options.Mode == 1 && fs < 6142) || (Options.Mode == 2 && fs < 8192) || (Options.Mode == 3 && fs < 15360) || (Options.Mode == 4 && fs < 30720) || (Options.Mode == 5 && fs < 51200) || Options.Mode > 5){
+        if((Options.Mode == 2 && fs < 8192) || (Options.Mode == 3 && fs < 30720) || Options.Mode > 3){
             mozjpegtran(Options.Arithmetic, false, Options.strip, Infile, Infile);
         }
     }
@@ -298,6 +299,8 @@ int main(int argc, const char * argv[]) {
     Options.DeflateMultithreading = 0;
     Options.Reuse = 0;
     Options.Allfilters = 0;
+    Options.Allfiltersbrute = 0;
+    Options.palette_sort = 0;
     std::vector<int> args;
     int files = 0;
     if (argc >= 2){
@@ -308,15 +311,13 @@ int main(int argc, const char * argv[]) {
             }
             else if (strncmp(argv[i], "-strip", 2) == 0){Options.strip = true;}
             else if (strncmp(argv[i], "-progressive", 2) == 0) {Options.Progressive = true;}
-            else if (strcmp(argv[i], "-1") == 0) {Options.Mode = 1;}
-            else if (strcmp(argv[i], "-2") == 0) {Options.Mode = 2;}
-            else if (strcmp(argv[i], "-3") == 0) {Options.Mode = 3;}
-            else if (strcmp(argv[i], "-4") == 0) {Options.Mode = 4;}
-            else if (strcmp(argv[i], "-5") == 0) {Options.Mode = 5;}
-            else if (strcmp(argv[i], "-6") == 0) {Options.Mode = 6;}
-            else if (strcmp(argv[i], "-7") == 0) {Options.Mode = 7;}
-            else if (strcmp(argv[i], "-8") == 0) {Options.Mode = 8;}
-            else if (strcmp(argv[i], "-9") == 0) {Options.Mode = 9;}
+            else if (argv[i][0] == '-' && isdigit(argv[i][1])) {
+                int l = atoi(argv[i] + 1);
+                if (!l) {
+                    l = 1;
+                }
+                Options.Mode = l;
+            }
             else if (strncmp(argv[i], "-gzip", 2) == 0) {Options.Gzip = true;}
             else if (strncmp(argv[i], "-zip", 2) == 0) {Options.Zip = true; Options.Gzip = true;}
             else if (strncmp(argv[i], "-help", 2) == 0) {Usage(); return 0;}
@@ -329,6 +330,11 @@ int main(int argc, const char * argv[]) {
             else if (strcmp(argv[i], "--strict") == 0) {Options.Strict = true;}
             else if (strcmp(argv[i], "--reuse") == 0) {Options.Reuse = true;}
             else if (strcmp(argv[i], "--allfilters") == 0) {Options.Allfilters = true;}
+            else if (strcmp(argv[i], "--allfilters-brute") == 0) {Options.Allfiltersbrute = Options.Allfilters = true;}
+            else if (strncmp(argv[i], "--pal_sort=", 11) == 0){
+                Options.palette_sort = atoi(argv[i] + 11) << 8;
+            }
+
 
 #ifndef NOMULTI
             else if (strncmp(argv[i], "--mt-deflate", 12) == 0) {
