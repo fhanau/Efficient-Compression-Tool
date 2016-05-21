@@ -377,7 +377,7 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
 // Tries to optimize given a single PNG filter strategy.
 // Returns 0 if ok, other value for error
 static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsigned h, bool bit16, const lodepng::State& inputstate,
-                            const ZopfliPNGOptions* png_options, std::vector<unsigned char>* out, int best_filter, std::vector<unsigned char> filters) {
+                            const ZopfliPNGOptions* png_options, std::vector<unsigned char>* out, int best_filter, std::vector<unsigned char> filters, unsigned palette_filter) {
   lodepng::State state;
   state.encoder.zlibsettings.custom_deflate = CustomPNGDeflate;
   state.encoder.zlibsettings.custom_context = png_options;
@@ -399,16 +399,48 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
     lodepng_color_mode_copy(&state.info_png.color, &inputstate.info_png.color);
   }
 
-  unsigned error = lodepng::encode(*out, image, w, h, state);
+  LodePNGPaletteSettings p;
+  p.order = LPOS_NONE;
+  unsigned error = lodepng::encode(*out, image, w, h, state, p);
   // For very small output, also try without palette, it may be smaller thanks
   // to no palette storage overhead.
+
+  if (!error && state.out_mode.colortype == LCT_PALETTE && palette_filter) {
+    std::vector<unsigned char> out2;
+    int tries = 0;
+    for (int k4 = 0; k4 < 4; k4++){
+      p.order = (LodePNGPaletteOrderStrategy)k4;
+      for (int k3 = 0; k3 < 5; k3++){
+        p.priority = (LodePNGPalettePriorityStrategy)k3;
+        for (int k2 = 0; k2 < 3; k2++){
+          p.trans = (LodePNGPaletteTransparencyStrategy)k2;
+          if (!lodepng_can_have_alpha(&state.out_mode)){
+            k2 = 3;
+          }
+
+          for (int k1 = 0; k1 < 2; k1++){
+            p.direction = (LodePNGPaletteDirectionStrategy)k1;
+
+
+            lodepng::encode(out2, image, w, h, state, p);
+            if (out2.size() < out->size()){
+              out->swap(out2);
+            }
+            out2.clear();
+            if (++tries == palette_filter){
+              k1 = k2 = k3 = k4 = 5;
+            }
+          }
+        }
+      }
+    }
+ }
+
   unsigned long testboth = out->size();
-  if (!error && testboth < 4096 && w * h < 45000 && best_filter != 6) {
-    lodepng::State teststate;
-    std::vector<unsigned char> temp;
-    lodepng::decode(temp, w, h, teststate, *out);
-    LodePNGColorMode& color = teststate.info_png.color;
-    if (color.colortype == LCT_PALETTE && (testboth < 2048 || color.palettesize>192) && (testboth < 1024 || color.palettesize>64) && (testboth < 512 || color.palettesize>40) && (testboth < 300 || color.palettesize>9))
+
+  if (!error && testboth < 4096 && w * h < 45000 && best_filter != 6 && state.out_mode.colortype == LCT_PALETTE) {
+    LodePNGColorMode& color = state.out_mode;
+    if ((testboth < 2048 || color.palettesize>192) && (testboth < 1024 || color.palettesize>64) && (testboth < 512 || color.palettesize>40) && (testboth < 300 || color.palettesize>9))
     {
       std::vector<unsigned char> out2;
       state.encoder.auto_convert = 0;
@@ -429,7 +461,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
       else{if (has_alpha){state.info_png.color.colortype = LCT_RGBA;}
       else{state.info_png.color.colortype = LCT_RGB;}
       }
-      error = lodepng::encode(out2, image, w, h, state);
+      error = lodepng::encode(out2, image, w, h, state, p);
       if (out2.size() < out->size()){
         out->swap(out2);
       }
@@ -443,7 +475,8 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
   return 0;
 }
 
-static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter, std::vector<unsigned char> filters) {
+static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter,
+                                  std::vector<unsigned char> filters, unsigned palette_filter) {
   std::vector<unsigned char> image;
   unsigned w, h;
   lodepng::State inputstate;

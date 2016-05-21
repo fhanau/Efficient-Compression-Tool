@@ -510,6 +510,7 @@ typedef struct LodePNGState
 #endif /*LODEPNG_COMPILE_ENCODER*/
   LodePNGColorMode info_raw; /*specifies the format in which you would like to get the raw pixel buffer*/
   LodePNGInfo info_png; /*info of the PNG image obtained after decoding*/
+  LodePNGColorMode out_mode;
   unsigned error;
 #ifdef LODEPNG_COMPILE_CPP
   //For the lodepng::State subclass.
@@ -541,14 +542,6 @@ unsigned lodepng_inspect(unsigned* w, unsigned* h,
                          LodePNGState* state,
                          const unsigned char* in, size_t insize);
 #endif /*LODEPNG_COMPILE_DECODER*/
-
-
-#ifdef LODEPNG_COMPILE_ENCODER
-/*This function allocates the out buffer with standard malloc and stores the size in *outsize.*/
-unsigned lodepng_encode(unsigned char** out, size_t* outsize,
-                        unsigned char* image, unsigned w, unsigned h,
-                        LodePNGState* state);
-#endif /*LODEPNG_COMPILE_ENCODER*/
 
 /*
 The lodepng_chunk functions are normally not needed, except to traverse the
@@ -595,14 +588,6 @@ unsigned lodepng_chunk_create(unsigned char** out, size_t* outlength, unsigned l
                               const char* type, const unsigned char* data);
 #endif /*LODEPNG_COMPILE_PNG*/
 
-
-#ifdef LODEPNG_COMPILE_ZLIB
-/*
-This zlib part can be used independently to zlib compress and decompress a
-buffer. It cannot be used to create gzip files however, and it only supports the
-part of zlib that is required for PNG, it does not support dictionaries.
-*/
-
 #ifdef LODEPNG_COMPILE_DECODER
 /*Inflate a buffer. Inflate is the decompression step of deflate. Out buffer must be freed after use.*/
 unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
@@ -619,21 +604,6 @@ unsigned lodepng_zlib_decompress(unsigned char** out, size_t* outsize,
                                  const unsigned char* in, size_t insize,
                                  const LodePNGDecompressSettings* settings);
 #endif /*LODEPNG_COMPILE_DECODER*/
-
-#ifdef LODEPNG_COMPILE_ENCODER
-/*
-Compresses data with Zlib. Reallocates the out buffer and appends the data.
-Zlib adds a small header and trailer around the deflate data.
-The data is output in the format of the zlib specification.
-Either, *out must be NULL and *outsize must be 0, or, *out must be a valid
-buffer and *outsize its size in bytes. out must be freed by user after usage.
-*/
-unsigned lodepng_zlib_compress(unsigned char** out, size_t* outsize,
-                               const unsigned char* in, size_t insize,
-                               const LodePNGCompressSettings* settings);
-
-#endif /*LODEPNG_COMPILE_ENCODER*/
-#endif /*LODEPNG_COMPILE_ZLIB*/
 
 #ifdef LODEPNG_COMPILE_CPP
 //The LodePNG C++ wrapper uses std::vectors instead of manually allocated memory buffers.
@@ -658,13 +628,9 @@ unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h,
 #endif /*LODEPNG_COMPILE_DECODER*/
 
 #ifdef LODEPNG_COMPILE_ENCODER
-//Same as other lodepng::encode, but using a State for more settings and information.
-unsigned encode(std::vector<unsigned char>& out,
-                const unsigned char* in, unsigned w, unsigned h,
-                State& state);
 unsigned encode(std::vector<unsigned char>& out,
                 std::vector<unsigned char>& in, unsigned w, unsigned h,
-                State& state);
+                State& state, LodePNGPaletteSettings p);
 #endif /*LODEPNG_COMPILE_ENCODER*/
 
 #ifdef LODEPNG_COMPILE_DISK

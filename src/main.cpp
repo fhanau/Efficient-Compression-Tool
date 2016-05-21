@@ -60,6 +60,8 @@ static void Usage() {
             " --strict       Enable strict losslessness\n"
             " --reuse        Keep PNG filter and colortype\n"
             " --allfilters   Try all PNG filter modes\n"
+            " --allfilters-b Try all PNG filter modes, including brute force strategies\n"
+            " --pal_sort=i   Try i different PNG palette filtering strategies (up to 120)\n"
 #ifndef NOMULTI
             " --mt-deflate   Use per block multithreading in Deflate\n"
             " --mt-deflate=i Use per block multithreading in Deflate, use i threads\n"
@@ -140,7 +142,8 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
 }
 
 static void OptimizePNG(const char * Infile, const ECTOptions& Options){
-    unsigned mode = Options.Mode;
+    unsigned _mode = Options.Mode;
+    unsigned mode = (Options.Mode % 10000) > 9 ? 9 : (Options.Mode % 10000);
     if (mode == 1 && Options.Reuse){
         mode++;
     }
@@ -161,20 +164,28 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
     }
     if (mode != 1){
         if (Options.Allfilters){
-            x = Zopflipng(Options.strip, Infile, Options.Strict, mode, 6, Options.DeflateMultithreading);
-            Zopflipng(Options.strip, Infile, Options.Strict, mode, 0, Options.DeflateMultithreading);
-            Zopflipng(Options.strip, Infile, Options.Strict, mode, 5, Options.DeflateMultithreading);
-            Zopflipng(Options.strip, Infile, Options.Strict, mode, 1, Options.DeflateMultithreading);
-            Zopflipng(Options.strip, Infile, Options.Strict, mode, 2, Options.DeflateMultithreading);
-            Zopflipng(Options.strip, Infile, Options.Strict, mode, 3, Options.DeflateMultithreading);
-            Zopflipng(Options.strip, Infile, Options.Strict, mode, 4, Options.DeflateMultithreading);
-            Zopflipng(Options.strip, Infile, Options.Strict, mode, 7, Options.DeflateMultithreading);
+            x = Zopflipng(Options.strip, Infile, Options.Strict, _mode, 6 + Options.palette_sort, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, _mode, Options.palette_sort, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, _mode, 5 + Options.palette_sort, Options.DeflateMultithreading);
+
+            Zopflipng(Options.strip, Infile, Options.Strict, _mode, 1 + Options.palette_sort, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, _mode, 2 + Options.palette_sort, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, _mode, 3 + Options.palette_sort, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, _mode, 4 + Options.palette_sort, Options.DeflateMultithreading);
+
+            Zopflipng(Options.strip, Infile, Options.Strict, _mode, 7 + Options.palette_sort, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, _mode, 8 + Options.palette_sort, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, _mode, 9 + Options.palette_sort, Options.DeflateMultithreading);
+            if (Options.Allfiltersbrute){
+                Zopflipng(Options.strip, Infile, Options.Strict, _mode, 10 + Options.palette_sort, Options.DeflateMultithreading);
+                Zopflipng(Options.strip, Infile, Options.Strict, _mode, 11 + Options.palette_sort, Options.DeflateMultithreading);
+            }
         }
         else if (mode == 9){
-            Zopflipng(Options.strip, Infile, Options.Strict, mode, filter, Options.DeflateMultithreading);
+            Zopflipng(Options.strip, Infile, Options.Strict, _mode, filter + Options.palette_sort, Options.DeflateMultithreading);
         }
         else {
-            x = Zopflipng(Options.strip, Infile, Options.Strict, mode, filter, Options.DeflateMultithreading);
+            x = Zopflipng(Options.strip, Infile, Options.Strict, _mode, filter + Options.palette_sort, Options.DeflateMultithreading);
         }
     }
     else {
