@@ -3972,6 +3972,77 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
     deflateEnd(&stream);
 
     for(type = 0; type != 5; ++type) ucvector_cleanup(&attempt[type]);
+    }
+  }
+  else if(strategy == LFS_INCREMENTAL)
+  {
+    /*Incremental brute force filter chooser.
+     Keep a buffer of each tested scanline and deflate the entire buffer after every filter attempt to see which one deflates best.
+     This is extremely slow.*/
+    size_t size[5];
+    unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
+    size_t smallest;
+    unsigned type, bestType = 0;
+
+    z_stream stream;
+    stream.zalloc = 0;
+    stream.zfree = 0;
+    stream.opaque = 0;
+
+    int err = deflateInit2(&stream, 9, Z_DEFLATED, -15, 5, Z_FILTERED);
+    if (err != Z_OK) exit(1);
+    unsigned char* dummy = 0;
+
+    for(type = 0; type != 5; ++type)
+    {
+      attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
+      if(!attempt[type]) return 83; /*alloc fail*/
+    }
+    for(y = 0; y != h; ++y) /*try the 5 filter types*/
+    {
+      smallest = SIZE_MAX;
+      for(type = 4; type + 1 != 0; --type) /*type 0 is most likely, so end with that to reduce copying*/
+      {
+        unsigned testsize = (y + 1) * (linebytes + 1);
+        //TODO: could already be done to out
+        filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+        /*copy result to output buffer temporarily to include compression test*/
+        out[y * (linebytes + 1)] = type; /*the first byte of a scanline will be the filter type*/
+        for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[type][x];
+        size[type] = 0;
+        dummy = (unsigned char*)realloc(dummy, deflateBound(&stream, testsize));
+        if(!dummy){
+          exit(1);
+        }
+
+        deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
+        stream.next_in = (z_const unsigned char *)out;
+        stream.avail_in = testsize;
+        stream.avail_out = UINT_MAX;
+        stream.next_out = dummy;
+
+        deflate(&stream, Z_FINISH);
+
+        size[type] = stream.total_out;
+        deflateReset(&stream);
+
+        /*check if this is smallest size (or if type == 4 it's the first case so always store the values)*/
+        if(size[type] < smallest)
+        {
+          bestType = type;
+          smallest = size[type];
+        }
+      }
+      prevline = &in[y * linebytes];
+      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+      if (type) /*last attempt is type 0, so no copying necessary*/
+      {
+        for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
+      }
+    }
+    free(dummy);
+    deflateEnd(&stream);
+    for(type = 0; type != 5; ++type) free(attempt[type]);
   }
 
   else if(strategy == LFS_PREDEFINED)
@@ -3985,6 +4056,157 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       filterScanline(&out[outindex + 1], &in[inindex], prevline, linebytes, bytewidth, type);
       prevline = &in[inindex];
     }
+  }
+  else if(strategy == LFS_MINSUM)
+  {
+    /*adaptive filtering*/
+    size_t sum[5];
+    unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
+    size_t smallest = 0;
+    unsigned char type, bestType = 0;
+
+    for(type = 0; type != 5; ++type)
+    {
+      attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
+      if(!attempt[type]) return 83; /*alloc fail*/
+    }
+
+    if(!error)
+    {
+      for(y = 0; y != h; ++y)
+      {
+        /*try the 5 filter types*/
+        for(type = 0; type != 5; ++type)
+        {
+          filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+
+          /*calculate the sum of the result*/
+          sum[type] = 0;
+          if(type == 0)
+          {
+            for(x = 0; x != linebytes; ++x) sum[type] += (unsigned char)(attempt[type][x]);
+          }
+          else
+          {
+            for(x = 0; x != linebytes; ++x)
+            {
+              /*For differences, each byte should be treated as signed, values above 127 are negative
+               (converted to signed char). Filtertype 0 isn't a difference though, so use unsigned there.
+               This means filtertype 0 is almost never chosen, but that is justified.*/
+              unsigned char s = attempt[type][x];
+              sum[type] += s < 128 ? s : (255U - s);
+            }
+          }
+
+          /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
+          if(type == 0 || sum[type] < smallest)
+          {
+            bestType = type;
+            smallest = sum[type];
+          }
+        }
+
+        prevline = &in[y * linebytes];
+
+        /*now fill the out values*/
+        out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+        for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
+      }
+    }
+
+    for(type = 0; type != 5; ++type) free(attempt[type]);
+  }
+  else if(strategy == LFS_DISTINCT_BYTES)
+  {
+    size_t sum[5];
+    unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
+    size_t smallest;
+    unsigned type, bestType = 0;
+    unsigned char count[256];
+
+    for(type = 0; type != 5; ++type)
+    {
+      attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
+      if(!attempt[type]) return 83; /*alloc fail*/
+    }
+
+    for(y = 0; y != h; ++y)
+    {
+      smallest = SIZE_MAX;
+      /*try the 5 filter types*/
+      for(type = 0; type != 5; ++type)
+      {
+        filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+        memset(count, 0, 256);
+        for(x = 0; x != linebytes; ++x) count[attempt[type][x]] = 1;
+        count[type] = 1; /*the filter type itself is part of the scanline*/
+        sum[type] = 0;
+        for(x = 0; x != 256; ++x)
+        {
+          if(count[x]) ++sum[type];
+        }
+        /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
+        if(sum[type] < smallest)
+        {
+          bestType = type;
+          smallest = sum[type];
+        }
+      }
+
+      prevline = &in[y * linebytes];
+
+      /*now fill the out values*/
+      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+      for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
+    }
+
+    for(type = 0; type != 5; ++type) free(attempt[type]);
+  }
+  else if(strategy == LFS_DISTINCT_BIGRAMS)
+  {
+    size_t sum[5];
+    unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
+    size_t smallest;
+    unsigned type, bestType = 0;
+    unsigned char count[65536];
+
+    for(type = 0; type != 5; ++type)
+    {
+      attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
+      if(!attempt[type]) return 83; /*alloc fail*/
+    }
+
+    for(y = 0; y != h; ++y)
+    {
+      smallest = SIZE_MAX;
+      /*try the 5 filter types*/
+      for(type = 0; type != 5; ++type)
+      {
+        filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+        memset(count, 0, 65536);
+        for(x = 1; x != linebytes; ++x) count[(attempt[type][x - 1] << 8) + attempt[type][x]] = 1;
+        count[type] = 1; /*the filter type itself is part of the scanline*/
+        sum[type] = 0;
+        for(x = 0; x != 65536; ++x)
+        {
+          if(count[x] != 0) ++sum[type];
+        }
+        /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
+        if(sum[type] < smallest)
+        {
+          bestType = type;
+          smallest = sum[type];
+        }
+      }
+
+      prevline = &in[y * linebytes];
+
+      /*now fill the out values*/
+      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+      for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
+    }
+
+    for(type = 0; type != 5; ++type) free(attempt[type]);
   }
   else if(strategy == LFS_ENTROPY)
   {

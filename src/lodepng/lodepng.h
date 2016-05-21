@@ -390,7 +390,13 @@ typedef enum LodePNGFilterStrategy
   /*Brute-force-search PNG filters by compressing each filter for each scanline.*/
   LFS_BRUTE_FORCE = 5,
   /*use predefined_filters buffer: you specify the filter type for each scanline*/
-  LFS_PREDEFINED = 6
+  LFS_PREDEFINED = 6,
+  /*Use the filter type that gives the least number of distinct bytes*/
+  LFS_DISTINCT_BYTES = 9,
+  /*Use the filter type that gives the least number of distinct bigrams*/
+  LFS_DISTINCT_BIGRAMS = 8,
+  LFS_MINSUM = 10,
+  LFS_INCREMENTAL = 11
 } LodePNGFilterStrategy;
 
 /*Gives characteristics about the colors of the image, which helps decide which color model to use for encoding.
