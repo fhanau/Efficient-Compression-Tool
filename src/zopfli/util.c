@@ -212,12 +212,15 @@ static const ZopfliOptionsMin opt[8] =
   {60, 2, 3,    800, 3000,  80,  100} /* 9 */
 };
 
-void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithreading, unsigned isPNG) {
+void ZopfliInitOptions(ZopfliOptions* options, unsigned _mode, unsigned multithreading, unsigned isPNG) {
+  options->twice = (_mode - (_mode % 10000)) / 10000;
+  unsigned mode = _mode % 10000 > 9 ? 9 : _mode % 10000;
   if (mode < 2){
     mode = 2;
   }
 
   ZopfliOptionsMin min = opt[mode - 2];
+
   options->numiterations = min.numiterations;
   options->searchext = min.searchext;
   options->filter_style = min.filter_style;
@@ -226,18 +229,19 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithre
   options->trystatic = min.trystatic;
   options->noblocksplitlz = min.noblocksplitlz;
 
+  options->numiterations = _mode % 10000 > 9 ? _mode % 10000 : options->numiterations;
+
   options->num = mode < 5 ? 3 : 9;
-  options->blocksplittingmax = mode > 2 ? 0 : multithreading > 15 ? multithreading : 15;//!!!!!!!!
+  options->blocksplittingmax = mode > 2 ? 0 : multithreading > 15 ? multithreading : 15;
 
   options->multithreading = multithreading;
   options->isPNG = isPNG;
   options->reuse_costmodel = (!isPNG) && (!multithreading);
   options->useCache = 1;
   options->midsplit = mode == 2;
-  options->ultra = mode >= 8;
+  options->ultra = mode >= 7 + (mode == 9);
 
   options->replaceCodes = mode == 3 ? 3 : (2 * (mode > 5) + (mode == 9) * 18) * !options->ultra;
   options->entropysplit = mode < 3;
-  options->twice = 0;//mode == 9;
   options->greed = isPNG ? mode > 3 ? 258 : 50 : 258;
 }

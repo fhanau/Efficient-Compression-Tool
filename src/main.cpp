@@ -36,11 +36,11 @@ static void Usage() {
 #endif
 
             "Losslessly optimizes GZIP, ZIP, JPEG and PNG images\n"
-            "Usage: ECT [Options] File"
+            "Usage: ECT [Options] Files"
 #ifdef BOOST_SUPPORTED
-            "/Folder"
+            "/Folders"
 #endif
-            "\n"
+            "...\n"
             "Options:\n"
             " -1 to -9       Set compression level (Default: 3)\n"
             " -strip         Strip metadata\n"
@@ -330,7 +330,7 @@ int main(int argc, const char * argv[]) {
             else if (strcmp(argv[i], "--strict") == 0) {Options.Strict = true;}
             else if (strcmp(argv[i], "--reuse") == 0) {Options.Reuse = true;}
             else if (strcmp(argv[i], "--allfilters") == 0) {Options.Allfilters = true;}
-            else if (strcmp(argv[i], "--allfilters-brute") == 0) {Options.Allfiltersbrute = Options.Allfilters = true;}
+            else if (strcmp(argv[i], "--allfilters-b") == 0) {Options.Allfiltersbrute = Options.Allfilters = true;}
             else if (strncmp(argv[i], "--pal_sort=", 11) == 0){
                 Options.palette_sort = atoi(argv[i] + 11) << 8;
             }

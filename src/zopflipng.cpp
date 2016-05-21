@@ -330,7 +330,7 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
     }
     for (size_t i = 0; i < w * h; i++) {
       // if alpha is 0, alter the RGB value to a possibly more efficient one.
-      if (!palette && i % w == 0){
+      if (!palette && !key && i % w == 0){
         r = 0;
         g = 0;
         b = 0;
