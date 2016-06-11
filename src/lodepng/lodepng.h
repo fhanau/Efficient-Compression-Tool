@@ -125,18 +125,6 @@ unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h,
 /*Returns an English description of the numerical error code.*/
 const char* lodepng_error_text(unsigned code);
 
-#ifdef LODEPNG_COMPILE_DECODER
-/*Settings for zlib decompression*/
-typedef struct LodePNGDecompressSettings LodePNGDecompressSettings;
-struct LodePNGDecompressSettings
-{
-  unsigned ignore_adler32; /*if 1, continue and don't give an error message if the Adler32 checksum is corrupted*/
-};
-
-extern const LodePNGDecompressSettings lodepng_default_decompress_settings;
-void lodepng_decompress_settings_init(LodePNGDecompressSettings* settings);
-#endif /*LODEPNG_COMPILE_DECODER*/
-
 #ifdef LODEPNG_COMPILE_ENCODER
 /*
 Settings for zlib compression. Tweaking these settings tweaks the balance
@@ -323,10 +311,6 @@ decoder, but not the Info settings from the Info structs.
 */
 typedef struct LodePNGDecoderSettings
 {
-  LodePNGDecompressSettings zlibsettings; /*in here is the setting to ignore Adler32 checksums*/
-
-  unsigned ignore_crc; /*ignore CRC checksums*/
-
   unsigned color_convert; /*whether to convert the PNG to the color type you want. Default: yes*/
 
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
@@ -573,8 +557,7 @@ Either, *out must be NULL and *outsize must be 0, or, *out must be a valid
 buffer and *outsize its size in bytes. out must be freed by user after usage.
 */
 unsigned lodepng_zlib_decompress(unsigned char** out, size_t* outsize,
-                                 const unsigned char* in, size_t insize,
-                                 const LodePNGDecompressSettings* settings);
+                                 const unsigned char* in, size_t insize);
 #endif /*LODEPNG_COMPILE_DECODER*/
 
 #ifdef LODEPNG_COMPILE_CPP

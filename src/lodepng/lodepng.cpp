@@ -40,7 +40,6 @@ Rename this file to lodepng.cpp to use it for C++, or to lodepng.c to use it for
 
 #ifdef LODEPNG_COMPILE_CPP
 #include <fstream>
-#include <algorithm>
 #endif /*LODEPNG_COMPILE_CPP*/
 
 /*
@@ -353,7 +352,7 @@ static unsigned adler32(const unsigned char* data, unsigned len)
 #ifdef LODEPNG_COMPILE_DECODER
 
 unsigned lodepng_zlib_decompress(unsigned char** out, size_t* outsize, const unsigned char* in,
-                                 size_t insize, const LodePNGDecompressSettings* settings)
+                                 size_t insize)
 {
   unsigned error = 0;
   unsigned CM, CINFO, FDICT;
@@ -387,12 +386,9 @@ unsigned lodepng_zlib_decompress(unsigned char** out, size_t* outsize, const uns
   error = lodepng_inflate(out, outsize, in + 2, insize - 2);
   if(error) return error;
 
-  if(!settings->ignore_adler32)
-  {
-    unsigned ADLER32 = lodepng_read32bitInt(&in[insize - 4]);
-    unsigned checksum = adler32(*out, (unsigned)(*outsize));
-    if(checksum != ADLER32) return 58; /*error, adler checksum not correct, data must be corrupted*/
-  }
+  unsigned ADLER32 = lodepng_read32bitInt(&in[insize - 4]);
+  unsigned checksum = adler32(*out, (unsigned)(*outsize));
+  if(checksum != ADLER32) return 58; /*error, adler checksum not correct, data must be corrupted*/
 
   return 0; /*no error*/
 }
@@ -460,17 +456,6 @@ void lodepng_compress_settings_init(LodePNGCompressSettings* settings)
 }
 
 #endif /*LODEPNG_COMPILE_ENCODER*/
-
-#ifdef LODEPNG_COMPILE_DECODER
-
-void lodepng_decompress_settings_init(LodePNGDecompressSettings* settings)
-{
-  settings->ignore_adler32 = 0;
-}
-
-const LodePNGDecompressSettings lodepng_default_decompress_settings = {0};
-
-#endif /*LODEPNG_COMPILE_DECODER*/
 
 /* ////////////////////////////////////////////////////////////////////////// */
 /* ////////////////////////////////////////////////////////////////////////// */
@@ -2374,14 +2359,11 @@ unsigned lodepng_inspect(unsigned* w, unsigned* h, LodePNGState* state,
     CERROR_RETURN_ERROR(state->error, 93);
   }
 
-  if(!state->decoder.ignore_crc)
+  unsigned CRC = lodepng_read32bitInt(&in[29]);
+  unsigned checksum = lodepng_crc32(&in[12], 17);
+  if(CRC != checksum)
   {
-    unsigned CRC = lodepng_read32bitInt(&in[29]);
-    unsigned checksum = lodepng_crc32(&in[12], 17);
-    if(CRC != checksum)
-    {
-      CERROR_RETURN_ERROR(state->error, 57); /*invalid CRC*/
-    }
+    CERROR_RETURN_ERROR(state->error, 57); /*invalid CRC*/
   }
 
   /*error: only compression method 0 is allowed in the specification*/
@@ -2777,8 +2759,7 @@ static unsigned readChunk_tEXt(LodePNGInfo* info, const unsigned char* data, siz
 }
 
 /*compressed text chunk (zTXt)*/
-static unsigned readChunk_zTXt(LodePNGInfo* info, const LodePNGDecompressSettings* zlibsettings,
-                               const unsigned char* data, size_t chunkLength)
+static unsigned readChunk_zTXt(LodePNGInfo* info, const unsigned char* data, size_t chunkLength)
 {
   unsigned error = 0;
   unsigned i;
@@ -2810,7 +2791,7 @@ static unsigned readChunk_zTXt(LodePNGInfo* info, const LodePNGDecompressSetting
     /*will fail if zlib error, e.g. if length is too small*/
     error = lodepng_zlib_decompress(&decoded.data, &decoded.size,
                             (unsigned char*)(&data[string2_begin]),
-                            length, zlibsettings);
+                            length);
     if(error) break;
     ucvector_push_back(&decoded, 0);
 
@@ -2826,8 +2807,7 @@ static unsigned readChunk_zTXt(LodePNGInfo* info, const LodePNGDecompressSetting
 }
 
 /*international text chunk (iTXt)*/
-static unsigned readChunk_iTXt(LodePNGInfo* info, const LodePNGDecompressSettings* zlibsettings,
-                               const unsigned char* data, size_t chunkLength)
+static unsigned readChunk_iTXt(LodePNGInfo* info, const unsigned char* data, size_t chunkLength)
 {
   unsigned error = 0;
   unsigned i;
@@ -2893,7 +2873,7 @@ static unsigned readChunk_iTXt(LodePNGInfo* info, const LodePNGDecompressSetting
       /*will fail if zlib error, e.g. if length is too small*/
       error = lodepng_zlib_decompress(&decoded.data, &decoded.size,
                               (unsigned char*)(&data[begin]),
-                              length, zlibsettings);
+                              length);
       if(error) break;
       if(decoded.allocsize < decoded.size) decoded.allocsize = decoded.size;
       ucvector_push_back(&decoded, 0);
@@ -3029,7 +3009,7 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
     {
       if(state->decoder.read_text_chunks)
       {
-        state->error = readChunk_zTXt(&state->info_png, &state->decoder.zlibsettings, data, chunkLength);
+        state->error = readChunk_zTXt(&state->info_png, data, chunkLength);
         if(state->error) break;
       }
     }
@@ -3038,7 +3018,7 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
     {
       if(state->decoder.read_text_chunks)
       {
-        state->error = readChunk_iTXt(&state->info_png, &state->decoder.zlibsettings, data, chunkLength);
+        state->error = readChunk_iTXt(&state->info_png, data, chunkLength);
         if(state->error) break;
       }
     }
@@ -3059,7 +3039,7 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
     }
 
-    if(!state->decoder.ignore_crc && !unknown) /*check CRC if wanted, only on known chunk types*/
+    if(!unknown) /*check CRC if wanted, only on known chunk types*/
     {
       if(lodepng_chunk_check_crc(chunk)) CERROR_BREAK(state->error, 57); /*invalid CRC*/
     }
@@ -3092,7 +3072,7 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
   if(!state->error)
   {
     state->error = lodepng_zlib_decompress(&scanlines.data, &scanlines.size, idat.data,
-                                   idat.size, &state->decoder.zlibsettings);
+                                   idat.size);
     if(!state->error && scanlines.size != predict) state->error = 91; /*decompressed size doesn't match prediction*/
   }
   ucvector_cleanup(&idat);
@@ -3179,8 +3159,6 @@ static void lodepng_decoder_settings_init(LodePNGDecoderSettings* settings)
   settings->read_text_chunks = 1;
   settings->remember_unknown_chunks = 0;
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
-    settings->ignore_crc = 0;
-  lodepng_decompress_settings_init(&settings->zlibsettings);
 }
 
 #endif /*LODEPNG_COMPILE_DECODER*/
