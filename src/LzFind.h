@@ -25,7 +25,7 @@ typedef struct _CMatchFinder
 void MatchFinder_Create(CMatchFinder *p);
 void MatchFinder_Free(CMatchFinder *p);
 
-UInt32 Bt3Zip_MatchFinder_GetMatches(CMatchFinder *p, UInt32 *distances);
+unsigned short Bt3Zip_MatchFinder_GetMatches(CMatchFinder *p, unsigned short* distances);
 void Bt3Zip_MatchFinder_Skip(CMatchFinder *p, UInt32 num);
 
 void CopyMF(const CMatchFinder *p, CMatchFinder* copy);

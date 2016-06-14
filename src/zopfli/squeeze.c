@@ -106,14 +106,14 @@ length_array: output array of size (inend - instart) which will receive the best
 */
 
 typedef struct _LZCache{
-  unsigned* cache;
+  unsigned short* cache;
   size_t size;
   size_t pointer;
 } LZCache;
 
 static void CreateCache(size_t len, LZCache* c){
   c->size = len + 513;
-  c->cache = (unsigned*)malloc(c->size * sizeof(unsigned));
+  c->cache = (unsigned short*)malloc(c->size * sizeof(unsigned short));
   if (!c->cache){
     exit(1);
   }
@@ -260,9 +260,9 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
   }
   right = 0;
 
-  unsigned* matches;
+  unsigned short* matches;
   if (!storeincache){
-    unsigned matchesarr[513];
+    unsigned short matchesarr[513];
     matches = matchesarr;
   }
 
@@ -330,7 +330,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
       else{
         if (c->size < c->pointer + (ZOPFLI_MAX_MATCH - ZOPFLI_MIN_MATCH + 1) * 2 + 1){
           c->size *= 2;
-          c->cache = realloc(c->cache, c->size * sizeof(unsigned));
+          c->cache = realloc(c->cache, c->size * sizeof(unsigned short));
         }
         matches = c->cache + c->pointer + 1;
         numPairs = Bt3Zip_MatchFinder_GetMatches(&p, matches);
@@ -339,7 +339,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
       }
     }
     if (numPairs){
-      const unsigned * mend = matches + numPairs;
+      const unsigned short * mend = matches + numPairs;
 
       //It would be really nice to get this faster, but that seems impossible. Using AVX1 is slower.
       if (*(mend - 2) == ZOPFLI_MAX_MATCH && numPairs == 2){
@@ -349,7 +349,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
       }
 #if 0 //More speed, less compression.
       else if (*(mend - 2) == ZOPFLI_MAX_MATCH){
-        unsigned dist = matches[numPairs - 1];
+        data dist = matches[numPairs - 1];
         costs[j + ZOPFLI_MAX_MATCH] = costs[j] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (dist << 9);
       }
@@ -365,7 +365,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
 #endif
       else{
         float price = costs[j];
-        unsigned* mp = matches;
+        unsigned short* mp = matches;
 
         unsigned curr = ZOPFLI_MIN_MATCH;
         while (mp < mend){
@@ -616,6 +616,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
     }
     CopyStats(&stats, &laststats);
     GetStatistics(&currentstore, &stats);
+
     if (i == 4 && options->reuse_costmodel){
       CopyStats(&beststats, &st);
       stinit = 1;
