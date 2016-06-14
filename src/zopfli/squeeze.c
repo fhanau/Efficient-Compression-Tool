@@ -372,11 +372,12 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
           unsigned len = *mp++;
           unsigned dist = *mp++;
           float price2 = price + disttable[dist];
+          dist <<=9;
           for (; curr <= len; curr++) {
             float x = price2 + litlentable[curr];
             if (x < costs[j + curr]){
               costs[j + curr] = x;
-              length_array[j + curr] = curr + (dist << 9);
+              length_array[j + curr] = curr + dist;
             }
           }
         }
@@ -668,7 +669,6 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
         ZopfliCleanLZ77Store(&peace);
         break;
       }
-
     }
   }
 

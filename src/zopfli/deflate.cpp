@@ -289,6 +289,7 @@ static size_t EncodeTree(const unsigned* ll_lengths,
   /* Trim zeros. */
   while (hclen && clcounts[order[hclen + 4 - 1]] == 0) hclen--;
 
+  //It would be possible to check if the rle code use is actually profitable, but the current implementation is good enough that this approach would only yield a single saved byte on enwik8.
   if (!size_only) {
     unsigned clsymbols[19];
     ZopfliLengthsToSymbols(clcl, 19, 7, clsymbols);
@@ -828,11 +829,11 @@ static void AddLZ77Block(int btype, int final,
     for (i = 256; i < 280; i++) ll_lengths[i] = 7;
     for (i = 280; i < 288; i++) ll_lengths[i] = 8;
     for (i = 0; i < 32; i++) d_lengths[i] = 5;
-    outpred = ZopfliCalculateBlockSize(litlens, dists, 0, lend, btype, hq, symbols, 0);
+    outpred = ZopfliCalculateBlockSize(litlens, dists, 0, lend, btype, hq, 0, 0);
   } else {
     /* Dynamic block. */
     outpred = 3;
-    outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, symbols);
+    outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 0);
     outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
   }
   if (btype == 2){
@@ -855,8 +856,8 @@ static void AddLZ77Block(int btype, int final,
       else{
         //TODO: This may make compression worse due to longer huffman headers.
         outpred = 3;
-        outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, symbols);
-        if (replaceCodes - i  < 3){
+        outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 0);
+        if (replaceCodes - i < 3){
           outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
         }
       }
