@@ -577,6 +577,147 @@ lengths that give the smallest size of tree encoding + encoding of all the
 symbols to have smallest output size. This are not necessarily the ideal Huffman
 bit lengths.
 */
+static size_t GetAdvancedLengths(const unsigned short* litlens,
+                                 const unsigned short* dists,
+                                 size_t lstart, size_t lend,
+                                 unsigned* ll_lengths, unsigned* d_lengths, unsigned char symbols){
+  size_t ll_counts[288];
+  size_t d_counts[32];
+  size_t ll_counts2[288];
+  size_t d_counts2[32];
+  unsigned dummy;
+
+  ZopfliLZ77Counts(litlens, dists, lstart, lend, ll_counts, d_counts, symbols);
+  memcpy(ll_counts2, ll_counts, 288 * sizeof(size_t));
+  memcpy(d_counts2, d_counts, 32 * sizeof(size_t));
+
+  OptimizeHuffmanCountsForRle(32, d_counts);
+  OptimizeHuffmanCountsForRle(288, ll_counts);
+  ZopfliLengthLimitedCodeLengths(ll_counts, 288, 15, ll_lengths);
+  ZopfliLengthLimitedCodeLengths(d_counts, 32, 15, d_lengths);
+  PatchDistanceCodesForBuggyDecoders(d_lengths);
+  size_t best = 0;
+  unsigned i;
+  for (i = 0; i < 286; i++){
+    best += ll_lengths[i] * ll_counts2[i];
+  }
+  for (i = 265; i < 269; i++){
+    best += ll_counts2[i];
+  }
+  for (i = 269; i < 273; i++){
+    best += ll_counts2[i] * 2;
+  }
+  for (i = 273; i < 277; i++){
+    best += ll_counts2[i] * 3;
+  }
+  for (i = 277; i < 281; i++){
+    best += ll_counts2[i] * 4;
+  }
+  for (i = 281; i < 285; i++){
+    best += ll_counts2[i] * 5;
+  }
+  for (i = 0; i < 30; i++){
+    best += d_lengths[i] * d_counts2[i];
+  }
+  for (i = 4; i < 30; i++){
+    best += ((i - 2) / 2) * d_counts2[i];
+  }
+  unsigned nix = CalculateTreeSize(ll_lengths, d_lengths, 2, &dummy);
+  best += nix;
+
+  size_t next = 0;
+
+
+  unsigned ll_lengths2[288];
+  unsigned d_lengths2[32];
+  ZopfliLengthLimitedCodeLengths(ll_counts2, 288, 15, ll_lengths2);
+  ZopfliLengthLimitedCodeLengths(d_counts2, 32, 15, d_lengths2);
+  PatchDistanceCodesForBuggyDecoders(d_lengths);
+  for (i = 0; i < 286; i++){
+    next += ll_lengths2[i] * ll_counts2[i];
+  }
+  for (i = 265; i < 269; i++){
+    next += ll_counts2[i];
+  }
+  for (i = 269; i < 273; i++){
+    next += ll_counts2[i] * 2;
+  }
+  for (i = 273; i < 277; i++){
+    next += ll_counts2[i] * 3;
+  }
+  for (i = 277; i < 281; i++){
+    next += ll_counts2[i] * 4;
+  }
+  for (i = 281; i < 285; i++){
+    next += ll_counts2[i] * 5;
+  }
+  for (i = 0; i < 30; i++){
+    next += d_lengths2[i] * d_counts2[i];
+  }
+  for (i = 4; i < 30; i++){
+    next += ((i - 2) / 2) * d_counts2[i];
+  }
+  unsigned nextnix = CalculateTreeSize(ll_lengths2, d_lengths2, 2, &dummy);
+  next += nextnix;
+  size_t* lcounts = ll_counts;
+  size_t* dcounts = d_counts;
+  if(next < best){
+    best = next;
+    lcounts = ll_counts2;
+    dcounts = d_counts2;
+    memcpy(ll_lengths, ll_lengths2, sizeof(unsigned) * 288);
+    memcpy(d_lengths, d_lengths2, sizeof(unsigned) * 32);
+    nix = nextnix;
+  }
+
+  unsigned maxbits = 15;
+  while(--maxbits > 8){
+    next = 0;
+    ZopfliLengthLimitedCodeLengths(lcounts, 288, maxbits, ll_lengths2);
+    ZopfliLengthLimitedCodeLengths(dcounts, 32, maxbits, d_lengths2);
+    PatchDistanceCodesForBuggyDecoders(d_lengths);
+    for (i = 0; i < 286; i++){
+      next += ll_lengths2[i] * ll_counts2[i];
+    }
+    for (i = 265; i < 269; i++){
+      next += ll_counts2[i];
+    }
+    for (i = 269; i < 273; i++){
+      next += ll_counts2[i] * 2;
+    }
+    for (i = 273; i < 277; i++){
+      next += ll_counts2[i] * 3;
+    }
+    for (i = 277; i < 281; i++){
+      next += ll_counts2[i] * 4;
+    }
+    for (i = 281; i < 285; i++){
+      next += ll_counts2[i] * 5;
+    }
+    for (i = 0; i < 30; i++){
+      next += d_lengths2[i] * d_counts2[i];
+    }
+    for (i = 4; i < 30; i++){
+      next += ((i - 2) / 2) * d_counts2[i];
+    }
+    nextnix = CalculateTreeSize(ll_lengths2, d_lengths2, 2, &dummy);
+    next += nextnix;
+
+    if(next < best){
+      best = next;
+      memcpy(ll_lengths, ll_lengths2, sizeof(unsigned) * 288);
+      memcpy(d_lengths, d_lengths2, sizeof(unsigned) * 32);
+      nix = nextnix;
+    }
+   else if (best < next){
+      break;
+    }
+  }
+
+  best -= nix;
+  return best;
+}
+
 static size_t GetDynamicLengths(const unsigned short* litlens,
                                 const unsigned short* dists,
                                 size_t lstart, size_t lend,
@@ -723,6 +864,8 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
     if (entropysplit){
       result += GetDynamicLengths2(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
     } else{
+      //TODO: Better for PNG, worse for enwik
+      //result += GetAdvancedLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
       result += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
     }
     result += CalculateTreeSize(ll_lengths, d_lengths, hq, &dummy);
@@ -812,7 +955,7 @@ static void AddLZ77Block(int btype, int final,
                          size_t expected_data_size,
                          unsigned char* bp,
                          unsigned char** out, size_t* outsize, unsigned hq, const unsigned char* in,
-                         size_t instart, unsigned replaceCodes, unsigned char symbols) {
+                         size_t instart, unsigned replaceCodes, unsigned char advanced) {
   unsigned ll_lengths[288];
   unsigned d_lengths[32];
   unsigned ll_symbols[288];
@@ -880,9 +1023,18 @@ static void AddLZ77Block(int btype, int final,
   ZopfliLengthsToSymbols(d_lengths, 32, 15, d_symbols);
 
   if (btype == 2){
-    EncodeTree(ll_lengths, d_lengths,
-               best & 1, best & 2, best & 4, best & 8 , best & 16 || (hq == 1 && best == 9),
-               bp, *out, outsize);
+    if(advanced){
+      outpred = 3 + GetAdvancedLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 0);
+      CalculateTreeSize(ll_lengths, d_lengths, 2, &best);
+      outpred += EncodeTree(ll_lengths, d_lengths,
+                 best & 1, best & 2, best & 4, best & 8 , best & 16,
+                 bp, *out, outsize);
+    }
+    else{
+      EncodeTree(ll_lengths, d_lengths,
+                 best & 1, best & 2, best & 4, best & 8 , best & 16 || (hq == 1 && best == 9),
+                 bp, *out, outsize);
+    }
   }
   AddLZ77Data(litlens, dists, 0, lend
               , expected_data_size
@@ -946,7 +1098,7 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
   else{
     AddLZ77Block(btype, final,
                  store.litlens, store.dists, store.size,
-                 blocksize, bp, out, outsize, options->searchext, in, instart, options->replaceCodes, store.symbols);
+                 blocksize, bp, out, outsize, options->searchext, in, instart, options->replaceCodes, options->advanced);
 
     if (!options->replaceCodes){
       ZopfliCleanLZ77Store(&store);
@@ -1046,7 +1198,7 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
 
       AddLZ77Block(d[i].btype, i == npoints && final,
                    d[i].store.litlens, d[i].store.dists, d[i].store.size,
-                   d[i].blocksize, bp, out, outsize, options->searchext, in, start, options->replaceCodes, d[i].store.symbols);
+                   d[i].blocksize, bp, out, outsize, options->searchext, in, start, options->replaceCodes, options->advanced);
       if (!options->replaceCodes){
         ZopfliCleanLZ77Store(&d[i].store);
       }

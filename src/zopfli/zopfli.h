@@ -106,6 +106,9 @@ typedef struct ZopfliOptions {
 
   /*Use shannon entropy instead of real code lengths in blocksplitting.*/
   unsigned entropysplit;
+
+  /*Use advanced huffman and header optimizations.*/
+  unsigned advanced;
 } ZopfliOptions;
 
 typedef struct ZopfliOptionsMin {
