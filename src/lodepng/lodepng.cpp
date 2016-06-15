@@ -3492,6 +3492,105 @@ static void filterScanline(unsigned char* out, const unsigned char* scanline, co
   }
 }
 
+static void filterScanline2(unsigned char* scanline, const unsigned char* prevline,
+                           size_t length, unsigned char filterType, unsigned char forReal)
+{
+  if (!filterType) {
+    for(int i = 0; i < length; i+=4){
+      if (!scanline[i + 3]) {
+        *(unsigned*)&scanline[i] = 0;
+      }
+    }
+  }
+  /*else if(filterType == 1){
+    if (!scanline[3]) {
+      *(unsigned*)scanline = 0;
+    }
+    for(int i = 4; i < length; i+=4){
+      if (!scanline[i + 3]) {
+        scanline[i] = scanline[i - 4];
+        scanline[i + 1] = scanline[i - 3];
+        scanline[i + 2] = scanline[i - 2];
+      }
+    }
+  }*/
+  else if(filterType == 2){
+    if (!prevline){
+      for(int i = 0; i < length; i+=4){
+        if (!scanline[i + 3]) {
+          *(unsigned*)&scanline[i] = 0;
+        }
+      }
+    }
+    else{
+      for(int i = 0; i < length; i+=4){
+        if (!scanline[i + 3]) {
+          scanline[i] = prevline[i];
+          scanline[i + 1] = prevline[i + 1];
+          scanline[i + 2] = prevline[i + 2];
+        }
+      }
+    }
+  }
+  else if(filterType == 3){
+    if (!prevline){
+      if (!scanline[3]) {
+        *(unsigned*)scanline = 0;
+      }
+      for(int i = 4; i < length; i+=4){
+        if (!scanline[i + 3]) {
+          scanline[i] = scanline[i - 4] / 2;
+          scanline[i + 1] = scanline[i - 3] / 2;
+          scanline[i + 2] = scanline[i - 2] / 2;
+        }
+      }
+    }
+    else{
+      if (!scanline[3]) {
+        scanline[0] = prevline[0] / 2;
+        scanline[1] = prevline[1] / 2;
+        scanline[2] = prevline[2] / 2;
+      }
+      for(int i = 4; i < length; i+=4){
+        if (!scanline[i + 3]) {
+          scanline[i] = (scanline[i - 4] + prevline[i]) / 2;
+          scanline[i + 1] = (scanline[i - 3] + prevline[i + 1]) / 2;
+          scanline[i + 2] = (scanline[i - 2] + prevline[i + 2]) / 2;
+        }
+      }
+    }
+  }
+  else if(filterType == 4 && forReal){
+    if (!prevline){
+      if (!scanline[3]) {
+        *(unsigned*)scanline = 0;
+      }
+      for(int i = 4; i < length; i+=4){
+        if (!scanline[i + 3]) {
+          scanline[i] = scanline[i - 4];
+          scanline[i + 1] = scanline[i - 3];
+          scanline[i + 2] = scanline[i - 2];
+        }
+      }
+    }
+    else{
+      if (!scanline[3]) {
+        scanline[0] = prevline[0];
+        scanline[1] = prevline[1];
+        scanline[2] = prevline[2];
+      }
+      for(int i = 4; i < length; i+=4){
+        if (!scanline[i + 3]) {
+          scanline[i] = paethPredictor(scanline[i - 4], prevline[i], prevline[i - 4]);
+          scanline[i + 1] = paethPredictor(scanline[i - 3], prevline[i], prevline[i - 3]);
+          scanline[i + 2] = paethPredictor(scanline[i - 2], prevline[i], prevline[i - 2]);
+        }
+
+      }
+    }
+  }
+}
+
 extern "C" size_t ZopfliLZ77LazyLauncher(const unsigned char* in,
                               size_t instart, size_t inend, unsigned fs);
 
@@ -3529,6 +3628,101 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
   }
   else if(strategy == LFS_BRUTE_FORCE)
   {
+    if(settings->clean_alpha && !info->key_defined && info->colortype == LCT_RGBA && info->bitdepth == 8){
+      unsigned char* in2 = (unsigned char*)malloc(linebytes * h);
+      if (!in2){
+        exit(1);
+      }
+      memcpy(in2, in, linebytes * h);
+
+      /*brute force filter chooser.
+       deflate the scanline after every filter attempt to see which one deflates best.*/
+      size_t size[5];
+      ucvector attempt[5]; /*five filtering attempts, one for each filter type*/
+      size_t smallest = 0;
+      unsigned type = 0, bestType = 0;
+
+      z_stream stream;
+      stream.zalloc = 0;
+      stream.zfree = 0;
+      stream.opaque = 0;
+
+      int result = 0;
+#ifdef __GNUC__
+      result = __builtin_clz(linebytes) ^ (8 * sizeof(unsigned) - 1);
+#else
+      unsigned n = linebytes;
+      while (n >>= 1){result++;}
+#endif
+
+      result++;
+      if (result < 9){
+        result = 9;
+      }
+      else if (result > 15){
+        result = 15;
+      }
+
+      int err = deflateInit2(&stream, 3, Z_DEFLATED, -result, 3, Z_FILTERED);
+      if (err != Z_OK) exit(1);
+      unsigned char* dummy = (unsigned char *)malloc(deflateBound(&stream, linebytes));
+      if(!dummy){
+        exit(1);
+      }
+
+      for(type = 0; type != 5; ++type)
+      {
+        ucvector_init(&attempt[type]);
+        if(!ucvector_resize(&attempt[type], linebytes)) return 83; /*alloc fail*/
+      }
+      unsigned char* rem = (unsigned char*)malloc(linebytes);
+      for(y = 0; y != h; ++y) /*try the 5 filter types*/
+      {
+        memcpy(rem, &in2[y * linebytes], linebytes);
+        for(type = 0; type != 5; ++type)
+        {
+
+          filterScanline2(&in2[y * linebytes], prevline, linebytes, type, 0);
+          filterScanline(attempt[type].data, &in2[y * linebytes], prevline, linebytes, bytewidth, type);
+
+          if(settings->filter_style < 2){
+            deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
+            stream.next_in = (z_const unsigned char *)attempt[type].data;
+            stream.avail_in = linebytes;
+            stream.avail_out = UINT_MAX;
+            stream.next_out = dummy;
+
+            deflate(&stream, Z_FINISH);
+
+            size[type] = stream.total_out;
+            deflateReset(&stream);
+          }
+          else{
+            size[type] = ZopfliLZ77LazyLauncher(attempt[type].data, 0, linebytes, settings->filter_style);
+          }
+
+          /*check if this is smallest size (or if type == 0 it's the first case so always store the values)*/
+          if(type == 0 || size[type] < smallest)
+          {
+            bestType = type;
+            smallest = size[type];
+          }
+          memcpy(&in2[y * linebytes], rem, linebytes);
+
+        }
+        out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+        for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType].data[x];
+        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType, 0);
+        prevline = &in2[y * linebytes];
+      }
+      free(dummy);
+      free(rem);
+      deflateEnd(&stream);
+      
+      for(type = 0; type != 5; ++type) ucvector_cleanup(&attempt[type]);
+
+    }
+    else{
     /*brute force filter chooser.
      deflate the scanline after every filter attempt to see which one deflates best.*/
     size_t size[5];
@@ -3606,6 +3800,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
     deflateEnd(&stream);
 
     for(type = 0; type != 5; ++type) ucvector_cleanup(&attempt[type]);
+    }
   }
   else if(strategy == LFS_INCREMENTAL)
   {
