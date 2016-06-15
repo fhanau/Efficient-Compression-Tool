@@ -49,6 +49,11 @@ typedef struct SymbolStats {
   float d_symbols[32];  /* Length of each dist symbol in bits. */
 } SymbolStats;
 
+  typedef struct iSymbolStats {
+    unsigned char ll_symbols[288];  /* Length of each lit/len symbol in bits. */
+    unsigned char d_symbols[32];  /* Length of each dist symbol in bits. */
+  } iSymbolStats;
+
 void GetStatistics(const ZopfliLZ77Store* store, SymbolStats* stats);
 
 /*

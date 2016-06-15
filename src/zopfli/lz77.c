@@ -220,7 +220,7 @@ static void LZ4HC_Insert3 (LZ3HC_Data_Structure* hc4, const BYTE* ip)
   hc4->nextToUpdate = target;
 }
 
-static int LZ4HC_InsertAndFindBestMatch (LZ4HC_Data_Structure* hc4,   /* Index table will be updated */
+static int LZ4HC_InsertAndFindBestMatch(LZ4HC_Data_Structure* hc4,   /* Index table will be updated */
                                                const BYTE* ip, const BYTE* const iLimit,
                                                const BYTE** matchpos)
 {
