@@ -405,7 +405,8 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
   // For very small output, also try without palette, it may be smaller thanks
   // to no palette storage overhead.
 
-  if (!error && state.out_mode.colortype == LCT_PALETTE && palette_filter) {
+  if (!error && state.out_mode.colortype == LCT_PALETTE && palette_filter && state.out_mode.palettesize > 1) {
+    p._first = 1;
     std::vector<unsigned char> out2;
     int tries = 0;
     for (int k4 = 0; k4 < 4; k4++){
@@ -421,9 +422,10 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
           for (int k1 = 0; k1 < 2; k1++){
             p.direction = (LodePNGPaletteDirectionStrategy)k1;
 
-
             lodepng::encode(out2, image, w, h, state, p);
-            if (out2.size() < out->size()){
+            p._first = 0;
+
+            if (out2.size() < out->size() && !state.note){
               out->swap(out2);
             }
             out2.clear();

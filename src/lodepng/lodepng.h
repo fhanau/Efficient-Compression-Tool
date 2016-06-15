@@ -397,6 +397,7 @@ typedef struct LodePNGPaletteSettings{
   LodePNGPaletteDirectionStrategy direction;
   LodePNGPaletteTransparencyStrategy trans;
   LodePNGPaletteOrderStrategy order;
+  int _first;
 } LodePNGPaletteSettings;
 /*Gives characteristics about the colors of the image, which helps decide which color model to use for encoding.
 Used internally by default if "auto_convert" is enabled. Public because it's useful for custom algorithms.*/
@@ -477,6 +478,7 @@ typedef struct LodePNGState
   //For the lodepng::State subclass.
   virtual ~LodePNGState(){}
 #endif
+  int note;
 } LodePNGState;
 
 /*init, cleanup and copy functions to use with this struct*/

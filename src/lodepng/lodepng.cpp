@@ -4103,6 +4103,7 @@ static unsigned addUnknownChunks(ucvector* out, unsigned char* data, size_t data
 }
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
 
+static ColorTree ct;
 static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
                         unsigned char* image, unsigned w, unsigned h,
                         LodePNGState* state, LodePNGPaletteSettings palset)
@@ -4132,8 +4133,19 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
     state->error = lodepng_auto_choose_color(&info.color, image, w, h, &state->info_raw);
     if(info.color.colortype == LCT_PALETTE)
     {
+      if (palset._first) {
+        color_tree_cleanup(&ct);
+        color_tree_init(&ct);
+      }
       optimize_palette(&info.color, (uint32_t*)image, w, h, palset.priority, palset.direction,
                        palset.trans, palset.order);
+
+      unsigned crc = crc32(0, info.color.palette, info.color.palettesize);
+      if (!color_tree_inc(&ct, crc & 0xFF, crc & 0xFF00, crc & 0xFF0000, crc & 0xFF000000)) {
+      }
+      else{
+        return 96;
+      }
     }
     lodepng_color_mode_init(&state->out_mode);
     lodepng_color_mode_copy(&state->out_mode, &info.color);
@@ -4504,11 +4516,16 @@ unsigned encode(std::vector<unsigned char>& out,
                 std::vector<unsigned char>& in, unsigned w, unsigned h,
                 State& state, LodePNGPaletteSettings p)
 {
+  state.note = 0;
   if(lodepng_get_raw_size(w, h, &state.info_raw) > in.size()) return 84;
   unsigned char* buffer;
   size_t buffersize;
 
   unsigned error = lodepng_encode(&buffer, &buffersize, in.empty() ? 0 : &in[0], w, h, &state, p);
+  if (error == 96) {
+    error = 0;
+    state.note = 1;
+  }
   if(buffer)
   {
     out.insert(out.end(), &buffer[0], &buffer[buffersize]);
