@@ -669,6 +669,8 @@ static size_t GetAdvancedLengths(const unsigned short* litlens,
     memcpy(d_lengths, d_lengths2, sizeof(unsigned) * 32);
     nix = nextnix;
   }
+  best -= nix;
+  return best;
 
   unsigned maxbits = 15;
   while(--maxbits > 8){
@@ -1024,7 +1026,7 @@ static void AddLZ77Block(int btype, int final,
 
   if (btype == 2){
     if(advanced){
-      outpred = 3 + GetAdvancedLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 0);
+      outpred = *outsize * 8 + *bp -((*bp != 0) * 8) + GetAdvancedLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 0);
       CalculateTreeSize(ll_lengths, d_lengths, 2, &best);
       outpred += EncodeTree(ll_lengths, d_lengths,
                  best & 1, best & 2, best & 4, best & 8 , best & 16,
