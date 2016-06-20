@@ -245,4 +245,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned _mode, unsigned multithr
   options->entropysplit = mode < 3;
   options->greed = isPNG ? mode > 3 ? 258 : 50 : 258;
   options->advanced = mode >= 8;
+  if(options->advanced && (options->replaceCodes & 1)){
+    options->replaceCodes++;
+  }
 }

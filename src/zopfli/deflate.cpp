@@ -632,7 +632,7 @@ static size_t GetAdvancedLengths(const unsigned short* litlens,
   unsigned d_lengths2[32];
   ZopfliLengthLimitedCodeLengths(ll_counts2, 288, 15, ll_lengths2);
   ZopfliLengthLimitedCodeLengths(d_counts2, 32, 15, d_lengths2);
-  PatchDistanceCodesForBuggyDecoders(d_lengths);
+  PatchDistanceCodesForBuggyDecoders(d_lengths2);
   for (i = 0; i < 286; i++){
     next += ll_lengths2[i] * ll_counts2[i];
   }
@@ -669,15 +669,13 @@ static size_t GetAdvancedLengths(const unsigned short* litlens,
     memcpy(d_lengths, d_lengths2, sizeof(unsigned) * 32);
     nix = nextnix;
   }
-  best -= nix;
-  return best;
 
   unsigned maxbits = 15;
   while(--maxbits > 8){
     next = 0;
     ZopfliLengthLimitedCodeLengths(lcounts, 288, maxbits, ll_lengths2);
     ZopfliLengthLimitedCodeLengths(dcounts, 32, maxbits, d_lengths2);
-    PatchDistanceCodesForBuggyDecoders(d_lengths);
+    PatchDistanceCodesForBuggyDecoders(d_lengths2);
     for (i = 0; i < 286; i++){
       next += ll_lengths2[i] * ll_counts2[i];
     }
@@ -1027,8 +1025,8 @@ static void AddLZ77Block(int btype, int final,
   if (btype == 2){
     if(advanced){
       outpred = *outsize * 8 + *bp -((*bp != 0) * 8) + GetAdvancedLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 0);
-      CalculateTreeSize(ll_lengths, d_lengths, 2, &best);
-      outpred += EncodeTree(ll_lengths, d_lengths,
+      outpred += CalculateTreeSize(ll_lengths, d_lengths, 2, &best);
+      EncodeTree(ll_lengths, d_lengths,
                  best & 1, best & 2, best & 4, best & 8 , best & 16,
                  bp, *out, outsize);
     }
