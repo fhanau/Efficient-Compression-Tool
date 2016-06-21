@@ -213,7 +213,14 @@ void ZopfliLengthLimitedCodeLengths(const size_t* frequencies, int n, int maxbit
   } cmpstable;
 
   /* Sort the leaves from lightest to heaviest. */
-  std::stable_sort(leaves, leaves + numsymbols, cmpstable);
+  for (i = 0; i < numsymbols; i++) {
+    leaves[i].weight = (leaves[i].weight << 9) | leaves[i].count;
+  }
+  std::sort(leaves, leaves + numsymbols, cmpstable);
+
+  for (i = 0; i < numsymbols; i++) {
+    leaves[i].weight >>= 9;
+  }
 
   if (numsymbols - 1 < maxbits) {
     maxbits = numsymbols - 1;
