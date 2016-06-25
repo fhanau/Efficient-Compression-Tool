@@ -478,7 +478,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
     float newCost = costs[j] + literals[in[i]];
     if (newCost < costs[j + 1]) {
       costs[j + 1] = newCost;
-      length_array[j + 1] = 1;
+      length_array[j + 1] = 1 + (in[i] << 24);
     }
 
     if (i == inend - ZOPFLI_MAX_MATCH - 1 && mfinexport & 2 && storeincache != 2){
@@ -582,7 +582,7 @@ static void GetBestLengthsultra2(const unsigned char* in, size_t instart, size_t
     unsigned newCost = costs[j] + literals[in[i]];
     if (newCost < costs[j + 1]) {
       costs[j + 1] = newCost;
-      length_array[j + 1] = 1;
+      length_array[j + 1] = 1 + (in[i] << 24);
     }
   }
   
@@ -605,30 +605,55 @@ static void TraceBackwards(size_t size, const unsigned* length_array,
   size_t allocsize = size / 258 + 50;
   *path = (unsigned*)malloc(allocsize * sizeof(unsigned));
   for (;size;) {
-    (*path)[*pathsize] = length_array[size];
-    (*pathsize)++;
-    if(*pathsize == allocsize){
+    unsigned space = allocsize - (*pathsize);
+
+
+    while(size > ZOPFLI_MAX_MATCH * 64 && space > 64){
+      unsigned endsize = (*pathsize) + 64;
+      for (;(*pathsize) < endsize;) {
+        (*path)[*pathsize] = length_array[size];
+        (*pathsize)++;
+        size -= (length_array[size] & 511);
+        (*path)[*pathsize] = length_array[size];
+        (*pathsize)++;
+        size -= (length_array[size] & 511);
+        (*path)[*pathsize] = length_array[size];
+        (*pathsize)++;
+        size -= (length_array[size] & 511);
+        (*path)[*pathsize] = length_array[size];
+        (*pathsize)++;
+        size -= (length_array[size] & 511);
+
+        __builtin_prefetch (&length_array[size - 102]);
+        __builtin_prefetch (&length_array[size - 86]);
+        __builtin_prefetch (&length_array[size - 70]);
+        __builtin_prefetch (&length_array[size - 54]);
+      }
+      space -= 64;
+    }
+
+    while(space-- && size){
+      (*path)[*pathsize] = length_array[size];
+      (*pathsize)++;
+      size -= (length_array[size] & 511);
+    }
+    if(*pathsize == allocsize && space){
       allocsize *= 2;
       if (allocsize > osize){
         allocsize = osize;
       }
       *path = (unsigned*)realloc(*path, allocsize * sizeof(unsigned));
     }
-    assert((length_array[size] & 511) <= size);
-    assert((length_array[size] & 511) <= ZOPFLI_MAX_MATCH);
-    assert(length_array[size]);
-    size -= (length_array[size] & 511);
   }
 }
 
-static void FollowPath(const unsigned char* in, size_t instart, size_t inend, unsigned* path, size_t pathsize, ZopfliLZ77Store* store) {
+static void FollowPath(unsigned* path, size_t pathsize, ZopfliLZ77Store* store) {
   store->litlens = (unsigned short*)malloc(pathsize * sizeof(unsigned short));
   store->dists = (unsigned short*)malloc(pathsize * sizeof(unsigned short));
   if (!store->litlens || !store->dists){
     exit(1);
   }
 
-  size_t pos = instart;
   /*pathsize contains matches in reverted order.*/
   for (size_t i = pathsize - 1;; i--) {
     unsigned short length = path[i] & 511;
@@ -638,21 +663,14 @@ static void FollowPath(const unsigned char* in, size_t instart, size_t inend, un
 
       unsigned short dist = path[i] >> 9;
 
-#ifndef NDEBUG
-        ZopfliVerifyLenDist(in, inend, pos, dist, length);
-#endif
       store->litlens[store->size] = length;
       store->dists[store->size] = dist;
 
     } else {
-      length = 1;
-      store->litlens[store->size] = in[pos];
+      store->litlens[store->size] = path[i] >> 24;
       store->dists[store->size] = 0;
     }
 
-    assert(pos + length <= inend);
-
-    pos += length;
     store->size++;
     if (!i){break;}
   }
@@ -728,7 +746,7 @@ static void LZ77OptimalRun(const ZopfliOptions* options, const unsigned char* in
   unsigned* path = 0;
   size_t pathsize = 0;
   TraceBackwards(inend - instart, length_array, &path, &pathsize);
-  FollowPath(in, instart, inend, path, pathsize, store);
+  FollowPath(path, pathsize, store);
   free(path);
 }
 
