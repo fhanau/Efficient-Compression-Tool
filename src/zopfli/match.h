@@ -23,7 +23,7 @@ static inline const unsigned char* GetMatch(const unsigned char* scan,
                                             const unsigned char* end
                                             , const unsigned char* safe_end) {
 #if defined(__GNUC__) && !defined(__MINGW32__) && !defined(__MINGW64__)
-  /* Optimized Function based on cloudflare's zlib fork. TODO: Can this be even faster with pcmpestri/pcmpestrm intrinsics?*/
+  /* Optimized Function based on cloudflare's zlib fork.*/
   if (sizeof(size_t) == 8) {
     do {
       unsigned long sv = *(unsigned long*)(void*)scan;

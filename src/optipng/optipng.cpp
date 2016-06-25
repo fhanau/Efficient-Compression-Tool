@@ -248,6 +248,9 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
         else if (options->optim_level == 3){
             level = 5;
         }
+        else if (options->optim_level == 2){
+          level = 3;
+        }
 
         // Try filters PNG_FILTER_NONE and PNG_ALL_FILTERS.
 

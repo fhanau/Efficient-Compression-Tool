@@ -54,12 +54,6 @@ double, i is in range start-end (excluding end).
 static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, double* size, double* biggersize, const ZopfliOptions* options) {
   double first, second;
 
-  if (options->midsplit){
-    *size = SplitCost(start + (end - start) / 2, context, &first, &second, options->searchext & 2, options->entropysplit);
-    *biggersize = end - start + (end - start) / 2 > start + (end - start) / 2 - start ? second : first;
-    return start + (end - start) / 2;
-  }
-
   size_t startsize = end - start;
   /* Try to find minimum by recursively checking multiple points. */
 #define NUM 9  /* Good value: 9. */

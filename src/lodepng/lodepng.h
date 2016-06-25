@@ -603,7 +603,7 @@ void save_file(const std::vector<unsigned char>& buffer, const std::string& file
 /*
 TODO:
 [.] test if there are no memory leaks or security exploits - done a lot but needs to be checked often
-[.] check compatibility with vareous compilers  - done but needs to be redone for every newer version
+[.] check compatibility with various compilers  - done but needs to be redone for every newer version
 [X] converting color to 16-bit per channel types
 [ ] read all public PNG chunk types (but never let the color profile and gamma ones touch RGB values)
 [ ] make sure encoder generates no chunks with size > (2^31)-1
