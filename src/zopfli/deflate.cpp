@@ -627,7 +627,6 @@ static size_t GetAdvancedLengths(const unsigned short* litlens,
 
   size_t next = 0;
 
-
   unsigned ll_lengths2[288];
   unsigned d_lengths2[32];
   ZopfliLengthLimitedCodeLengths(ll_counts2, 288, 15, ll_lengths2);
@@ -973,7 +972,7 @@ static void AddLZ77Block(int btype, int final,
     for (i = 280; i < 288; i++) ll_lengths[i] = 8;
     for (i = 0; i < 32; i++) d_lengths[i] = 5;
     outpred = ZopfliCalculateBlockSize(litlens, dists, 0, lend, btype, hq, 0, 0);
-  } else {
+  } else{
     /* Dynamic block. */
     outpred = 3;
     outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 0);
@@ -988,7 +987,7 @@ static void AddLZ77Block(int btype, int final,
         unsigned short * free2 = dists;
         change = ReplaceBadCodes(&litlens, &dists, &lend, in, instart, ll_lengths, d_lengths);
         if (!change && i + 1 != replaceCodes && i){
-          outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
+          CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
         }
         free(free1);
         free(free2);
