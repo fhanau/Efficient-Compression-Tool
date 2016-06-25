@@ -2185,7 +2185,7 @@ Updates values of mode with a potentially smaller color model. mode_out should
 contain the user chosen color model, but will be overwritten with the new chosen one.*/
 static unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out,
                                    const unsigned char* image, unsigned w, unsigned h,
-                                   const LodePNGColorMode* mode_in)
+                                   const LodePNGColorMode* mode_in, unsigned div)
 {
   LodePNGColorProfile prof;
   unsigned error = 0;
@@ -2204,7 +2204,7 @@ static unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out,
   n = prof.numcolors;
   palettebits = n <= 2 ? 1 : (n <= 4 ? 2 : (n <= 16 ? 4 : 8));
   palette_ok = n <= 256 && prof.bits <= 8;
-  if((unsigned long long)w * h < n * 2 || (unsigned long long)w * h < 10) {palette_ok = 0;} /*don't add palette overhead if image has only a few pixels*/
+  if(8 + n * 4 > (unsigned long long)w * h / div) {palette_ok = 0;} /*don't add palette overhead if image has only a few pixels*/
   if(grey_ok && prof.bits <= palettebits) {palette_ok = 0;}  /*grey is less overhead*/
 
   if(palette_ok)
@@ -4325,7 +4325,7 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
 
   if(state->encoder.auto_convert)
   {
-    state->error = lodepng_auto_choose_color(&info.color, image, w, h, &state->info_raw);
+    state->error = lodepng_auto_choose_color(&info.color, image, w, h, &state->info_raw, state->div);
     if(info.color.colortype == LCT_PALETTE)
     {
       if (palset._first) {

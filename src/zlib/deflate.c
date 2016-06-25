@@ -81,7 +81,7 @@ typedef struct config_s {
 
 static const config configuration_table[10] = {
 /*      good lazy nice chain */
-/* fake 0 */ {16, 258, 258, 4596, deflate_slow}, /* stored mode was removed */
+/* fake 0 */ {16, 258, 258, 2048, deflate_slow}, /* stored mode was removed */
 /* 1 */ {16, 258, 258, 4096, deflate_slow}, /* max speed, no lazy matches */
 /* 2 */ {4,    5, 16,    8, deflate_fast},
 /* 3 */ {4,    6, 32,   32, deflate_fast},

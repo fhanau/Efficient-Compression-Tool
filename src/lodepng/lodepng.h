@@ -474,6 +474,7 @@ typedef struct LodePNGState
   virtual ~LodePNGState(){}
 #endif
   int note;
+  unsigned div;
 } LodePNGState;
 
 /*init, cleanup and copy functions to use with this struct*/

@@ -401,6 +401,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
 
   LodePNGPaletteSettings p;
   p.order = LPOS_NONE;
+  state.div = png_options->Mode == 2 ? 6 : png_options->Mode < 8 ? 3 : 2;
   unsigned error = lodepng::encode(*out, image, w, h, state, p);
   // For very small output, also try without palette, it may be smaller thanks
   // to no palette storage overhead.
@@ -439,10 +440,16 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
  }
 
   unsigned long testboth = out->size();
-
-  if (!error && testboth < 4096 && w * h < 45000 && best_filter != 6 && state.out_mode.colortype == LCT_PALETTE) {
+  if (!error && testboth < 3800 && w * h < 100000 && best_filter != 6 && state.out_mode.colortype == LCT_PALETTE) {
     LodePNGColorMode& color = state.out_mode;
-    if ((testboth < 2048 || color.palettesize>192) && (testboth < 1024 || color.palettesize>64) && (testboth < 512 || color.palettesize>40) && (testboth < 300 || color.palettesize>9))
+    unsigned ux = color.palettesize;
+    int wh_ok = (ux + 2) * 390 + 370;
+    int size_ok = (ux + 2) * 40;
+
+    if ((wh_ok > w*h || ux > 170)
+        && (size_ok > testboth || ux > 180)
+        && (size_ok / 2 > testboth || ux < 24)
+        && (png_options->Mode > 2 || (testboth < 3400 && w*h < 20000 &&(size_ok * 7/ 20 > testboth || ux < 64))))
     {
       std::vector<unsigned char> out2;
       state.encoder.auto_convert = 0;
