@@ -784,6 +784,55 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
     CopyStats(&st, &stats);
   }
 
+  if (options->isPNG && options->numiterations < 9){
+    /*TODO:Corrections for cost model inaccuracies. There is still much potential here
+     Enable this in Mode 4 too, though less aggressive*/
+    for (unsigned i = 0; i < 256; i++){
+      stats.ll_symbols[i] -= .2;
+    }
+    if (inend - instart < 1000){
+      for (unsigned i = 0; i < 256; i++){
+        stats.ll_symbols[i] -= 0.2;
+      }
+    }
+    stats.ll_symbols[0] -= 1.2;
+    stats.ll_symbols[1] -= 0.4;
+    stats.d_symbols[0] -= 1.5;
+    stats.d_symbols[3] -= 1.4;
+    stats.ll_symbols[255] -= 0.5;
+    stats.ll_symbols[257] -= .8;
+    stats.ll_symbols[258] += 0.3;
+    stats.ll_symbols[272] += 1.2;
+    stats.ll_symbols[282] += 0.2;
+    stats.ll_symbols[283] += 0.2;
+    stats.ll_symbols[284] += 0.4;
+    stats.ll_symbols[285] += 0.3;
+
+    for (unsigned i = 270; i < 286; i++){
+      stats.ll_symbols[i] += .4;
+    }
+    for (unsigned i = 0; i < 286; i++){
+      if (stats.ll_symbols[i] < 1){
+        stats.ll_symbols[i] = 1;
+      }
+    }
+    for (unsigned i = 0; i < 30; i++){
+      if (stats.d_symbols[i] < 1){
+        stats.d_symbols[i] = 1;
+      }
+    }
+    for (unsigned i = 0; i < 286; i++){
+      if (stats.ll_symbols[i] > 15){
+        stats.ll_symbols[i] = 15;
+      }
+    }
+    for (unsigned i = 0; i < 30; i++){
+      if (stats.d_symbols[i] > 15){
+        stats.d_symbols[i] = 15;
+      }
+    }
+  }
+
   LZCache c;
   int stinit = 0;
   if (options->useCache){
@@ -948,7 +997,7 @@ void ZopfliLZ77Optimal2(const ZopfliOptions* options,
       /*TODO:Corrections for cost model inaccuracies. There is still much potential here
        Enable this in Mode 4 too, though less aggressive*/
       for (unsigned i = 0; i < 256; i++){
-        stats.ll_symbols[i] -= .25;
+        stats.ll_symbols[i] -= .2;
       }
       if (inend - instart < 1000){
         for (unsigned i = 0; i < 256; i++){
@@ -966,9 +1015,10 @@ void ZopfliLZ77Optimal2(const ZopfliOptions* options,
       stats.ll_symbols[282] += 0.2;
       stats.ll_symbols[283] += 0.2;
       stats.ll_symbols[284] += 0.4;
+      stats.ll_symbols[285] += 0.3;
 
       for (unsigned i = 270; i < 286; i++){
-          stats.ll_symbols[i] += .4;
+          stats.ll_symbols[i] += .35;
       }
       for (unsigned i = 0; i < 286; i++){
         if (stats.ll_symbols[i] < 1){
@@ -1023,7 +1073,7 @@ void ZopfliLZ77OptimalFixed(const ZopfliOptions* options,
 
   /* Shortest path for fixed tree This one should give the shortest possible
   result for fixed tree, no repeated runs are needed since the tree is known. */
-  LZ77OptimalRun(options, in, instart, inend, length_array, 0, store, 0, 0, mfinexport, options->ultra == 2);
+  LZ77OptimalRun(options, in, instart, inend, length_array, 0, store, 0, 0, mfinexport, 0);
 
   free(length_array);
 }
