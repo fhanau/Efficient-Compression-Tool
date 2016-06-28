@@ -207,8 +207,8 @@ static const ZopfliOptionsMin opt[8] =
   { 2, 1, 0,   3000,    0, 180,  512},/* 4 */
   { 4, 1, 0,   2000,    0, 180,  200},/* 5 */
   { 8, 1, 0,    800,  800,  80,  200},/* 6 */
-  {16, 1, 1,    800, 1800,  80,  200},/* 7 */
-  {60, 2, 2,    800, 2000,  80,  100},/* 8 */
+  {13, 1, 1,    800, 1800,  80,  200},/* 7 */
+  {60, 2, 2,    800, 2000,  80,  120},/* 8 */
   {60, 2, 3,    800, 3000,  80,  100} /* 9 */
 };
 
@@ -231,7 +231,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned _mode, unsigned multithr
 
   options->numiterations = _mode % 10000 > 9 ? _mode % 10000 : options->numiterations;
 
-  options->num = mode < 5 ? 3 : 9;
+  options->num = mode < 6 ? 3 : 9;
   options->blocksplittingmax = mode > 2 ? 0 : multithreading > 15 ? multithreading : 15;
 
   options->multithreading = multithreading;
