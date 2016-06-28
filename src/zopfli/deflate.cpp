@@ -475,18 +475,6 @@ static void AddLZ77Data(const unsigned short* litlens,
  more efficiently. length containts the size of the histogram.
  */
 void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
-  //This improves PNG?
-  /*int nonzero_count = 0;
-
-  for (int i = 0; i < length; i++) {
-    if (counts[i]) {
-      ++nonzero_count;
-    }
-  }
-  if (nonzero_count < length / 8) {
-    return;
-  }*/
-
   // Let's make the Huffman code more compatible with rle encoding.
   for (;; --length) {
     if (!length) {
@@ -627,8 +615,13 @@ static size_t GetAdvancedLengths(const unsigned short* litlens,
 
   size_t next = 0;
 
-  unsigned ll_lengths2[288];
-  unsigned d_lengths2[32];
+  size_t* lcounts = ll_counts;
+  size_t* dcounts = d_counts;
+
+  unsigned ll_lengths2[288] = {0};
+  unsigned d_lengths2[32] = {0};
+  unsigned nextnix;
+
   ZopfliLengthLimitedCodeLengths(ll_counts2, 288, 15, ll_lengths2);
   ZopfliLengthLimitedCodeLengths(d_counts2, 32, 15, d_lengths2);
   PatchDistanceCodesForBuggyDecoders(d_lengths2);
@@ -656,16 +649,15 @@ static size_t GetAdvancedLengths(const unsigned short* litlens,
   for (i = 4; i < 30; i++){
     next += ((i - 2) / 2) * d_counts2[i];
   }
-  unsigned nextnix = CalculateTreeSize(ll_lengths2, d_lengths2, 2, &dummy);
+  nextnix = CalculateTreeSize(ll_lengths2, d_lengths2, 2, &dummy);
   next += nextnix;
-  size_t* lcounts = ll_counts;
-  size_t* dcounts = d_counts;
+
   if(next < best){
     best = next;
     lcounts = ll_counts2;
     dcounts = d_counts2;
-    memcpy(ll_lengths, ll_lengths2, sizeof(unsigned) * 288);
-    memcpy(d_lengths, d_lengths2, sizeof(unsigned) * 32);
+    memcpy(ll_lengths, ll_lengths2, sizeof(unsigned) * 286);
+    memcpy(d_lengths, d_lengths2, sizeof(unsigned) * 30);
     nix = nextnix;
   }
 
@@ -704,8 +696,8 @@ static size_t GetAdvancedLengths(const unsigned short* litlens,
 
     if(next < best){
       best = next;
-      memcpy(ll_lengths, ll_lengths2, sizeof(unsigned) * 288);
-      memcpy(d_lengths, d_lengths2, sizeof(unsigned) * 32);
+      memcpy(ll_lengths, ll_lengths2, sizeof(unsigned) * 286);
+      memcpy(d_lengths, d_lengths2, sizeof(unsigned) * 30);
       nix = nextnix;
     }
    else if (best < next){
@@ -987,7 +979,7 @@ static void AddLZ77Block(int btype, int final,
         unsigned short * free2 = dists;
         change = ReplaceBadCodes(&litlens, &dists, &lend, in, instart, ll_lengths, d_lengths);
         if (!change && i + 1 != replaceCodes && i){
-          CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
+          outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
         }
         free(free1);
         free(free2);
@@ -999,13 +991,11 @@ static void AddLZ77Block(int btype, int final,
         //TODO: This may make compression worse due to longer huffman headers.
         outpred = 3;
         outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 0);
-        if (replaceCodes - i < 3){
+        if (replaceCodes - i < 3 || advanced){
           outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
         }
       }
-
     }
-
   }
   outpred += *outsize * 8 + *bp -((*bp != 0) * 8);
   (*out) = (unsigned char*)realloc(*out, outpred / 8 + 1 + 8);
@@ -1017,9 +1007,6 @@ static void AddLZ77Block(int btype, int final,
   AddBit(final, bp, out, outsize);
   AddBit(btype & 1, bp, out, outsize);
   AddBit((btype & 2) >> 1, bp, out, outsize);
-
-  ZopfliLengthsToSymbols(ll_lengths, 288, 15, ll_symbols);
-  ZopfliLengthsToSymbols(d_lengths, 32, 15, d_symbols);
 
   if (btype == 2){
     if(advanced){
@@ -1035,6 +1022,8 @@ static void AddLZ77Block(int btype, int final,
                  bp, *out, outsize);
     }
   }
+  ZopfliLengthsToSymbols(ll_lengths, 288, 15, ll_symbols);
+  ZopfliLengthsToSymbols(d_lengths, 32, 15, d_symbols);
   AddLZ77Data(litlens, dists, 0, lend
               , expected_data_size
               , ll_symbols, ll_lengths, d_symbols, d_lengths,
