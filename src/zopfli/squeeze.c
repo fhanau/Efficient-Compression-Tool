@@ -1036,9 +1036,13 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
       LZ77OptimalRun(options, in, instart, inend, length_array, &sta, &peace, options->useCache ? 2 : 0, &c, mfinexport, 0);
       double newcost = ZopfliCalculateBlockSize(peace.litlens, peace.dists, 0, peace.size, 2, options->searchext, peace.symbols, 0);
       if (newcost < bestcost){
+        double improv = bestcost - newcost;
         bestcost = newcost;
         ZopfliCopyLZ77Store(&peace, store);
         ZopfliCleanLZ77Store(&peace);
+        if(improv < 80 && options->numiterations < 20){
+          break;
+        }
       }
       else{
         ZopfliCleanLZ77Store(&peace);
