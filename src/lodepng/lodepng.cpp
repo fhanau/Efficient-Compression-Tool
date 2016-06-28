@@ -278,8 +278,6 @@ static unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
  
   inf.next_out = buf;
   inf.avail_out = BUFSIZE;
-  unsigned char* b = buf;
-
 
   if(inflateInit2(&inf, -15) != Z_OK){return 83;}
 
@@ -1443,26 +1441,37 @@ static void getPixelColorsRGBA8(unsigned char* buffer, size_t numpixels,
   }
   else if(mode->colortype == LCT_PALETTE)
   {
-    unsigned index;
-    size_t j = 0;
-    for(i = 0; i != numpixels; ++i, buffer += num_channels)
-    {
-      if(mode->bitdepth == 8) index = in[i];
-      else index = readBitsFromReversedStream(&j, in, mode->bitdepth);
-
-      if(index >= mode->palettesize)
+    if(mode->bitdepth == 8 && has_alpha){
+      for(i = 0; i != numpixels; ++i, buffer += num_channels)
       {
-        /*This is an error according to the PNG spec, but most PNG decoders make it black instead.
-        Done here too, slightly faster due to no error handling needed.*/
-        buffer[0] = buffer[1] = buffer[2] = 0;
-        if(has_alpha) buffer[3] = 255;
+        if(in[i] >= mode->palettesize){*(unsigned*)buffer = 0;}
+        else{
+          *(unsigned*)buffer = *(unsigned*)&mode->palette[in[i] * 4];
+        }
       }
-      else
+    }
+    else{
+      unsigned index;
+      size_t j = 0;
+      for(i = 0; i != numpixels; ++i, buffer += num_channels)
       {
-        buffer[0] = mode->palette[index * 4];
-        buffer[1] = mode->palette[index * 4 + 1];
-        buffer[2] = mode->palette[index * 4 + 2];
-        if(has_alpha) buffer[3] = mode->palette[index * 4 + 3];
+        if(mode->bitdepth == 8) index = in[i];
+        else index = readBitsFromReversedStream(&j, in, mode->bitdepth);
+
+        if(index >= mode->palettesize)
+        {
+          /*This is an error according to the PNG spec, but most PNG decoders make it black instead.
+           Done here too, slightly faster due to no error handling needed.*/
+          buffer[0] = buffer[1] = buffer[2] = 0;
+          if(has_alpha) buffer[3] = 255;
+        }
+        else
+        {
+          buffer[0] = mode->palette[index * 4];
+          buffer[1] = mode->palette[index * 4 + 1];
+          buffer[2] = mode->palette[index * 4 + 2];
+          if(has_alpha) buffer[3] = mode->palette[index * 4 + 3];
+        }
       }
     }
   }
