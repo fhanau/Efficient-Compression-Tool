@@ -4362,7 +4362,7 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
   if(state->encoder.auto_convert)
   {
     state->error = lodepng_auto_choose_color(&info.color, image, w, h, &state->info_raw, state->div);
-    if(info.color.colortype == LCT_PALETTE)
+    if(info.color.colortype == LCT_PALETTE && palset.order != LPOS_NONE)
     {
       if (palset._first) {
         color_tree_cleanup(&ct);
