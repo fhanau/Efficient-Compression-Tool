@@ -361,6 +361,7 @@ Adds all lit/len and dist codes from the lists as huffman symbols. Does not add
 end code 256. expected_data_size is the uncompressed block size, used for
 assert, but you can set it to 0 to not do the assertion.
 */
+//TODO: Rewrite for x86_64 where bitbuffer is refilled once per len/dist pair
 static void AddLZ77Data(const unsigned short* litlens,
                         const unsigned short* dists,
                         size_t lstart, size_t lend,
