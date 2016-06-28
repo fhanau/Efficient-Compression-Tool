@@ -40,6 +40,7 @@ Rename this file to lodepng.cpp to use it for C++, or to lodepng.c to use it for
 
 #ifdef LODEPNG_COMPILE_CPP
 #include <fstream>
+#include <algorithm>
 #endif /*LODEPNG_COMPILE_CPP*/
 
 /*
