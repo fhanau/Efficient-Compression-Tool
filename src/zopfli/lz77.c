@@ -440,7 +440,7 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
       ll_count[litlens[i] & 511]++;
     }
 
-#define ANDLLS 511LU + (511LU << 16) + (511LU << 32) + (511LU << 48)
+#define ANDLLS 511LLU + (511LLU << 16) + (511LLU << 32) + (511LLU << 48)
     const unsigned char* ipo = &distc[rstart];
     size_t cached = *(size_t*)ipo;ipo += 8;
     while (ipo < distc + end)
