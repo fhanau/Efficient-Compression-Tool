@@ -3803,7 +3803,8 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
           exit(1);
         }
 
-        if(settings->filter_style < 2){
+        //TODO:The ZopfliLZ77LazyLauncher approach should be better, but isn't in some tests
+        if(settings->filter_style < 2 || 1){
         deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
         stream.next_in = (z_const unsigned char *)out;
         stream.avail_in = testsize;
