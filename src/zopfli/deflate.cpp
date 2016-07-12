@@ -516,7 +516,7 @@ void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
 
   // 3) Let's replace those population counts that lead to more rle codes.
   // Math here is in 24.8 fixed point representation.
-  const int streak_limit = 1240;//1200 for PNG
+  const int streak_limit = 1240;
   stride = 0;
   long limit = 256 * (counts[0] + counts[1] + counts[2]) / 3 + 420;
   int sum = 0;
@@ -833,26 +833,21 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
     size_t i;
     for (i = 0; i < 144; i++) ll_lengths[i] = 8;
     for (i = 144; i < 256; i++) ll_lengths[i] = 9;
-    for (i = 256; i < 280; i++) ll_lengths[i] = 7;
-    for (i = 280; i < 288; i++) ll_lengths[i] = 8;
-    result += ll_lengths[256];
+    result += 7;
     for (i = lstart; i < lend; i++) {
       if (dists[i] == 0) {
         result += ll_lengths[litlens[i]];
       }
       else {
-        result += (13 - (litlens[i] > 2 && litlens[i] < 115));
-        //litlens[i] 0-2 8 3-114 7 else 8
+        result += 13 - (litlens[i] < 115);
         result += ZopfliGetLengthExtraBits(litlens[i]);
         result += ZopfliGetDistExtraBits(dists[i]);
       }
     }
     return result;
-
-
   } else {
     unsigned d_lengths[32];
-    unsigned dummy = 0;
+    unsigned dummy;
     if (entropysplit){
       result += GetDynamicLengths2(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
     } else{
@@ -964,7 +959,7 @@ static void AddLZ77Block(int btype, int final,
     for (i = 256; i < 280; i++) ll_lengths[i] = 7;
     for (i = 280; i < 288; i++) ll_lengths[i] = 8;
     for (i = 0; i < 32; i++) d_lengths[i] = 5;
-    outpred = ZopfliCalculateBlockSize(litlens, dists, 0, lend, btype, hq, 0, 0);
+    outpred = ZopfliCalculateBlockSize(litlens, dists, 0, lend, 1, 0, 0, 0);
   } else{
     /* Dynamic block. */
     outpred = 3;
