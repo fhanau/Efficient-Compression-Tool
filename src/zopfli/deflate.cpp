@@ -470,12 +470,102 @@ static void AddLZ77Data(const unsigned short* litlens,
   assert(testlength == expected_data_size);
 }
 
-//From brotli.
+static size_t AbsDiff(size_t x, size_t y) {
+  if (x > y)
+    return x - y;
+  else
+    return y - x;
+}
 /*
  Change the population counts in a way that the consequent Hufmann tree
  compression, especially its rle-part will be more likely to compress this data
  more efficiently. length containts the size of the histogram.
  */
+static void OptimizeHuffmanCountsForRlezop(int length, size_t* counts) {
+  int i, k, stride;
+  size_t symbol, sum, limit;
+  int* good_for_rle;
+
+
+  /* 1) We don't want to touch the trailing zeros. We may break the
+   rules of the format by adding more data in the distance codes. */
+  for (; length >= 0; --length) {
+    if (length == 0) {
+      return;
+    }
+    if (counts[length - 1] != 0) {
+      /* Now counts[0..length - 1] does not have trailing zeros. */
+      break;
+    }
+  }
+
+  /* 2) Let's mark all population counts that already can be encoded
+   with an rle code.*/
+  good_for_rle = (int*)malloc(length * sizeof(int));
+  for (i = 0; i < length; ++i) good_for_rle[i] = 0;
+
+  /* Let's not spoil any of the existing good rle codes.
+   Mark any seq of 0's that is longer than 5 as a good_for_rle.
+   Mark any seq of non-0's that is longer than 7 as a good_for_rle.*/
+  symbol = counts[0];
+  stride = 0;
+  for (i = 0; i < length + 1; ++i) {
+    if (i == length || counts[i] != symbol) {
+      if ((symbol == 0 && stride >= 5) || (symbol != 0 && stride >= 7)) {
+        for (k = 0; k < stride; ++k) {
+          good_for_rle[i - k - 1] = 1;
+        }
+      }
+      stride = 1;
+      if (i != length) {
+        symbol = counts[i];
+      }
+    } else {
+      ++stride;
+    }
+  }
+
+  /* 3) Let's replace those population counts that lead to more rle codes. */
+  stride = 0;
+  limit = counts[0];
+  sum = 0;
+  for (i = 0; i < length + 1; ++i) {
+    if (i == length || good_for_rle[i]
+        /* Heuristic for selecting the stride ranges to collapse. */
+        || AbsDiff(counts[i], limit) >= 4) {
+      if (stride >= 4) {
+        /* The stride must end, collapse what we have, if we have enough (4). */
+        int count = (sum + stride / 2) / stride;
+        if (count < 1 && sum) count = 1;
+        for (k = 0; k < stride; ++k) {
+          /* We don't want to change value at counts[i],
+           that is already belonging to the next stride. Thus - 1. */
+          counts[i - k - 1] = count;
+        }
+      }
+      stride = 0;
+      sum = 0;
+      if (i < length - 3) {
+        /* All interesting strides have a count of at least 4,
+         at least when non-zeros. */
+        limit = (counts[i] + counts[i + 1] +
+                 counts[i + 2] + counts[i + 3] + 2) / 4;
+      } else if (i < length) {
+        limit = counts[i];
+      } else {
+        limit = 0;
+      }
+    }
+    ++stride;
+    if (i != length) {
+      sum += counts[i];
+    }
+  }
+
+  free(good_for_rle);
+}
+
+//From brotli.
 void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
   // Let's make the Huffman code more compatible with rle encoding.
   for (;; --length) {
@@ -525,7 +615,7 @@ void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
     if (i == length || good_for_rle[i] ||
         (i && good_for_rle[i - 1]) ||
         labs(((long)(256 * counts[i])) - limit) >= streak_limit) {
-      if (stride >= 4 || (stride >= 3 && sum == 0)) {
+      if (stride >= 4) {
         // The stride must end, collapse what we have, if we have enough (4).
         int count = (sum + stride / 2) / stride;
         if (count < 1 && sum) {
@@ -604,11 +694,15 @@ static size_t GetAdvancedLengths(const unsigned short* litlens,
   size_t d_counts[32];
   size_t ll_counts2[288];
   size_t d_counts2[32];
+  size_t ll_counts3[288];
+  size_t d_counts3[32];
   unsigned dummy;
 
   ZopfliLZ77Counts(litlens, dists, lstart, lend, ll_counts, d_counts, symbols);
   memcpy(ll_counts2, ll_counts, 288 * sizeof(size_t));
   memcpy(d_counts2, d_counts, 32 * sizeof(size_t));
+  memcpy(ll_counts3, ll_counts, 288 * sizeof(size_t));
+  memcpy(d_counts3, d_counts, 32 * sizeof(size_t));
 
   OptimizeHuffmanCountsForRle(32, d_counts);
   OptimizeHuffmanCountsForRle(288, ll_counts);
@@ -618,14 +712,28 @@ static size_t GetAdvancedLengths(const unsigned short* litlens,
   unsigned nix = CalculateTreeSize(ll_lengths, d_lengths, 2, &dummy);
   best += nix;
 
-  size_t next = 0;
-
   size_t* lcounts = ll_counts;
   size_t* dcounts = d_counts;
 
-  unsigned ll_lengths2[288] = {0};
-  unsigned d_lengths2[32] = {0};
-  unsigned nextnix;
+
+  unsigned ll_lengths2[288];
+  unsigned d_lengths2[32];
+  OptimizeHuffmanCountsForRlezop(32, d_counts3);
+  OptimizeHuffmanCountsForRlezop(288, ll_counts3);
+  ZopfliLengthLimitedCodeLengths(ll_counts3, 288, 15, ll_lengths2);
+  ZopfliLengthLimitedCodeLengths(d_counts3, 32, 15, d_lengths2);
+  size_t next = CalculateBlockSymbolSize(ll_counts2, d_counts2, ll_lengths2, d_lengths2);
+  unsigned nextnix = CalculateTreeSize(ll_lengths2, d_lengths2, 2, &dummy);
+  next += nextnix;
+
+  if(next < best){
+    best = next;
+    lcounts = ll_counts3;
+    dcounts = d_counts3;
+    memcpy(ll_lengths, ll_lengths2, sizeof(unsigned) * 286);
+    memcpy(d_lengths, d_lengths2, sizeof(unsigned) * 30);
+    nix = nextnix;
+  }
 
   ZopfliLengthLimitedCodeLengths(ll_counts2, 288, 15, ll_lengths2);
   ZopfliLengthLimitedCodeLengths(d_counts2, 32, 15, d_lengths2);
