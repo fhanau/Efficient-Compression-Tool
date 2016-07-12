@@ -331,8 +331,9 @@ static size_t EncodeTree(const unsigned* ll_lengths,
 /*
 Gives the exact size of the tree, in bits, as it will be encoded in DEFLATE.
 */
-static size_t CalculateTreeSize(const unsigned* ll_lengths,
-                                const unsigned* d_lengths, unsigned char hq, unsigned* best) {
+size_t CalculateTreeSize(const unsigned* ll_lengths,
+                                unsigned* d_lengths, unsigned char hq, unsigned* best) {
+  PatchDistanceCodesForBuggyDecoders(d_lengths);
   size_t result = 0;
   if (hq){
     for(unsigned i = 0; i < (hq == 2 ? 32 : 10); i++) {
@@ -560,6 +561,35 @@ void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
   free(good_for_rle);
 }
 
+static size_t CalculateBlockSymbolSize(const size_t* ll_counts, const size_t* d_counts, const unsigned* ll_lengths, const unsigned* d_lengths){
+  size_t result = 0;
+  size_t i = 0;
+  for (i = 0; i < 286; i++){
+    result += ll_lengths[i] * ll_counts[i];
+  }
+  for (i = 265; i < 269; i++){
+    result += ll_counts[i];
+  }
+  for (i = 269; i < 273; i++){
+    result += ll_counts[i] * 2;
+  }
+  for (i = 273; i < 277; i++){
+    result += ll_counts[i] * 3;
+  }
+  for (i = 277; i < 281; i++){
+    result += ll_counts[i] * 4;
+  }
+  for (i = 281; i < 285; i++){
+    result += ll_counts[i] * 5;
+  }
+  for (i = 0; i < 30; i++){
+    result += d_lengths[i] * d_counts[i];
+  }
+  for (i = 4; i < 30; i++){
+    result += ((i - 2) / 2) * d_counts[i];
+  }
+  return result;
+}
 /*
 Calculates the bit lengths for the symbols for dynamic blocks. Chooses bit
 lengths that give the smallest size of tree encoding + encoding of all the
@@ -584,33 +614,7 @@ static size_t GetAdvancedLengths(const unsigned short* litlens,
   OptimizeHuffmanCountsForRle(288, ll_counts);
   ZopfliLengthLimitedCodeLengths(ll_counts, 288, 15, ll_lengths);
   ZopfliLengthLimitedCodeLengths(d_counts, 32, 15, d_lengths);
-  PatchDistanceCodesForBuggyDecoders(d_lengths);
-  size_t best = 0;
-  unsigned i;
-  for (i = 0; i < 286; i++){
-    best += ll_lengths[i] * ll_counts2[i];
-  }
-  for (i = 265; i < 269; i++){
-    best += ll_counts2[i];
-  }
-  for (i = 269; i < 273; i++){
-    best += ll_counts2[i] * 2;
-  }
-  for (i = 273; i < 277; i++){
-    best += ll_counts2[i] * 3;
-  }
-  for (i = 277; i < 281; i++){
-    best += ll_counts2[i] * 4;
-  }
-  for (i = 281; i < 285; i++){
-    best += ll_counts2[i] * 5;
-  }
-  for (i = 0; i < 30; i++){
-    best += d_lengths[i] * d_counts2[i];
-  }
-  for (i = 4; i < 30; i++){
-    best += ((i - 2) / 2) * d_counts2[i];
-  }
+  size_t best = CalculateBlockSymbolSize(ll_counts2, d_counts2, ll_lengths, d_lengths);
   unsigned nix = CalculateTreeSize(ll_lengths, d_lengths, 2, &dummy);
   best += nix;
 
@@ -625,31 +629,7 @@ static size_t GetAdvancedLengths(const unsigned short* litlens,
 
   ZopfliLengthLimitedCodeLengths(ll_counts2, 288, 15, ll_lengths2);
   ZopfliLengthLimitedCodeLengths(d_counts2, 32, 15, d_lengths2);
-  PatchDistanceCodesForBuggyDecoders(d_lengths2);
-  for (i = 0; i < 286; i++){
-    next += ll_lengths2[i] * ll_counts2[i];
-  }
-  for (i = 265; i < 269; i++){
-    next += ll_counts2[i];
-  }
-  for (i = 269; i < 273; i++){
-    next += ll_counts2[i] * 2;
-  }
-  for (i = 273; i < 277; i++){
-    next += ll_counts2[i] * 3;
-  }
-  for (i = 277; i < 281; i++){
-    next += ll_counts2[i] * 4;
-  }
-  for (i = 281; i < 285; i++){
-    next += ll_counts2[i] * 5;
-  }
-  for (i = 0; i < 30; i++){
-    next += d_lengths2[i] * d_counts2[i];
-  }
-  for (i = 4; i < 30; i++){
-    next += ((i - 2) / 2) * d_counts2[i];
-  }
+  next = CalculateBlockSymbolSize(ll_counts2, d_counts2, ll_lengths2, d_lengths2);
   nextnix = CalculateTreeSize(ll_lengths2, d_lengths2, 2, &dummy);
   next += nextnix;
 
@@ -664,34 +644,9 @@ static size_t GetAdvancedLengths(const unsigned short* litlens,
 
   unsigned maxbits = 15;
   while(--maxbits > 8){
-    next = 0;
     ZopfliLengthLimitedCodeLengths(lcounts, 288, maxbits, ll_lengths2);
     ZopfliLengthLimitedCodeLengths(dcounts, 32, maxbits, d_lengths2);
-    PatchDistanceCodesForBuggyDecoders(d_lengths2);
-    for (i = 0; i < 286; i++){
-      next += ll_lengths2[i] * ll_counts2[i];
-    }
-    for (i = 265; i < 269; i++){
-      next += ll_counts2[i];
-    }
-    for (i = 269; i < 273; i++){
-      next += ll_counts2[i] * 2;
-    }
-    for (i = 273; i < 277; i++){
-      next += ll_counts2[i] * 3;
-    }
-    for (i = 277; i < 281; i++){
-      next += ll_counts2[i] * 4;
-    }
-    for (i = 281; i < 285; i++){
-      next += ll_counts2[i] * 5;
-    }
-    for (i = 0; i < 30; i++){
-      next += d_lengths2[i] * d_counts2[i];
-    }
-    for (i = 4; i < 30; i++){
-      next += ((i - 2) / 2) * d_counts2[i];
-    }
+    next = CalculateBlockSymbolSize(ll_counts2, d_counts2, ll_lengths2, d_lengths2);
     nextnix = CalculateTreeSize(ll_lengths2, d_lengths2, 2, &dummy);
     next += nextnix;
 
@@ -727,35 +682,7 @@ static size_t GetDynamicLengths(const unsigned short* litlens,
 
   ZopfliLengthLimitedCodeLengths(ll_counts, 288, 15, ll_lengths);
   ZopfliLengthLimitedCodeLengths(d_counts, 32, 15, d_lengths);
-  PatchDistanceCodesForBuggyDecoders(d_lengths);
-
-  size_t result = 0;
-  unsigned i;
-  for (i = 0; i < 286; i++){
-    result += ll_lengths[i] * ll_counts2[i];
-  }
-  for (i = 265; i < 269; i++){
-    result += ll_counts2[i];
-  }
-  for (i = 269; i < 273; i++){
-    result += ll_counts2[i] * 2;
-  }
-  for (i = 273; i < 277; i++){
-    result += ll_counts2[i] * 3;
-  }
-  for (i = 277; i < 281; i++){
-    result += ll_counts2[i] * 4;
-  }
-  for (i = 281; i < 285; i++){
-    result += ll_counts2[i] * 5;
-  }
-  for (i = 0; i < 30; i++){
-    result += d_lengths[i] * d_counts2[i];
-  }
-  for (i = 4; i < 30; i++){
-    result += ((i - 2) / 2) * d_counts2[i];
-  }
-  return result;
+  return CalculateBlockSymbolSize(ll_counts2, d_counts2, ll_lengths, d_lengths);
 }
 
 static double ZopfliCalculateEntropy2(const size_t* count, size_t n, unsigned* lengths) {
@@ -1008,15 +935,11 @@ static void AddLZ77Block(int btype, int final,
     if(advanced){
       outpred = *outsize * 8 + *bp -((*bp != 0) * 8) + GetAdvancedLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 0);
       outpred += CalculateTreeSize(ll_lengths, d_lengths, 2, &best);
-      EncodeTree(ll_lengths, d_lengths,
-                 best & 1, best & 2, best & 4, best & 8 , best & 16,
-                 bp, *out, outsize);
     }
-    else{
-      EncodeTree(ll_lengths, d_lengths,
-                 best & 1, best & 2, best & 4, best & 8 , best & 16 || (hq == 1 && best == 9),
-                 bp, *out, outsize);
-    }
+    PatchDistanceCodesForBuggyDecoders(d_lengths);
+    EncodeTree(ll_lengths, d_lengths,
+               best & 1, best & 2, best & 4, best & 8 , best & 16 || (hq == 1 && best == 9),
+               bp, *out, outsize);
   }
   ZopfliLengthsToSymbols(ll_lengths, 288, 15, ll_symbols);
   ZopfliLengthsToSymbols(d_lengths, 32, 15, d_symbols);
