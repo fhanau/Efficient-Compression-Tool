@@ -3848,7 +3848,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
         for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
       }
     }
-		free(dummy);
+    free(dummy);
     if(clean){
       free(prevlinebuf);
       free(linebuf);

@@ -808,15 +808,16 @@ static double ZopfliCalculateEntropy2(const size_t* count, size_t n, unsigned* l
     /* When the count of the symbol is 0, but its cost is requested anyway, it
      means the symbol will appear at least once anyway, so give it the cost as if
      its count is 1.*/
-    if (!count[i]) lengths[i] = log2sum;//TODO: log2sum for ENWIK, 0 for PNG. Makes a big difference
+    float val;
+    if (!count[i]) val = log2sum;//TODO: log2sum for ENWIK, 0 for PNG. Makes a big difference
     else {
-      float val = log2sum - log2f(count[i]);
-      if (val > 15){
-        val = 15;
-      }
-      lengths[i] = val;
-      result += val * count[i];
+      val = log2sum - log2f(count[i]);
     }
+    if (val > 15){
+      val = 15;
+    }
+    lengths[i] = val;
+    result += val * count[i];
   }
   return result;
 }
@@ -864,15 +865,14 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
 
   if(btype == 1) {
     size_t i;
-    for (i = 0; i < 144; i++) ll_lengths[i] = 8;
-    for (i = 144; i < 256; i++) ll_lengths[i] = 9;
     result += 7;
+    result += 8 * (lend - lstart);
     for (i = lstart; i < lend; i++) {
       if (dists[i] == 0) {
-        result += ll_lengths[litlens[i]];
+        result += litlens[i] > 144;
       }
       else {
-        result += 13 - (litlens[i] < 115);
+        result += 5 - (litlens[i] < 115);
         result += ZopfliGetLengthExtraBits(litlens[i]);
         result += ZopfliGetDistExtraBits(dists[i]);
       }
@@ -881,13 +881,9 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
   } else {
     unsigned d_lengths[32];
     unsigned dummy;
-    if (entropysplit){
-      result += GetDynamicLengths2(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
-    } else{
-      //TODO: Better for PNG, worse for enwik
-      //result += GetAdvancedLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
-      result += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
-    }
+    //TODO: Better for PNG, worse for enwik
+    //result += GetAdvancedLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
+    result += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
     result += CalculateTreeSize(ll_lengths, d_lengths, hq, &dummy);
     return result;
   }
@@ -998,8 +994,6 @@ static void AddLZ77Block(int btype, int final,
     outpred = 3;
     outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 0);
     outpred += CalculateTreeSize(ll_lengths, d_lengths, hq, &best);
-  }
-  if (btype == 2){
 
     unsigned char change = 1;
     for (unsigned i = 0; i < replaceCodes; i++){
@@ -1017,7 +1011,7 @@ static void AddLZ77Block(int btype, int final,
         }
       }
       else{
-        //TODO: This may make compression worse due to longer huffman headers.
+        //TODO: This may make compression worse due to bigger huffman headers.
         outpred = 3;
         outpred += GetDynamicLengths(litlens, dists, 0, lend, ll_lengths, d_lengths, 0);
         if (replaceCodes - i < 3 || advanced){
@@ -1044,7 +1038,7 @@ static void AddLZ77Block(int btype, int final,
     }
     PatchDistanceCodesForBuggyDecoders(d_lengths);
     EncodeTree(ll_lengths, d_lengths,
-               best & 1, best & 2, best & 4, best & 8 , best & 16 || (hq == 1 && best == 9),
+               best & 1, best & 2, best & 4, best & 8 , best & 16 || (hq == 1 && best == 9 && !advanced),
                bp, *out, outsize);
   }
   ZopfliLengthsToSymbols(ll_lengths, 288, 15, ll_symbols);
