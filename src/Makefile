@@ -23,7 +23,7 @@ zlib:
 	ar rcs libz.a adler32.o crc32.o deflate.o inffast.o inflate.o inftrees.o trees.o zutil.o gzlib.o gzread.o
 libpng:
 	cd libpng/; \
-	$(CC) -c -I../zlib $(CFLAGS) png.c pngerror.c pngget.c pngmem.c pngread.c pngrio.c pngrtran.c pngrutil.c pngset.c pngtrans.c pngwio.c pngwrite.c pngwutil.c; \
+	$(CC) -c -I../zlib $(CFLAGS) -DPNG_USE_ABS png.c pngerror.c pngget.c pngmem.c pngread.c pngrio.c pngrtran.c pngrutil.c pngset.c pngtrans.c pngwio.c pngwrite.c pngwutil.c; \
 	ar rcs libpng.a png.o pngerror.o pngget.o pngmem.o pngread.o pngrio.o pngrtran.o pngrutil.o pngset.o pngtrans.o pngwio.o pngwrite.o pngwutil.o
 mozjpeg:
 	cd mozjpeg/; \
