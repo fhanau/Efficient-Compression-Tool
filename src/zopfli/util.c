@@ -238,7 +238,6 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned _mode, unsigned multithr
   options->isPNG = isPNG;
   options->reuse_costmodel = (!isPNG) && (!multithreading);
   options->useCache = 1;
-  options->midsplit = mode == 2;
   options->ultra = mode >= 7 + (options->numiterations > 60) + (options->numiterations > 90);
 
   options->replaceCodes = mode == 3 ? 3 : (2 * (mode > 5) + (mode == 9) * 18) * (!options->ultra || (mode == 9));

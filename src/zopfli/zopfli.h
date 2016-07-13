@@ -83,8 +83,6 @@ typedef struct ZopfliOptions {
   /*Use tuning for PNG files*/
   unsigned isPNG;
 
-  unsigned midsplit;
-
   /*Replace short lengths with literals if that improves compression. Higher numbers mean more aggressive behaviour.*/
   unsigned replaceCodes;
 

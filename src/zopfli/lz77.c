@@ -307,7 +307,7 @@ size_t ZopfliLZ77LazyLauncher(const unsigned char* in,
   ZopfliLZ77Lazy(&options, in,
                  instart, inend,
                  &store);
-  size_t ret = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, 0, 1, 0);
+  size_t ret = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, 0, 1);
   ZopfliCleanLZ77Store(&store);
   return ret;
 }

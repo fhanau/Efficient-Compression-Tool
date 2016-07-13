@@ -41,18 +41,44 @@ typedef struct SplitCostContext {
  Gets the cost which is the sum of the cost of the left and the right section
  of the data.
  */
-static double SplitCost(size_t i, SplitCostContext* c, double* first, double* second, unsigned char searchext, unsigned entropysplit) {
-  *first = ZopfliCalculateBlockSize(c->litlens, c->dists, c->start, i, 2, searchext, c->symbols, entropysplit);
-  *second = ZopfliCalculateBlockSize(c->litlens, c->dists, i, c->end, 2, searchext, c->symbols, entropysplit);
-  return *first + *second;
+static double SplitCost(size_t i, SplitCostContext* c, unsigned char searchext, unsigned entropysplit, const size_t* ll_count, const size_t* d_count) {
+  double result = 3;
+  unsigned ll_lengths[288];
+  unsigned d_lengths[32];
+  unsigned dummy;
+  if(i == c->end){
+    result += entropysplit ? GetDynamicLengths2(ll_lengths, d_lengths, ll_count, d_count) : GetDynamicLengthsuse(ll_lengths, d_lengths, ll_count, d_count);
+    result += CalculateTreeSize(ll_lengths, d_lengths, searchext, &dummy);
+    return result;
+  }
+  size_t ll_counts[288];
+  size_t d_counts[32];
+  ZopfliLZ77Counts(c->litlens, c->dists, c->start, i, ll_counts, d_counts, c->symbols);
+
+  result += entropysplit ? GetDynamicLengths2(ll_lengths, d_lengths, ll_counts, d_counts) : GetDynamicLengthsuse(ll_lengths, d_lengths, ll_counts, d_counts);
+  result += CalculateTreeSize(ll_lengths, d_lengths, searchext, &dummy);
+  result += 3;
+  for(size_t ix = 0; ix < 286; ix++){
+    ll_counts[ix] = ll_count[ix] - ll_counts[ix];
+  }
+  for(size_t ix = 0; ix < 30; ix++){
+    d_counts[ix] = d_count[ix] - d_counts[ix];
+  }
+  ll_counts[256] = 1;
+  result += entropysplit ? GetDynamicLengths2(ll_lengths, d_lengths, ll_counts, d_counts) : GetDynamicLengthsuse(ll_lengths, d_lengths, ll_counts, d_counts);
+  result += CalculateTreeSize(ll_lengths, d_lengths, searchext, &dummy);
+  return result;
 }
 
 /*
 Finds minimum of function f(i) where is is of type size_t, f(i) is of type
 double, i is in range start-end (excluding end).
 */
-static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, double* size, double* biggersize, const ZopfliOptions* options) {
-  double first, second;
+static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, unsigned char* enough, const ZopfliOptions* options) {
+  //Count LZ77 symbols once, then, on later runs, just for 1st potential block and substract
+  size_t ll_count[288];
+  size_t d_count[32];
+  ZopfliLZ77Counts(context->litlens, context->dists, context->start, context->end, ll_count, d_count, context->symbols);
 
   size_t startsize = end - start;
   /* Try to find minimum by recursively checking multiple points. */
@@ -67,12 +93,11 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, d
   double lastbest = ZOPFLI_LARGE_FLOAT;
   size_t pos = start;
   size_t ostart = start;
-  size_t oend = end;
   for (;;) {
     if (end - start <= options->num){
       if (options->numiterations > 50){
         for (unsigned j = 0; j < end - start; j++){
-          double cost = SplitCost(start + j, context, &first, &second, options->searchext & 2, options->entropysplit);
+          double cost = SplitCost(start + j, context, options->searchext & 2, options->entropysplit, ll_count, d_count);
           if (cost < best){
             best = cost;
             pos = start + j;
@@ -89,7 +114,7 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, d
         vp[i] = best;
         continue;
       }
-      vp[i] = SplitCost(p[i], context, &first, &second, options->searchext & 2, options->entropysplit);
+      vp[i] = SplitCost(p[i], context, options->searchext & 2, options->entropysplit, ll_count, d_count);
     }
     besti = 0;
     best = vp[0];
@@ -109,8 +134,13 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, d
     pos = p[besti];
     lastbest = best;
   }
-  *size = best;
-  *biggersize = oend - pos > pos - ostart ? second : first;
+  double origcost = SplitCost(context->end, context, options->searchext & 2, options->entropysplit, ll_count, d_count);
+  if(origcost <= best){
+    pos = ostart;
+  }
+  else if (options->entropysplit && best + 200 >= origcost){
+    *enough = 1;
+  }
   return pos;
 #undef NUM
 }
@@ -154,9 +184,7 @@ static int FindLargestSplittableBlock(
     size_t start = i == 0 ? 0 : splitpoints[i - 1];
     size_t end = i == npoints ? llsize - 1 : splitpoints[i];
     if (!done[start] && end - start > longest) {
-      int st = (*lstart == start);
-      int en = (*lend == end);
-      found = 1 + st + en;
+      found = 1;
       *lstart = start;
       *lend = end;
       longest = end - start;
@@ -173,9 +201,6 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
 
   size_t llpos;
   unsigned numblocks = 1;
-  double splitcost, origcost;
-  double prevcost = ZOPFLI_LARGE_FLOAT;
-  double nprevcost;
   int splittingleft = 0;
   unsigned char* done = (unsigned char*)calloc(llsize, 1);
   if (!done) exit(1); /* Allocation failed. */
@@ -194,26 +219,19 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
     c.end = lend;
     c.symbols = symbols;
     assert(lstart < lend);
-    llpos = FindMinimum(&c, lstart + 1, lend, &splitcost, &nprevcost, options);
-    assert(llpos > lstart);
+    unsigned char enough = 0;
+    llpos = FindMinimum(&c, lstart + 1, lend, &enough, options);
+    assert(llpos > lstart || !llpos);
     assert(llpos < lend);
 
-    if (prevcost == ZOPFLI_LARGE_FLOAT || splittingleft == 1 || options->num == 9){
-    origcost = ZopfliCalculateBlockSize(litlens, dists, lstart, lend, 2, options->searchext & 2, symbols, options->entropysplit);
-    }
-    else {
-      origcost = prevcost;
-    }
-    prevcost = nprevcost;
 
-    if (splitcost >= origcost || llpos == lstart + 1 || llpos == lend) {
+    if (llpos == lstart + 1 || llpos == lend) {
       done[lstart] = 1;
     } else {
       AddSorted(llpos, splitpoints, npoints);
       numblocks++;
-      if(splitcost + 200 >= origcost && options->midsplit){
+      if(enough){
         done[llpos] = 1;
-        //done[lstart] = 1; //Less compression loss
       }
     }
 
