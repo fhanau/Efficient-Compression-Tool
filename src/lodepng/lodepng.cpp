@@ -3622,6 +3622,14 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
   unsigned x, y;
   unsigned error = 0;
   LodePNGFilterStrategy strategy = settings->filter_strategy;
+  if(linebytes < 100 && settings->filter_style){
+    if(strategy == LFS_BRUTE_FORCE){
+      strategy = LFS_INCREMENTAL;
+    }
+    else if(strategy == LFS_INCREMENTAL){
+      strategy = LFS_BRUTE_FORCE;
+    }
+  }
 
   if(bpp == 0) return 31; /*error: invalid color type*/
 
