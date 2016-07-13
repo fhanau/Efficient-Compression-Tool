@@ -90,8 +90,7 @@ static void CountColors(std::set<unsigned>* unique, const unsigned char* image, 
 // Remove RGB information from pixels with alpha=0
 static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* image,
                                      unsigned w, unsigned h, int filter) {
-  //TODO: Only set "palette" when palette is actually used. Optimize for the filter actually used in the row. (Move into Lodepng?)
-  //      There are big improvements possible here.
+  //TODO: Only set "palette" when palette is actually used.
 
   std::set<unsigned> count;  // Color count, up to 257.
 
@@ -481,6 +480,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
     printf("Encoding error %u: %s\n", error, lodepng_error_text(error));
     return error;
   }
+  lodepng_color_mode_cleanup(&state.out_mode);
   return 0;
 }
 

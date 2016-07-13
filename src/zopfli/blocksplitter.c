@@ -274,6 +274,7 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
   if (inend - instart < options->noblocksplit){
     SymbolStats* statsp = (SymbolStats*)malloc(sizeof(SymbolStats));
     GetStatistics(&store, &statsp[0]);
+    ZopfliCleanLZ77Store(&store);
     *stats = statsp;
     return;
   }

@@ -47,14 +47,7 @@ typedef struct ZopfliOptions {
   */
   unsigned blocksplittingmax;
 
-  /*
-  Limit the max hash chain hits for this hash value. This has an effect only
-  on files where the hash value is the same very often. On these files, this
-  gives worse compression (the value should ideally be 32768, which is the
-  ZOPFLI_WINDOW_SIZE, while zlib uses 4096 even for best level), but makes it
-  faster on some specific files.
-  */
-  unsigned short filter_style;
+  unsigned filter_style;
 
   /* Don't try to use dynamic block under this size. */
   unsigned skipdynamic;
