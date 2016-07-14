@@ -981,12 +981,16 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
 
     LZ77OptimalRun(options, in, instart, inend, length_array, &stats, &currentstore, options->useCache ? i == 1 ? 1 : 2 : 0, &c, mfinexport, 0);
 
+    unsigned gui = 0;
     cost = ZopfliCalculateBlockSize(currentstore.litlens, currentstore.dists, 0, currentstore.size, 2, options->searchext, currentstore.symbols);
     if (cost < bestcost) {
       /* Copy to the output store. */
       ZopfliCopyLZ77Store(&currentstore, store);
       CopyStats(&stats, &beststats);
       bestcost = cost;
+    }
+    else{
+      gui = 1;
     }
     CopyStats(&stats, &laststats);
     GetStatistics(&currentstore, &stats);
@@ -1009,6 +1013,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
       lastrandomstep = i;
     }
     lastcost = cost;
+    if(gui && options->numiterations < 6){break;}
   }
 
   if (options->ultra){
