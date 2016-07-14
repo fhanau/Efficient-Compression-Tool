@@ -807,7 +807,7 @@ static void ZopfliCalculateEntropy(const size_t* count, size_t n, float* bitleng
     /* When the count of the symbol is 0, but its cost is requested anyway, it
      means the symbol will appear at least once anyway, so give it the cost as if
      its count is 1.*/
-    if (count[i] == 0) bitlengths[i] = log2sum;
+    if (count[i] == 0) bitlengths[i] = log2sum > 10 && n < 50 ? 10 : log2sum;
     else bitlengths[i] = log2sum - log2f(count[i]);
     /* Depending on compiler and architecture, the above subtraction of two
      floating point numbers may give a negative result very close to zero
