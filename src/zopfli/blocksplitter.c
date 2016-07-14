@@ -41,7 +41,7 @@ typedef struct SplitCostContext {
  Gets the cost which is the sum of the cost of the left and the right section
  of the data.
  */
-static double SplitCost(size_t i, SplitCostContext* c, unsigned char searchext, unsigned entropysplit, const size_t* ll_count, const size_t* d_count) {
+static double SplitCost(size_t i, SplitCostContext* c, unsigned char searchext, unsigned entropysplit, const size_t* ll_count, const size_t* d_count, const size_t* ll_count2, const size_t* d_count2, size_t pos2) {
   double result = 3;
   unsigned ll_lengths[288];
   unsigned d_lengths[32];
@@ -53,7 +53,34 @@ static double SplitCost(size_t i, SplitCostContext* c, unsigned char searchext, 
   }
   size_t ll_counts[288];
   size_t d_counts[32];
-  ZopfliLZ77Counts(c->litlens, c->dists, c->start, i, ll_counts, d_counts, c->symbols);
+  unsigned x = i - c->start < c->end - i;
+  unsigned dist = x ? i - c->start : c->end - i;
+  unsigned dist2 = i > pos2 ? i - pos2 : pos2 - i;
+  if(dist2 < dist && dist2){
+    x = i > pos2;
+    if(x){
+      ZopfliLZ77Counts(c->litlens, c->dists, pos2, i, ll_counts, d_counts, c->symbols);
+      for(size_t ix = 0; ix < 286; ix++){
+        ll_counts[ix] = ll_count2[ix] + ll_counts[ix];
+      }
+      for(size_t ix = 0; ix < 30; ix++){
+        d_counts[ix] = d_count2[ix] + d_counts[ix];
+      }
+    }
+    else{
+      ZopfliLZ77Counts(c->litlens, c->dists, i, pos2, ll_counts, d_counts, c->symbols);
+      for(size_t ix = 0; ix < 286; ix++){
+        ll_counts[ix] = ll_count2[ix] - ll_counts[ix];
+      }
+      for(size_t ix = 0; ix < 30; ix++){
+        d_counts[ix] = d_count2[ix] - d_counts[ix];
+      }
+    }
+  }
+  else{
+    ZopfliLZ77Counts(c->litlens, c->dists, x ? c->start : i, x ? i : c->end, ll_counts, d_counts, c->symbols);
+  }
+  ll_counts[256] = 1;
 
   result += entropysplit ? GetDynamicLengths2(ll_lengths, d_lengths, ll_counts, d_counts) : GetDynamicLengthsuse(ll_lengths, d_lengths, ll_counts, d_counts);
   result += CalculateTreeSize(ll_lengths, d_lengths, searchext, &dummy);
@@ -78,7 +105,12 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, u
   //Count LZ77 symbols once, then, on later runs, just for 1st potential block and substract
   size_t ll_count[288];
   size_t d_count[32];
+  size_t ll_count2[288];
+  size_t d_count2[32];
   ZopfliLZ77Counts(context->litlens, context->dists, context->start, context->end, ll_count, d_count, context->symbols);
+  size_t pos2 = context->end - (context->end - context->start) / 2;
+  ZopfliLZ77Counts(context->litlens, context->dists, context->start, pos2, ll_count2, d_count2, context->symbols);
+
 
   size_t startsize = end - start;
   /* Try to find minimum by recursively checking multiple points. */
@@ -97,7 +129,7 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, u
     if (end - start <= options->num){
       if (options->numiterations > 50){
         for (unsigned j = 0; j < end - start; j++){
-          double cost = SplitCost(start + j, context, options->searchext & 2, options->entropysplit, ll_count, d_count);
+          double cost = SplitCost(start + j, context, options->searchext & 2, options->entropysplit, ll_count, d_count, ll_count2, d_count2, pos2);
           if (cost < best){
             best = cost;
             pos = start + j;
@@ -114,7 +146,7 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, u
         vp[i] = best;
         continue;
       }
-      vp[i] = SplitCost(p[i], context, options->searchext & 2, options->entropysplit, ll_count, d_count);
+      vp[i] = SplitCost(p[i], context, options->searchext & 2, options->entropysplit, ll_count, d_count, ll_count2, d_count2, pos2);
     }
     besti = 0;
     best = vp[0];
@@ -134,7 +166,7 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, u
     pos = p[besti];
     lastbest = best;
   }
-  double origcost = SplitCost(context->end, context, options->searchext & 2, options->entropysplit, ll_count, d_count);
+  double origcost = SplitCost(context->end, context, options->searchext & 2, options->entropysplit, ll_count, d_count, ll_count2, d_count2, pos2);
   if(origcost <= best){
     pos = ostart;
   }
