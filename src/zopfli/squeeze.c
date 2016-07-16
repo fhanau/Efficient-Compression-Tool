@@ -1045,7 +1045,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
         bestcost = newcost;
         ZopfliCopyLZ77Store(&peace, store);
         ZopfliCleanLZ77Store(&peace);
-        if(improv < 80 && options->numiterations < 20){
+        if(improv < 80 && options->numiterations < 30){
           break;
         }
       }
@@ -1090,6 +1090,9 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
             }
           }
         }
+        break;
+      }
+      if(options->numiterations < 16){
         break;
       }
     }
