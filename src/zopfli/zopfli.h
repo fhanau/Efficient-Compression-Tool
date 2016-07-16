@@ -41,12 +41,6 @@ typedef struct ZopfliOptions {
   */
   int numiterations;
 
-  /*
-  Maximum amount of blocks to split into (0 for unlimited, but this can give
-  extreme results that hurt compression on some files). Default value: 15.
-  */
-  unsigned blocksplittingmax;
-
   unsigned filter_style;
 
   /* Don't try to use dynamic block under this size. */

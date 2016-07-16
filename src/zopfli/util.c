@@ -202,14 +202,14 @@ unsigned ZopfliGetLengthSymbol(unsigned l) {
 
 static const ZopfliOptionsMin opt[8] =
 {
-  { 1, 0, 0,  10000,    0, 180, 2500},/* 2 */
-  { 1, 1, 0,   3000,    0, 180,  512},/* 3 */
-  { 2, 1, 0,   3000,    0, 180,  512},/* 4 */
-  { 4, 1, 0,   2000,    0, 180,  200},/* 5 */
-  { 8, 1, 0,    800,  800,  80,  200},/* 6 */
-  {13, 1, 1,    800, 1800,  80,  200},/* 7 */
-  {60, 2, 2,    800, 2000,  80,  120},/* 8 */
-  {60, 2, 3,    800, 3000,  80,  100} /* 9 */
+  { 1, 0, 0, 2000,    0, 180,  800}, /* 2 */
+  { 1, 1, 0, 2000,    0, 180,  512}, /* 3 */
+  { 2, 1, 0, 2000,    0, 180,  512}, /* 4 */
+  { 3, 1, 1, 2000,    0, 180,  200}, /* 5 */
+  { 8, 1, 1, 1300,  800,  80,  200}, /* 6 */
+  {13, 1, 1, 1000, 1800,  80,  200}, /* 7 */
+  {60, 1, 2,  800, 2000,  80,  120}, /* 8 */
+  {60, 2, 3,  800, 3000,  80,  100}  /* 9 */
 };
 
 void ZopfliInitOptions(ZopfliOptions* options, unsigned _mode, unsigned multithreading, unsigned isPNG) {
@@ -232,16 +232,14 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned _mode, unsigned multithr
   options->numiterations = _mode % 10000 > 9 ? _mode % 10000 : options->numiterations;
 
   options->num = mode < 6 ? 3 : 9;
-  options->blocksplittingmax = mode > 2 ? 0 : multithreading > 15 ? multithreading : 15;
 
+  options->replaceCodes = 1000 * (mode > 2) + 1;
   options->multithreading = multithreading;
   options->isPNG = isPNG;
   options->reuse_costmodel = (!isPNG) && (!multithreading);
   options->useCache = 1;
-  options->ultra = mode >= 7 + (options->numiterations > 60) + (options->numiterations > 90);
-
-  options->replaceCodes = mode == 3 ? 3 : (2 * (mode > 5) + (mode == 9) * 18) * (!options->ultra || (mode == 9));
+  options->ultra = mode >= 5 + (options->numiterations > 60) + (options->numiterations > 90);
   options->entropysplit = mode < 3;
   options->greed = isPNG ? mode > 3 ? 258 : 50 : 258;
-  options->advanced = mode >= 8;
+  options->advanced = mode >= 5;
 }

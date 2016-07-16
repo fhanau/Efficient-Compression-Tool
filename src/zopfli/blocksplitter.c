@@ -241,10 +241,6 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
   for (;;) {
     SplitCostContext c;
 
-    if (numblocks >= options->blocksplittingmax && options->blocksplittingmax) {
-      break;
-    }
-
     c.litlens = litlens;
     c.dists = dists;
     c.start = lstart;
