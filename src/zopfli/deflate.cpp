@@ -35,6 +35,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #ifndef NOMULTI
 #include <thread>
 #include <vector>
+#include <mutex>
 #endif
 
 /*
@@ -1114,11 +1115,23 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
 struct BlockData {
   int btype;
   ZopfliLZ77Store store;
-  size_t blocksize;
+  size_t start;
+  size_t end;
+  SymbolStats* statsp;
 };
 
 static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned char* in,
-                                 size_t instart, size_t inend, BlockData* store, SymbolStats* statsp) {
+                                 BlockData** instore, BlockData* blockend, std::mutex& mtx) {
+  mtx.lock();
+  BlockData* store = *instore;
+  if(store == blockend){
+    mtx.unlock();
+    return;
+  }
+  (*instore)++;
+  mtx.unlock();
+  size_t instart = store->start;
+  size_t inend = store->end;
   size_t blocksize = inend - instart;
   store->btype = 2;
 
@@ -1129,7 +1142,7 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
     ZopfliLZ77OptimalFixed(options, in, instart, inend, &store->store, 0);
   }
   else{
-    ZopfliLZ77Optimal2(options, in, instart, inend, &store->store, 1, statsp, 0);
+    ZopfliLZ77Optimal2(options, in, instart, inend, &store->store, 1, store->statsp, 0);
   }
 
   /* For small block, encoding with fixed tree can be smaller. For large block,
@@ -1149,6 +1162,7 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
       ZopfliCleanLZ77Store(&fixedstore);
     }
   }
+  DeflateDynamicBlock2(options, in, instore, blockend, mtx);
 }
 
 static void DeflateSplittingFirst2(const ZopfliOptions* options,
@@ -1157,30 +1171,32 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
                                   size_t instart, size_t inend,
                                   unsigned char* bp,
                                   unsigned char** out, size_t* outsize, unsigned threads, unsigned char twiceMode, ZopfliLZ77Store* twiceStore) {
-  std::vector<std::thread> multi (threads);
   size_t* splitpoints = 0;
   size_t npoints = 0;
   SymbolStats* statsp;
   ZopfliBlockSplit(options, in, instart, inend , &splitpoints, &npoints, &statsp, twiceMode, *twiceStore);
-  std::vector<BlockData> d (npoints + 1);
+  unsigned blocks_remaining = npoints + 1;
+
+  if(threads > blocks_remaining){
+    threads = blocks_remaining;
+  }
+  std::vector<std::thread> multi (threads);
+  std::vector<BlockData> d (blocks_remaining);
   size_t i;
 
-  for (i = 0; i <= npoints; i++) {
-    size_t start = i == 0 ? instart : splitpoints[i - 1];
-    size_t end = i == npoints ? inend : splitpoints[i];
-    d[i].blocksize = end - start;
-    multi[i % threads] = std::thread(DeflateDynamicBlock2,options, in, start, end, &d[i], &statsp[i]);
-
-    if (i % threads == threads - 1){
-      for (size_t j = 0; j < threads; j++){
-        multi[j].join();
-      }
-    }
-    else if (i == npoints){
-      for (size_t k = 0; k <= (i % threads); k++){
-        multi[k].join();
-      }
-    }
+  for (i = 0; i < blocks_remaining; i++) {
+    d[i].start = i == 0 ? instart : splitpoints[i - 1];
+    d[i].end = i == npoints ? inend : splitpoints[i];
+    d[i].statsp = &statsp[i];
+  }
+  BlockData* data = &d[0];
+  BlockData* blockend = data + blocks_remaining;
+  std::mutex mtx;
+  for (i = 0; i < threads; i++) {
+    multi[i % threads] = std::thread(DeflateDynamicBlock2,options, in, &data, blockend, std::ref(mtx));
+  }
+  for (size_t j = 0; j < threads; j++){
+    multi[j].join();
   }
 
   if (twiceMode & 1){
@@ -1199,10 +1215,11 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
   else{
     for (i = 0; i <= npoints; i++) {
       size_t start = i == 0 ? instart : splitpoints[i - 1];
+      size_t end = i == npoints ? inend : splitpoints[i];
 
       AddLZ77Block(d[i].btype, i == npoints && final,
                    d[i].store.litlens, d[i].store.dists, d[i].store.size,
-                   d[i].blocksize, bp, out, outsize, options->searchext, in, start, options->replaceCodes, options->advanced);
+                   end - start, bp, out, outsize, options->searchext, in, start, options->replaceCodes, options->advanced);
       if (!options->replaceCodes){
         ZopfliCleanLZ77Store(&d[i].store);
       }
