@@ -236,7 +236,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned _mode, unsigned multithr
   options->replaceCodes = 1000 * (mode > 2) + 1;
   options->multithreading = multithreading;
   options->isPNG = isPNG;
-  options->reuse_costmodel = (!isPNG) && (!multithreading);
+  options->reuse_costmodel = (!isPNG || mode > 6) && (!multithreading);
   options->useCache = 1;
   options->ultra = mode >= 5 + (options->numiterations > 60) + (options->numiterations > 90);
   options->entropysplit = mode < 3;
