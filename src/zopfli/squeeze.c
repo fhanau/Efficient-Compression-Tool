@@ -735,11 +735,12 @@ static void TraceBackwards(size_t size, const unsigned* length_array,
         (*path)[*pathsize] = length_array[size];
         (*pathsize)++;
         size -= (length_array[size] & 511);
-
+#ifdef __GNUC__
         __builtin_prefetch (&length_array[size - 102]);
         __builtin_prefetch (&length_array[size - 86]);
         __builtin_prefetch (&length_array[size - 70]);
         __builtin_prefetch (&length_array[size - 54]);
+#endif
       }
       space -= 64;
     }
