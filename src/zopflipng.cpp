@@ -480,7 +480,9 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
     printf("Encoding error %u: %s\n", error, lodepng_error_text(error));
     return error;
   }
-  lodepng_color_mode_cleanup(&state.out_mode);
+  if(best_filter != 6){
+    lodepng_color_mode_cleanup(&state.out_mode);
+  }
   return 0;
 }
 
