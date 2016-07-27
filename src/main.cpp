@@ -344,6 +344,9 @@ int main(int argc, const char * argv[]) {
             else if (strcmp(argv[i], "--allfilters-b") == 0) {Options.Allfiltersbrute = Options.Allfilters = true;}
             else if (strncmp(argv[i], "--pal_sort=", 11) == 0){
                 Options.palette_sort = atoi(argv[i] + 11) << 8;
+                if(Options.palette_sort > 120 << 8){
+                    Options.palette_sort = 120 << 8;
+                }
             }
 
 
