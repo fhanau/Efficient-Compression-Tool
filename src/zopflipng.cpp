@@ -541,7 +541,10 @@ int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int f
   lodepng::load_file(origpng, Infile);
   if (filter == 6){
     lodepng::getFilterTypes(filters, origpng);
-    assert(filters.size());
+    if(!filters.size()){
+      printf("Could not load PNG filters\n");
+      return 0;
+    }
   }
   std::vector<unsigned char> resultpng;
   if (ZopfliPNGOptimize(origpng, png_options, &resultpng, filter, filters, palette_filter)) {return -1;}
