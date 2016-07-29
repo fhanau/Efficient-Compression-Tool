@@ -232,7 +232,6 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
   if (llsize < options->noblocksplitlz) return;  /* This code fails on tiny files. */
 
   size_t llpos;
-  unsigned numblocks = 1;
   int splittingleft = 0;
   unsigned char* done = (unsigned char*)calloc(llsize, 1);
   if (!done) exit(1); /* Allocation failed. */
@@ -257,7 +256,6 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
       done[lstart] = 1;
     } else {
       AddSorted(llpos, splitpoints, npoints);
-      numblocks++;
       if(enough){
         done[llpos] = 1;
       }
@@ -296,11 +294,8 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
   size_t i;
   size_t* lz77splitpoints = 0;
   size_t nlz77points = 0;
+  size_t prevpoints = *npoints;
   ZopfliLZ77Store store;
-
-
-  *npoints = 0;
-  *splitpoints = 0;
 
   /* Unintuitively, Using a simple LZ77 method here instead of ZopfliLZ77Optimal
   results in better blocks. */
@@ -318,17 +313,16 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
 
   /* Blocksplitting likely wont improve compression on small files */
   if (inend - instart < options->noblocksplit){
-    SymbolStats* statsp = (SymbolStats*)malloc(sizeof(SymbolStats));
-    GetStatistics(&store, &statsp[0]);
+    *stats = (SymbolStats*)malloc(sizeof(SymbolStats));
+    GetStatistics(&store, *stats);
     ZopfliCleanLZ77Store(&store);
-    *stats = statsp;
     return;
   }
 
   ZopfliBlockSplitLZ77(store.litlens, store.dists, store.size, &lz77splitpoints, &nlz77points, options, store.symbols);
 
-  SymbolStats* statsp = (SymbolStats*)malloc((nlz77points + 1) * sizeof(SymbolStats));
-  if (!(statsp)){
+  *stats = (SymbolStats*)realloc(*stats, (nlz77points + prevpoints + 1) * sizeof(SymbolStats));
+  if (!(*stats)){
     exit(1);
   }
 
@@ -337,9 +331,9 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
   if (nlz77points) {
     for (i = 0; i < store.size; i++) {
       size_t length = store.symbols ? store.litlens[i] < 256 ? 1 : symtox(store.litlens[i] & 511) + (store.litlens[i] >> 9) : store.dists[i] == 0 ? 1 : store.litlens[i];
-      if (lz77splitpoints[*npoints] == i) {
+      if (lz77splitpoints[(*npoints) - prevpoints] == i) {
         size_t temp = store.size;
-        size_t shift = *npoints ? lz77splitpoints[*npoints - 1] : 0;
+        size_t shift = (*npoints) - prevpoints ? lz77splitpoints[*npoints - prevpoints - 1] : 0;
         store.size = i - shift;
         if (store.symbols){
           store.dists = (unsigned short*)(((unsigned char*)(store.dists)) + shift);
@@ -348,7 +342,7 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
           store.dists += shift;
         }
         store.litlens += shift;
-        GetStatistics(&store, &statsp[*npoints]);
+        GetStatistics(&store, &((*stats)[*npoints]));
         store.size = temp;
         if (store.symbols){
           store.dists = (unsigned short*)(((unsigned char*)(store.dists)) - shift);
@@ -358,14 +352,14 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
         }
         store.litlens -= shift;
         ZOPFLI_APPEND_DATA(pos, splitpoints, npoints);
-        if (*npoints == nlz77points) break;
+        if (*npoints - prevpoints == nlz77points) break;
       }
       pos += length;
     }
   }
-  assert(*npoints == nlz77points);
+  assert(*npoints - prevpoints == nlz77points);
 
-  size_t shift = *npoints ? lz77splitpoints[*npoints - 1] : 0;
+  size_t shift = *npoints - prevpoints ? lz77splitpoints[*npoints - prevpoints - 1] : 0;
   store.size -= shift;
   if (store.symbols){
     store.dists = (unsigned short*)(((unsigned char*)(store.dists)) + shift);
@@ -375,7 +369,7 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
   }
   store.litlens += shift;
 
-  GetStatistics(&store, &statsp[*npoints]);
+  GetStatistics(&store, &((*stats)[*npoints]));
   store.size += shift;
   if (store.symbols){
     store.dists = (unsigned short*)(((unsigned char*)(store.dists)) - shift);
@@ -387,5 +381,4 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
 
   free(lz77splitpoints);
   ZopfliCleanLZ77Store(&store);
-  *stats = statsp;
 }

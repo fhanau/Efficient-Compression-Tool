@@ -1165,32 +1165,31 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
   DeflateDynamicBlock2(options, in, instore, blockend, mtx);
 }
 
-static void DeflateSplittingFirst2(const ZopfliOptions* options,
-                                  int final,
-                                  const unsigned char* in,
-                                  size_t instart, size_t inend,
-                                  unsigned char* bp,
-                                  unsigned char** out, size_t* outsize, unsigned threads, unsigned char twiceMode, ZopfliLZ77Store* twiceStore) {
-  size_t* splitpoints = 0;
-  size_t npoints = 0;
-  SymbolStats* statsp;
-  ZopfliBlockSplit(options, in, instart, inend , &splitpoints, &npoints, &statsp, twiceMode, *twiceStore);
-  unsigned blocks_remaining = npoints + 1;
+static void DeflateSplittingFirst2(
+  const ZopfliOptions* options, int final,
+  const unsigned char* in, size_t inend,
+  unsigned char* bp, unsigned char** out, size_t* outsize,
+  size_t npoints, size_t* splitpoints, SymbolStats* statsp,
+ unsigned char twiceMode, ZopfliLZ77Store* twiceStore, size_t msize)
+{
+  size_t mnext = msize;
+  unsigned numblocks = npoints + 1;
 
-  if(threads > blocks_remaining){
-    threads = blocks_remaining;
+  unsigned threads = options->multithreading;
+  if(threads > numblocks){
+    threads = numblocks;
   }
   std::vector<std::thread> multi (threads);
-  std::vector<BlockData> d (blocks_remaining);
+  std::vector<BlockData> d (numblocks);
   size_t i;
 
-  for (i = 0; i < blocks_remaining; i++) {
-    d[i].start = i == 0 ? instart : splitpoints[i - 1];
+  for (i = 0; i < numblocks; i++) {
+    d[i].start = i == 0 ? 0 : splitpoints[i - 1];
     d[i].end = i == npoints ? inend : splitpoints[i];
     d[i].statsp = &statsp[i];
   }
   BlockData* data = &d[0];
-  BlockData* blockend = data + blocks_remaining;
+  BlockData* blockend = data + numblocks;
   std::mutex mtx;
   for (i = 0; i < threads; i++) {
     multi[i % threads] = std::thread(DeflateDynamicBlock2,options, in, &data, blockend, std::ref(mtx));
@@ -1200,21 +1199,34 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
   }
 
   if (twiceMode & 1){
-    ZopfliInitLZ77Store(twiceStore);
-    for(int j = 0; j < npoints + 1; j++){
+    int j = 0;
 
-      twiceStore->litlens = (unsigned short*)realloc(twiceStore->litlens, sizeof(unsigned short) * (twiceStore->size + d[j].store.size));
-      twiceStore->dists = (unsigned short*)realloc(twiceStore->dists, sizeof(unsigned short) * (twiceStore->size + d[j].store.size));
-      memcpy(twiceStore->litlens + twiceStore->size, d[j].store.litlens, d[j].store.size * sizeof(unsigned short));
-      memcpy(twiceStore->dists + twiceStore->size, d[j].store.dists, d[j].store.size * sizeof(unsigned short));
-      free(d[j].store.dists);
-      free(d[j].store.litlens);
-      twiceStore->size += d[j].store.size;
+    for(;;){
+      ZopfliInitLZ77Store(twiceStore);
+      for(; j < numblocks; j++){
+        twiceStore->litlens = (unsigned short*)realloc(twiceStore->litlens, sizeof(unsigned short) * (twiceStore->size + d[j].store.size));
+        twiceStore->dists = (unsigned short*)realloc(twiceStore->dists, sizeof(unsigned short) * (twiceStore->size + d[j].store.size));
+        memcpy(twiceStore->litlens + twiceStore->size, d[j].store.litlens, d[j].store.size * sizeof(unsigned short));
+        memcpy(twiceStore->dists + twiceStore->size, d[j].store.dists, d[j].store.size * sizeof(unsigned short));
+        free(d[j].store.dists);
+        free(d[j].store.litlens);
+        twiceStore->size += d[j].store.size;
+        if(d[j].end == mnext){
+          mnext += msize;
+          j++;
+          break;
+        }
+      }
+
+      if(j == numblocks){
+        break;
+      }
+      twiceStore++;
     }
   }
   else{
-    for (i = 0; i <= npoints; i++) {
-      size_t start = i == 0 ? instart : splitpoints[i - 1];
+    for (i = 0; i < numblocks; i++) {
+      size_t start = i == 0 ? 0 : splitpoints[i - 1];
       size_t end = i == npoints ? inend : splitpoints[i];
 
       AddLZ77Block(d[i].btype, i == npoints && final,
@@ -1228,6 +1240,57 @@ static void DeflateSplittingFirst2(const ZopfliOptions* options,
 
   free(splitpoints);
   free(statsp);
+}
+
+static void ZopfliDeflateMulti(const ZopfliOptions* options, int final,
+                               const unsigned char* in, const size_t insize,
+                               unsigned char* bp, unsigned char** out, size_t* outsize){
+  size_t msize = ZOPFLI_MASTER_BLOCK_SIZE;
+
+  if (!options->isPNG && options->numiterations == 1){
+    msize /= 5;
+  }
+  ZopfliLZ77Store* lf = 0;//!
+  ZopfliLZ77Store dummy;
+  if(options->twice){
+    lf = (ZopfliLZ77Store*)malloc(((insize / msize) + 1) * sizeof(ZopfliLZ77Store));
+    if(!lf){
+      return;
+    }
+  }
+
+  for (int it = 0; it <= options->twice; it++) {
+    size_t i = 0;
+    size_t npoints = 0;
+    size_t* splitpoints = 0;
+    SymbolStats* stats = 0;
+
+    unsigned mblocks = 0;
+    while (i < insize) {
+      if(it == 0 && options->twice){
+        ZopfliInitLZ77Store(lf + mblocks);
+      }
+
+      int masterfinal = (i + msize >= insize);
+      size_t size = masterfinal ? insize - i : msize;
+      ZopfliBlockSplit(options, in, i, i + size, &splitpoints, &npoints, &stats, 1 + (!!it), it ? lf[mblocks] : dummy);
+      if(i + size < insize){
+        ZOPFLI_APPEND_DATA(i + size, &splitpoints, &npoints);
+      }
+      //not sucking multithreading is possible by giving each thread chain of blocks, gets both costmodelreuse + mfinexport most of the time
+
+
+      mblocks++;
+      i += size;
+    }
+
+    DeflateSplittingFirst2(options, final, in, insize, bp,
+                           out, outsize, npoints, splitpoints, stats,
+                           options->twice && it != options->twice, lf, msize);
+  }
+  if(options->twice){
+    free(lf);
+  }
 }
 #endif
 
@@ -1292,16 +1355,7 @@ static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
                        const unsigned char* in, size_t instart, size_t inend,
                        unsigned char* bp, unsigned char** out,
                        size_t* outsize, unsigned char* costmodelnotinited, unsigned char twiceMode, ZopfliLZ77Store* twiceStore) {
-#ifndef NOMULTI
-  if (options->multithreading > 1){
-    DeflateSplittingFirst2(options, final, in, instart, inend, bp, out, outsize, options->multithreading, twiceMode, twiceStore);
-  }
-  else {
-#endif
-    DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize, costmodelnotinited, twiceMode, twiceStore);
-#ifndef NOMULTI
-  }
-#endif
+  DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize, costmodelnotinited, twiceMode, twiceStore);
 }
 
 void ZopfliDeflate(const ZopfliOptions* options, int final,
@@ -1314,12 +1368,18 @@ void ZopfliDeflate(const ZopfliOptions* options, int final,
     AddBits(0, 7, bp, *out, outsize);
     return;
   }
-  unsigned char costmodelnotinited = 1;
+#ifndef NOMULTI
+  if(options->multithreading > 1){
+    ZopfliDeflateMulti(options, final, in, insize, bp, out, outsize);
+    return;
+  }
+#endif
 #if ZOPFLI_MASTER_BLOCK_SIZE == 0
   ZopfliDeflatePart(options, final, in, 0, insize, bp, out, outsize, &costmodelnotinited);
 #else
   size_t i = 0;
   size_t msize = ZOPFLI_MASTER_BLOCK_SIZE;
+  unsigned char costmodelnotinited = 1;
   if (!options->isPNG && options->numiterations == 1){
     msize /= 5;
   }
