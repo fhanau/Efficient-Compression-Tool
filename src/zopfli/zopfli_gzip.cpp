@@ -34,7 +34,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 }
 
 static void ZopfliZipCompress(const ZopfliOptions* options,
-                              const unsigned char* in, size_t insize, std::string name,
+                              const unsigned char* in, size_t insize, time_t time, std::string name,
                               unsigned char** out, size_t* outsize) {
   static const unsigned char filePKh[10]     = { 80, 75,  3,  4, 20,  0,  2,  0,  8,  0};
   static const unsigned char CDIRPKh[12]     = { 80, 75,  1,  2, 20,  0, 20,  0,  2,  0,  8,  0};
@@ -49,12 +49,18 @@ static void ZopfliZipCompress(const ZopfliOptions* options,
   size_t max = x.size();
   *out = (unsigned char*)realloc(*out, 200);
 
+  struct tm* times = localtime(&time);
+  unsigned long dostime = times->tm_year < 80 ? 0x00210000 : times->tm_year > 207 ? 0xFF9FBF7D : (
+                            (times->tm_year - 80) << 25 | (times->tm_mon + 1) << 21 | times->tm_mday << 16
+                            | times->tm_hour << 11 | times->tm_min << 5 | times->tm_sec >> 1
+                          );
+
   /* File PK STATIC DATA + CM */
 
   for(i=0;i<sizeof(filePKh);++i) ZOPFLI_APPEND_DATA(filePKh[i],out,outsize);
 
   /* MS-DOS TIME */
-  for(i=0; i < 4; ++i) ZOPFLI_APPEND_DATA(0, out, outsize);
+  for(i=0;i<4;++i) ZOPFLI_APPEND_DATA((dostime >> (i*8)) % 256, out, outsize);
 
   /* CRC */
   for(i=0;i<4;++i) ZOPFLI_APPEND_DATA((crcvalue >> (i*8)) % 256, out, outsize);
@@ -86,7 +92,7 @@ static void ZopfliZipCompress(const ZopfliOptions* options,
 
   /* MS-DOS TIME, CRC, OSIZE, ISIZE FROM */
 
-  for(i=0; i < 4; ++i) ZOPFLI_APPEND_DATA(0, out, outsize);
+  for(i=0;i<4;++i) ZOPFLI_APPEND_DATA((dostime >> (i*8)) % 256, out, outsize);
 
   /* CRC */
   for(i=0;i<4;++i) ZOPFLI_APPEND_DATA((crcvalue >> (i*8)) % 256,out,outsize);
@@ -163,7 +169,7 @@ static void ZopfliCompress(const ZopfliOptions* options, ZopfliFormat output_typ
     ZopfliGzipCompress(options, in, insize, time, out, outsize);
   }
   else if (output_type == ZOPFLI_FORMAT_ZIP) {
-    ZopfliZipCompress(options, in, insize, name, out, outsize);
+    ZopfliZipCompress(options, in, insize, time, name, out, outsize);
   }
   else if (output_type == ZOPFLI_FORMAT_ZLIB) {
     //ZopfliZlibCompress(options, in, insize, out, outsize);
