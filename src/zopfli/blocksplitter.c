@@ -119,7 +119,6 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, u
   size_t p[NUM];
   double vp[NUM];
   double prevstore = -1;
-  double prevpos = ZOPFLI_LARGE_FLOAT;
   size_t besti;
   double best;
   double lastbest = ZOPFLI_LARGE_FLOAT;
@@ -142,7 +141,7 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, u
 
     for (i = 0; i < options->num; i++) {
       p[i] = start + (i + 1) * ((end - start) / (options->num + 1));
-      if (options->num % 2 && i == (options->num - 1) / 2 && prevstore != -1 && (prevpos == p[i]  || options->num == 3)){
+      if (pos == p[i] || (i == (options->num - 1) / 2 && prevstore != -1 && options->num == 3)){
         vp[i] = best;
         continue;
       }
@@ -155,7 +154,6 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, u
       if (vp[i] < best) {
         best = vp[i];
         besti = i;
-        prevpos = vp[i];
       }
     }
     if (best > lastbest) break;
@@ -251,7 +249,6 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
     assert(llpos > lstart || !llpos);
     assert(llpos < lend);
 
-
     if (llpos == lstart + 1 || llpos == lend) {
       done[lstart] = 1;
     } else {
@@ -260,7 +257,6 @@ static void ZopfliBlockSplitLZ77(const unsigned short* litlens,
         done[llpos] = 1;
       }
     }
-
 
     splittingleft = FindLargestSplittableBlock(llsize, done, *splitpoints, *npoints, &lstart, &lend);
     if (!splittingleft) {
