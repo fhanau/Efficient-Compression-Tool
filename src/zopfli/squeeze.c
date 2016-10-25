@@ -52,7 +52,7 @@ static void MixCostmodels(const SymbolStats* src, SymbolStats* prod, float share
 }
 
 /* Adds the bit lengths. */
-static void AddWeighedStatFreqs(const SymbolStats* stats1, float w1,
+static void AddWeightedStatFreqs(const SymbolStats* stats1, float w1,
                                 const SymbolStats* stats2, float w2,
                                 SymbolStats* result) {
   size_t i;
@@ -1004,7 +1004,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
       /* This makes it converge slower but better. Do it only once the
       randomness kicks in so that if the user does few iterations, it gives a
       better result sooner. */
-      AddWeighedStatFreqs(&stats, 1.0, &laststats, .5, &stats);
+      AddWeightedStatFreqs(&stats, 1.0, &laststats, .5, &stats);
       CalculateStatistics(&stats);
     }
     if (i > 6 && cost == lastcost) {

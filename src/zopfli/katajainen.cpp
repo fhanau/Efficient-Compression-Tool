@@ -160,13 +160,13 @@ void ZopfliLengthLimitedCodeLengths(const size_t* frequencies, int n, int maxbit
     bool operator()(const Node a, const Node b) {
       return (a.weight < b.weight);
     }
-  } cmpstable;
+  } cmp;
 
   /* Sort the leaves from lightest to heaviest. */
   for (i = 0; i < numsymbols; i++) {
     leaves[i].weight = (leaves[i].weight << 9) | leaves[i].count;
   }
-  std::sort(leaves, leaves + numsymbols, cmpstable);
+  std::sort(leaves, leaves + numsymbols, cmp);
 
   for (i = 0; i < numsymbols; i++) {
     leaves[i].weight >>= 9;

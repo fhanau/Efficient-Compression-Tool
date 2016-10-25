@@ -904,7 +904,7 @@ static unsigned char ReplaceBadCodes(unsigned short** litlens,
     unsigned char change = 0;
     size_t length = (*dists)[i] == 0 ? 1 : (*litlens)[i];
     if (length >= 3 && length <= 7){
-      //Check if the match is cheaper than several literals
+      /*Check if the match is cheaper than several literals*/
       const unsigned char* litplace = &in[pos - (*dists)[i]];
       unsigned litprice = 0;
       unsigned char cont = 1;
@@ -1277,9 +1277,6 @@ static void ZopfliDeflateMulti(const ZopfliOptions* options, int final,
       if(i + size < insize){
         ZOPFLI_APPEND_DATA(i + size, &splitpoints, &npoints);
       }
-      //not sucking multithreading is possible by giving each thread chain of blocks, gets both costmodelreuse + mfinexport most of the time
-
-
       mblocks++;
       i += size;
     }
