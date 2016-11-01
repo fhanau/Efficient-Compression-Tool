@@ -1,7 +1,7 @@
 CC = gcc
 CXX = g++
 CFLAGS = -Ofast -std=gnu11
-CXXFLAGS= -Ofast -std=gnu++11
+CXXFLAGS= -pthread -Ofast -std=gnu++11
 
 OBJECTS = blocksplitter.o codec.o image.o lz77.o opngreduc.o squeeze.o util.o LzFind.o
 CXXSRC = support.cpp zopflipng.cpp zopfli/deflate.cpp zopfli/zopfli_gzip.cpp zopfli/katajainen.cpp \
@@ -27,5 +27,6 @@ libpng:
 	ar rcs libpng.a png.o pngerror.o pngget.o pngmem.o pngread.o pngrio.o pngrtran.o pngrutil.o pngset.o pngtrans.o pngwio.o pngwrite.o pngwutil.o
 mozjpeg:
 	cd mozjpeg/; \
+	autoreconf --force --install; \
 	./configure --disable-shared --without-turbojpeg --without-java CC="$(CC)" CFLAGS="$(CFLAGS)"; \
 	make
