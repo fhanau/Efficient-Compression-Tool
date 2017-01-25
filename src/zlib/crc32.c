@@ -266,10 +266,14 @@ static void crc_fold(deflate_state * s,
     CRC_LOAD(s)
 
     if (len < 16) {
-        if (len == 0)
-            return;
-        xmm_crc_part = _mm_loadu_si128((__m128i *)src);
-        goto partial;
+      char __attribute__((aligned((16)))) partial_buf[16] = { 0 };
+
+      if (len == 0)
+        return;
+
+      memcpy(partial_buf, src, len);
+      xmm_crc_part = _mm_loadu_si128((const __m128i *)partial_buf);
+      goto partial;
     }
 
     algn_diff = 0 - (unsigned long)src & 0xF;

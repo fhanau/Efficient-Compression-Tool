@@ -27,12 +27,12 @@ const char* zError(int err)
 
 void* ZLIB_INTERNAL zcalloc (void* opaque, unsigned items, unsigned size)
 {
-    if (opaque) items += size - size; /* make compiler happy */
+    (void)opaque;
     return (void*)malloc(items * size);
 }
 
 void ZLIB_INTERNAL zcfree (void* opaque, void* ptr)
 {
+    (void)opaque;
     free(ptr);
-    if (opaque) return; /* make compiler happy */
 }
