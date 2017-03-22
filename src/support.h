@@ -16,4 +16,6 @@ bool exists(const char * Infile);
 
 bool writepermission (const char * Infile);
 
+bool isDirectory(const char *path);
+
 #endif /* defined(__Efficient_Compression_Tool__support__) */

@@ -26,3 +26,10 @@ bool exists(const char * Infile) {
 bool writepermission (const char * Infile) {
     return !access (Infile, W_OK);
 }
+
+bool isDirectory(const char *path) {
+  struct stat sb;
+  if (!stat(path, &sb))
+    return (sb.st_mode & S_IFDIR) != 0;
+  return false;
+}
