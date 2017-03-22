@@ -1,4 +1,5 @@
 #include "miniz.h"
+#include "../zlib/zlib.h"
 
 #include <string.h>
 #include <assert.h>
@@ -20,17 +21,6 @@
 #ifdef __cplusplus
   extern "C" {
 #endif
-
-// Karl Malbrain's compact CRC-32. See "A compact CCITT crc16 and crc32 C implementation that balances processor cache usage against speed": http://www.geocities.com/malbrain/
-mz_ulong mz_crc32(mz_ulong crc, const mz_uint8 *ptr, size_t buf_len)
-{
-  static const mz_uint32 s_crc32[16] = { 0, 0x1db71064, 0x3b6e20c8, 0x26d930ac, 0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,
-    0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c, 0x9b64c2b0, 0x86d3d2d4, 0xa00ae278, 0xbdbdf21c };
-  mz_uint32 crcu32 = (mz_uint32)crc;
-  if (!ptr) return MZ_CRC32_INIT;
-  crcu32 = ~crcu32; while (buf_len--) { mz_uint8 b = *ptr++; crcu32 = (crcu32 >> 4) ^ s_crc32[(crcu32 & 0xF) ^ (b & 0xF)]; crcu32 = (crcu32 >> 4) ^ s_crc32[(crcu32 & 0xF) ^ (b >> 4)]; }
-  return ~crcu32;
-}
 
 // ------------------- Low-level Decompression (completely independent from all compression API's)
 
@@ -1471,7 +1461,7 @@ mz_bool mz_zip_writer_add_mem_ex(mz_zip_archive *pZip, const char *pArchive_name
 
   if (!(level_and_flags & MZ_ZIP_FLAG_COMPRESSED_DATA))
   {
-    uncomp_crc32 = (mz_uint32)mz_crc32(MZ_CRC32_INIT, (const mz_uint8*)pBuf, buf_size);
+    uncomp_crc32 = (mz_uint32)crc32(MZ_CRC32_INIT, (const mz_uint8*)pBuf, buf_size);
     uncomp_size = buf_size;
     if (uncomp_size <= 3)
     {
@@ -1758,7 +1748,7 @@ mz_bool mz_zip_writer_end(mz_zip_archive *pZip)
 }
 
 #ifndef MINIZ_NO_STDIO
-mz_bool mz_zip_add_mem_to_archive_file_in_place(const char *pZip_filename, const char *pArchive_name, const void *pBuf, size_t buf_size, const void *pComment, mz_uint16 comment_size, mz_uint level_and_flags, unsigned long* files)
+mz_bool mz_zip_add_mem_to_archive_file_in_place(const char *pZip_filename, const char *pArchive_name, const void *pBuf, size_t buf_size, const void *pComment, mz_uint16 comment_size, mz_uint level_and_flags)
 {
   mz_bool status, created_new_archive = MZ_FALSE;
   mz_zip_archive zip_archive;
@@ -1784,20 +1774,17 @@ mz_bool mz_zip_add_mem_to_archive_file_in_place(const char *pZip_filename, const
       return MZ_FALSE;
     if(mz_zip_reader_locate_file(&zip_archive, pArchive_name, 0) != -1){
       printf("%s: File already present in archive\n", pArchive_name);
-      *files = zip_archive.m_total_files;
       mz_zip_reader_end(&zip_archive);
       return MZ_FALSE;
     }
     if (!mz_zip_writer_init_from_reader(&zip_archive, pZip_filename))
     {
-      *files = zip_archive.m_total_files;
       mz_zip_reader_end(&zip_archive);
       return MZ_FALSE;
     }
   }
 
   status = mz_zip_writer_add_mem_ex(&zip_archive, pArchive_name, pBuf, buf_size, pComment, comment_size, level_and_flags, 0, 0);
-  *files = zip_archive.m_total_files;
 
   // Always finalize, even if adding failed for some reason, so we have a valid central directory. (This may not always succeed, but we can try.)
   if (!mz_zip_writer_finalize_archive(&zip_archive))

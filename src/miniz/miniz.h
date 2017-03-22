@@ -61,8 +61,6 @@ extern "C" {
 #define MZ_ADLER32_INIT (1)
 
 #define MZ_CRC32_INIT (0)
-  // mz_crc32() returns the initial CRC-32 value to use when called with ptr==NULL.
-  mz_ulong mz_crc32(mz_ulong crc, const unsigned char *ptr, size_t buf_len);
 
   // Compression strategies.
   enum { MZ_DEFAULT_STRATEGY = 0, MZ_FILTERED = 1, MZ_HUFFMAN_ONLY = 2, MZ_RLE = 3, MZ_FIXED = 4 };
@@ -226,7 +224,7 @@ extern "C" {
 
   // mz_zip_add_mem_to_archive_file_in_place() efficiently (but not atomically) appends a memory blob to a ZIP archive.
   // level_and_flags - compression level (0-10, see MZ_BEST_SPEED, MZ_BEST_COMPRESSION, etc.) logically OR'd with zero or more mz_zip_flags, or just set to MZ_DEFAULT_COMPRESSION.
-  mz_bool mz_zip_add_mem_to_archive_file_in_place(const char *pZip_filename, const char *pArchive_name, const void *pBuf, size_t buf_size, const void *pComment, mz_uint16 comment_size, mz_uint level_and_flags, unsigned long* files);
+  mz_bool mz_zip_add_mem_to_archive_file_in_place(const char *pZip_filename, const char *pArchive_name, const void *pBuf, size_t buf_size, const void *pComment, mz_uint16 comment_size, mz_uint level_and_flags);
 
 #endif // #ifndef MINIZ_NO_ARCHIVE_WRITING_APIS
 
