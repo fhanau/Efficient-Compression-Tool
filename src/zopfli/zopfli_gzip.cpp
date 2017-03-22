@@ -264,3 +264,10 @@ int ZopfliGzip(const char* filename, const char* outname, unsigned mode, unsigne
   CompressFile(&options, ZIP ? ZOPFLI_FORMAT_ZIP : ZOPFLI_FORMAT_GZIP, filename, outname ? outname : ((std::string)filename).append(ZIP ? ".zip" : ".gz").c_str());
   return 0;
 }
+
+void ZopfliBuffer(unsigned mode, unsigned multithreading, const unsigned char* in, size_t insize, unsigned char** out, size_t* outsize) {
+  ZopfliOptions options;
+  ZopfliInitOptions(&options, mode, multithreading, 0);
+  unsigned char bp = 0;
+  ZopfliDeflate(&options, 1, in, insize, &bp, out, outsize);
+}
