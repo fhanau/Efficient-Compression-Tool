@@ -5,8 +5,7 @@
 
 #include "main.h"
 #include "support.h"
-
-#include <unistd.h>
+#include "miniz/miniz.h"
 
 #ifndef NOMULTI
 #include <thread>
@@ -48,7 +47,7 @@ static void Usage() {
 #ifdef BOOST_SUPPORTED
             " -recurse       Recursively search directories\n"
 #endif
-            " -zip           Compress file with  ZIP algorithm\n"
+            " -zip           Compress file(s) with  ZIP algorithm\n"
             " -gzip          Compress file with GZIP algorithm\n"
             " -quiet         Print only error messages\n"
             " -help          Print this help\n"
@@ -248,7 +247,7 @@ static void OptimizeMP3(const char * Infile, const ECTOptions& Options){
 }
 #endif
 
-static void fileHandler(const char * Infile, const ECTOptions& Options){
+void fileHandler(const char * Infile, const ECTOptions& Options, int internal){
     std::string Ext = Infile;
     std::string x = Ext.substr(Ext.find_last_of(".") + 1);
 
@@ -262,17 +261,18 @@ static void fileHandler(const char * Infile, const ECTOptions& Options){
         if (size < 1200000000) {//completely random value
             if (x == "PNG" || x == "png"){
                 OptimizePNG(Infile, Options);
+                static int m; printf("%d\n", ++m);
             }
             else if (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"){
                 OptimizeJPEG(Infile, Options);
             }
-            else if (Options.Gzip){
+            else if (Options.Gzip && !internal){
                 statcompressedfile = ECTGzip(Infile, Options.Mode, Options.DeflateMultithreading, size, Options.Zip);
                 if (statcompressedfile == 2){
                     return;
                 }
             }
-            if(Options.SavingsCounter){
+            if(Options.SavingsCounter && !internal){
                 processedfiles++;
                 bytes += size;
                 if (!statcompressedfile){
@@ -290,6 +290,132 @@ static void fileHandler(const char * Infile, const ECTOptions& Options){
         OptimizeMP3(Infile, Options);
     }
 #endif
+}
+
+static void zipHandler(std::vector<int> args, const char * argv[], int files, const ECTOptions& Options){
+    std::string extension = ((std::string)argv[args[0]]).substr(((std::string)argv[args[0]]).find_last_of(".") + 1);
+    std::string zipfilename = argv[args[0]];
+    unsigned long local_bytes = 0;
+    unsigned i = 0;
+    if(extension=="zip" || extension=="ZIP"){
+        i++;
+        if(exists(zipfilename.c_str())){
+            local_bytes += filesize(zipfilename.c_str());
+        }
+    }
+    else{
+        //Construct name
+        if(!isDirectory(argv[args[0]])
+#ifdef BOOST_SUPPORTED
+           && boost::filesystem::is_regular_file(argv[args[0]])
+#endif
+           ){
+            if(zipfilename.find_last_of(".") > zipfilename.find_last_of("/")) {
+                zipfilename = zipfilename.substr(0, zipfilename.find_last_of("."));
+            }
+        }
+        else if(zipfilename.back() == '/'){
+            zipfilename.pop_back();
+        }
+
+        zipfilename += ".zip";
+        if(exists(zipfilename.c_str())){
+            printf("Error: ZIP file for chosen file/folder already exists, but you didn't list it.\n");
+            return;
+        }
+    }
+
+    int error = 0;
+    for(; error == 0 && i < files; i++){
+        if(isDirectory(argv[args[i]])){
+#ifdef BOOST_SUPPORTED
+            std::string fold = boost::filesystem::canonical(argv[args[i]]).string();
+            int substr = boost::filesystem::path(fold).has_parent_path() ? boost::filesystem::path(fold).parent_path().string().length() + 1 : 0;
+
+            boost::filesystem::recursive_directory_iterator a(fold), b;
+            std::vector<boost::filesystem::path> paths(a, b);
+            for(unsigned j = 0; j < paths.size(); j++){
+                std::string newfile = paths[j].string();
+                const char* name = newfile.erase(0, substr).c_str();
+
+                if(isDirectory(paths[j].string().c_str())){
+                    //Only add dir if it is empty to minimize filesize
+                    std::string next = paths[j + 1].string();
+                    if (next.compare(0, paths[j].string().size() + 1, paths[j].string() + "/") != 0 && !mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), ((std::string)name + "/").c_str(), 0, 0, 0, 0, -1)) {
+                        printf("can't add directory '%s'\n", argv[args[i]]);
+                    }
+                }
+                else{
+                    int f = filesize(paths[j].string().c_str());
+                    char* file = (char*)malloc(f);
+                    if(!file){
+                        exit(1);
+                    }
+                    FILE * stream = fopen (paths[j].string().c_str(), "rb");
+                    if (!stream){
+                        free(file); error = 1; continue;
+                    }
+                    if (fread(file, 1, f, stream) != f){
+                        fclose(stream); free(file); error = 1; continue;
+                    }
+                    fclose(stream);
+                    if(!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), name, file, f, 0, 0, -1)){
+                        printf("can't add file '%s'\n", paths[j].string().c_str());
+                        free(file); error = 1; continue;
+                    }
+                    else{
+                        local_bytes += filesize(paths[j].string().c_str());
+                    }
+                    free(file);
+                }
+            }
+            if(!paths.size()){
+                if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), (fold.erase(0, substr) + "/").c_str(), 0, 0, 0, 0, -1)) {
+                    printf("can't add directory '%s'", argv[args[i]]);
+                }
+            }
+#else
+            printf("%s: Zipping folders is not supported\n", argv[args[i]]);
+#endif
+        }
+        else{
+
+            const char* fname = argv[args[i]];
+            int f = filesize(fname);
+            char* file = (char*)malloc(f);
+            if(!file){
+                exit(1);
+            }
+
+            FILE * stream = fopen (fname, "rb");
+            if (!stream){
+                free(file); error = 1; continue;
+            }
+            int v;
+            if ((v = fread(file, 1, f, stream)) != f){
+                printf("%d\n", v);
+                fclose(stream); free(file); error = 1; continue;
+            }
+
+            fclose(stream);
+            if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), ((std::string)argv[args[i]]).substr(((std::string)argv[args[i]]).find_last_of("/\\") + 1).c_str(), file, f, 0, 0, -1)
+                ) {
+                printf("can't add file '%s'", argv[0]);
+                free(file); error = 1; continue;
+            }
+            else{
+                local_bytes += filesize(argv[args[i]]);
+            }
+
+            free(file);
+
+        }
+    }
+
+    ReZipFile(zipfilename.c_str(), Options, &processedfiles);
+
+    bytes += local_bytes;
+    savings += local_bytes - filesize(zipfilename.c_str());
 }
 
 int main(int argc, const char * argv[]) {
@@ -366,29 +492,34 @@ int main(int argc, const char * argv[]) {
         if(Options.Reuse){
             Options.Allfilters = 0;
         }
-        for (int j = 0; j < files; j++){
+        if(Options.Zip){
+            zipHandler(args, argv, files, Options);
+        }
+        else {
+            for (int j = 0; j < files; j++){
 #ifdef BOOST_SUPPORTED
-            if (boost::filesystem::is_regular_file(argv[args[j]])){
-                fileHandler(argv[args[j]], Options);
-            }
-            else if (boost::filesystem::is_directory(argv[args[j]])){
-                if(Options.Recurse){boost::filesystem::recursive_directory_iterator a(argv[args[j]]), b;
-                    std::vector<boost::filesystem::path> paths(a, b);
-                    for(unsigned i = 0; i < paths.size(); i++){
-                        fileHandler(paths[i].string().c_str(), Options);
+                if (boost::filesystem::is_regular_file(argv[args[j]])){
+                    fileHandler(argv[args[j]], Options, 0);
+                }
+                else if (boost::filesystem::is_directory(argv[args[j]])){
+                    if(Options.Recurse){boost::filesystem::recursive_directory_iterator a(argv[args[j]]), b;
+                        std::vector<boost::filesystem::path> paths(a, b);
+                        for(unsigned i = 0; i < paths.size(); i++){
+                            fileHandler(paths[i].string().c_str(), Options, 0);
+                        }
+                    }
+                    else{
+                        boost::filesystem::directory_iterator a(argv[args[j]]), b;
+                        std::vector<boost::filesystem::path> paths(a, b);
+                        for(unsigned i = 0; i < paths.size(); i++){
+                            fileHandler(paths[i].string().c_str(), Options, 0);
+                        }
                     }
                 }
-                else{
-                    boost::filesystem::directory_iterator a(argv[args[j]]), b;
-                    std::vector<boost::filesystem::path> paths(a, b);
-                    for(unsigned i = 0; i < paths.size(); i++){
-                        fileHandler(paths[i].string().c_str(), Options);
-                    }
-                }
-            }
 #else
-            fileHandler(argv[args[j]], Options);
+                fileHandler(argv[args[j]], Options, 0);
 #endif
+            }
         }
 
         if(!files){Usage();}
