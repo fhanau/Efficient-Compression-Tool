@@ -6,6 +6,7 @@
 #include "main.h"
 #include "support.h"
 #include "miniz/miniz.h"
+#include <unistd.h>
 
 #ifndef NOMULTI
 #include <thread>
@@ -261,7 +262,6 @@ void fileHandler(const char * Infile, const ECTOptions& Options, int internal){
         if (size < 1200000000) {//completely random value
             if (x == "PNG" || x == "png"){
                 OptimizePNG(Infile, Options);
-                static int m; printf("%d\n", ++m);
             }
             else if (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"){
                 OptimizeJPEG(Infile, Options);

@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include "../miniz/miniz.h"
 #include "../zlib/zlib.h"
