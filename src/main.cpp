@@ -375,34 +375,14 @@ int main(int argc, const char * argv[]) {
                 if(Options.Recurse){boost::filesystem::recursive_directory_iterator a(argv[args[j]]), b;
                     std::vector<boost::filesystem::path> paths(a, b);
                     for(unsigned i = 0; i < paths.size(); i++){
-#ifdef _WIN32
-                        char fstring[1024];
-                        size_t result = wcstombs(fstring, paths[i].c_str(), 1024);
-                        if (result > 1024){
-                            printf("%s: Filename not supported.\n", fstring);
-                            continue;
-                        }
-                        fileHandler(fstring, Options);
-#else
-                        fileHandler(paths[i].c_str(), Options);
-#endif
+                        fileHandler(paths[i].string().c_str(), Options);
                     }
                 }
                 else{
                     boost::filesystem::directory_iterator a(argv[args[j]]), b;
                     std::vector<boost::filesystem::path> paths(a, b);
                     for(unsigned i = 0; i < paths.size(); i++){
-#ifdef _WIN32
-                        char fstring[1024];
-                        size_t result = wcstombs(fstring, paths[i].c_str(), 1024);
-                        if (result > 1024){
-                            printf("%s: Filename not supported.\n", fstring);
-                            continue;
-                        }
-                        fileHandler(fstring, Options);
-#else
-                        fileHandler(paths[i].c_str(), Options);
-#endif
+                        fileHandler(paths[i].string().c_str(), Options);
                     }
                 }
             }
