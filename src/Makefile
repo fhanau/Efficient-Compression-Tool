@@ -3,6 +3,9 @@ CXX = g++
 CFLAGS = -Ofast -std=gnu11
 CXXFLAGS= -pthread -Ofast -std=gnu++11
 
+ifeq ($(OS),Windows_NT)
+	CXXFLAGS += -mno-ms-bitfields
+endif
 OBJECTS = blocksplitter.o codec.o image.o lz77.o opngreduc.o squeeze.o util.o LzFind.o miniz.o
 CXXSRC = support.cpp zopflipng.cpp zopfli/deflate.cpp zopfli/zopfli_gzip.cpp zopfli/katajainen.cpp \
 lodepng/lodepng.cpp lodepng/lodepng_util.cpp optipng/optipng.cpp jpegtran.cpp gztools.cpp \
