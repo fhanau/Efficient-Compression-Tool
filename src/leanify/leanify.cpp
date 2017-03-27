@@ -1,6 +1,8 @@
 #include <unistd.h>
-#include <sys/mman.h>
 #include <fcntl.h>
+#ifndef _WIN32
+#include <sys/mman.h>
+#endif
 
 #include "../miniz/miniz.h"
 #include "../zopfli/zlib_container.h"
@@ -10,6 +12,38 @@
 
 using std::string;
 
+#ifdef _WIN32
+File::File(const wchar_t* filepath) {
+  fp_ = nullptr;
+  hFile_ = CreateFile(filepath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                      FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_WRITE_THROUGH, nullptr);
+  if (hFile_ == INVALID_HANDLE_VALUE) {
+    size_ = 0;
+    return;
+  }
+  size_ = GetFileSize(hFile_, nullptr);
+  hMap_ = CreateFileMapping(hFile_, nullptr, PAGE_READWRITE, 0, 0, nullptr);
+  if (hMap_ == INVALID_HANDLE_VALUE) {
+    return;
+  }
+  fp_ = MapViewOfFile(hMap_, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+}
+
+void File::UnMapFile(size_t new_size) {
+  if (new_size < size_)
+    FlushViewOfFile(fp_, 0);
+
+  UnmapViewOfFile(fp_);
+
+  CloseHandle(hMap_);
+  if (new_size) {
+    SetFilePointer(hFile_, new_size, nullptr, FILE_BEGIN);
+    SetEndOfFile(hFile_);
+  }
+  CloseHandle(hFile_);
+  fp_ = nullptr;
+}
+#else
 File::File(const char* filepath) {
   fp_ = nullptr;
   fd_ = open(filepath, O_RDWR);
@@ -44,6 +78,7 @@ void File::UnMapFile(size_t new_size) {
   close(fd_);
   fp_ = nullptr;
 }
+#endif
 
 // Leanify the file
 // and move the file ahead size_leanified bytes
@@ -65,7 +100,12 @@ static size_t LeanifyFile(void* file_pointer, size_t file_size, const ECTOptions
 
 void ReZipFile(const char* file_path, const ECTOptions& Options, unsigned long* files) {
   string filename(file_path);
+#ifdef _WIN32
+  std::wstring wfile_path = std::wstring(filename.begin(), filename.end());
+  File input_file(wfile_path.c_str());
+#else
   File input_file(file_path);
+#endif
 
   if (input_file.IsOK()) {
     size_t original_size = input_file.GetSize();
