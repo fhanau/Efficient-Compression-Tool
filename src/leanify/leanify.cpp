@@ -13,7 +13,7 @@
 using std::string;
 
 #ifdef _WIN32
-File::File(const wchar_t* filepath) {
+File::File(const char* filepath) {
   fp_ = nullptr;
   hFile_ = CreateFile(filepath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
                       FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_WRITE_THROUGH, nullptr);
@@ -100,12 +100,7 @@ static size_t LeanifyFile(void* file_pointer, size_t file_size, const ECTOptions
 
 void ReZipFile(const char* file_path, const ECTOptions& Options, unsigned long* files) {
   string filename(file_path);
-#ifdef _WIN32
-  std::wstring wfile_path = std::wstring(filename.begin(), filename.end());
-  File input_file(wfile_path.c_str());
-#else
   File input_file(file_path);
-#endif
 
   if (input_file.IsOK()) {
     size_t original_size = input_file.GetSize();

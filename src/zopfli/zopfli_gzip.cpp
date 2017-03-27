@@ -27,6 +27,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "zopfli.h"
 #include "zlib_container.h"
 #include "../main.h"
+#include <time.h>
 
 #define ZOPFLI_APPEND_DATA(/* T */ value, /* T** */ data, /* size_t* */ size) {\
 (*data)[(*size)] = (value);\

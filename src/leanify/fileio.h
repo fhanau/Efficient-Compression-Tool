@@ -8,11 +8,7 @@
 
 class File {
  public:
-#ifdef _WIN32
-  explicit File(const wchar_t* filepath);
-#else
   explicit File(const char* filepath);
-#endif
 
   void* GetFilePionter() const {
     return fp_;

@@ -520,24 +520,10 @@ tdefl_status tdefl_init(tdefl_compressor *d, tdefl_put_buf_func_ptr pPut_buf_fun
   #include <sys/stat.h>
 
   #if defined(_MSC_VER) || defined(__MINGW64__)
-    static FILE *mz_fopen(const char *pFilename, const char *pMode)
-    {
-      FILE* pFile = NULL;
-      fopen_s(&pFile, pFilename, pMode);
-      return pFile;
-    }
-    static FILE *mz_freopen(const char *pPath, const char *pMode, FILE *pStream)
-    {
-      FILE* pFile = NULL;
-      if (freopen_s(&pFile, pPath, pMode, pStream))
-        return NULL;
-      return pFile;
-    }
     #ifndef MINIZ_NO_TIME
       #include <sys/utime.h>
     #endif
     #define MZ_FILE FILE
-    #define MZ_FOPEN mz_fopen
     #define MZ_FCLOSE fclose
     #define MZ_FREAD fread
     #define MZ_FWRITE fwrite
@@ -546,14 +532,12 @@ tdefl_status tdefl_init(tdefl_compressor *d, tdefl_put_buf_func_ptr pPut_buf_fun
     #define MZ_FILE_STAT_STRUCT _stat
     #define MZ_FILE_STAT _stat
     #define MZ_FFLUSH fflush
-    #define MZ_FREOPEN mz_freopen
     #define MZ_DELETE_FILE remove
   #elif defined(__MINGW32__)
     #ifndef MINIZ_NO_TIME
       #include <sys/utime.h>
     #endif
     #define MZ_FILE FILE
-    #define MZ_FOPEN(f, m) fopen(f, m)
     #define MZ_FCLOSE fclose
     #define MZ_FREAD fread
     #define MZ_FWRITE fwrite
@@ -562,14 +546,12 @@ tdefl_status tdefl_init(tdefl_compressor *d, tdefl_put_buf_func_ptr pPut_buf_fun
     #define MZ_FILE_STAT_STRUCT _stat
     #define MZ_FILE_STAT _stat
     #define MZ_FFLUSH fflush
-    #define MZ_FREOPEN(f, m, s) freopen(f, m, s)
     #define MZ_DELETE_FILE remove
   #elif defined(__GNUC__) && _LARGEFILE64_SOURCE
     #ifndef MINIZ_NO_TIME
       #include <utime.h>
     #endif
     #define MZ_FILE FILE
-    #define MZ_FOPEN(f, m) fopen64(f, m)
     #define MZ_FCLOSE fclose
     #define MZ_FREAD fread
     #define MZ_FWRITE fwrite
@@ -578,14 +560,12 @@ tdefl_status tdefl_init(tdefl_compressor *d, tdefl_put_buf_func_ptr pPut_buf_fun
     #define MZ_FILE_STAT_STRUCT stat64
     #define MZ_FILE_STAT stat64
     #define MZ_FFLUSH fflush
-    #define MZ_FREOPEN(p, m, s) freopen64(p, m, s)
     #define MZ_DELETE_FILE remove
   #else
     #ifndef MINIZ_NO_TIME
       #include <utime.h>
     #endif
     #define MZ_FILE FILE
-    #define MZ_FOPEN(f, m) fopen(f, m)
     #define MZ_FCLOSE fclose
     #define MZ_FREAD fread
     #define MZ_FWRITE fwrite
@@ -594,7 +574,6 @@ tdefl_status tdefl_init(tdefl_compressor *d, tdefl_put_buf_func_ptr pPut_buf_fun
     #define MZ_FILE_STAT_STRUCT stat
     #define MZ_FILE_STAT stat
     #define MZ_FFLUSH fflush
-    #define MZ_FREOPEN(f, m, s) freopen(f, m, s)
     #define MZ_DELETE_FILE remove
   #endif // #ifdef _MSC_VER
 #endif // #ifdef MINIZ_NO_STDIO
@@ -1032,7 +1011,7 @@ static size_t mz_zip_file_read_func(void *pOpaque, mz_uint64 file_ofs, void *pBu
 mz_bool mz_zip_reader_init_file(mz_zip_archive *pZip, const char *pFilename, mz_uint32 flags)
 {
   mz_uint64 file_size;
-  MZ_FILE *pFile = MZ_FOPEN(pFilename, "rb");
+  MZ_FILE *pFile = fopen(pFilename, "rb");
   if (!pFile)
     return MZ_FALSE;
   if (MZ_FSEEK64(pFile, 0, SEEK_END))
@@ -1188,7 +1167,7 @@ mz_bool mz_zip_writer_init_file(mz_zip_archive *pZip, const char *pFilename, mz_
   pZip->m_pIO_opaque = pZip;
   if (!mz_zip_writer_init(pZip, size_to_reserve_at_beginning))
     return MZ_FALSE;
-  if (NULL == (pFile = MZ_FOPEN(pFilename, "wb")))
+  if (NULL == (pFile = fopen(pFilename, "wb")))
   {
     mz_zip_writer_end(pZip);
     return MZ_FALSE;
@@ -1234,7 +1213,7 @@ mz_bool mz_zip_writer_init_from_reader(mz_zip_archive *pZip, const char *pFilena
     if (!pFilename)
       return MZ_FALSE;
     pZip->m_pWrite = mz_zip_file_write_func;
-    if (NULL == (pState->m_pFile = MZ_FREOPEN(pFilename, "r+b", pState->m_pFile)))
+    if (NULL == (pState->m_pFile = freopen(pFilename, "r+b", pState->m_pFile)))
     {
       // The mz_zip_archive is now in a bogus state because pState->m_pFile is NULL, so just close it.
       mz_zip_reader_end(pZip);

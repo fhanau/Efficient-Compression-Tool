@@ -5,6 +5,10 @@
 #include <vector>
 #include <fcntl.h>
 #include <unistd.h>
+#include <algorithm>
+#ifdef _WIN32
+#include <Windows.h>
+#endif
 
 #include "../miniz/miniz.h"
 #include "../zlib/zlib.h"
@@ -77,8 +81,9 @@ bool GetCDHeaders(const uint8_t* fp, size_t size, const EOCD& eocd, size_t zip_o
   const uint8_t* cd_end = p_cdheader + eocd.cd_size;
   for (int i = 0; i < eocd.num_records; i++) {
     CDHeader cd_header;
-    if (p_cdheader + sizeof(CDHeader) > cd_end)
+    if (p_cdheader + sizeof(CDHeader) > cd_end){
       return false;
+    }
     if (memcmp(p_cdheader, cd_header.magic, sizeof(cd_header.magic)) != 0) {
       // The offset might be relative to the first local file header instead of the beginning of the file.
       if (i != 0 || cd_end + zip_offset > fp + size ||
@@ -101,12 +106,14 @@ bool GetCDHeaders(const uint8_t* fp, size_t size, const EOCD& eocd, size_t zip_o
     const LocalHeader* local_header = reinterpret_cast<const LocalHeader*>(p_local_header);
     // Check if file name matches.
     if (local_header->filename_len != cd_header.filename_len ||
-        memcmp(p_local_header + sizeof(LocalHeader), p_cdheader + sizeof(CDHeader), cd_header.filename_len) != 0)
-      return false;
+        memcmp(p_local_header + sizeof(LocalHeader), p_cdheader + sizeof(CDHeader), cd_header.filename_len) != 0){
+		return false;
+	}
 
     p_cdheader += sizeof(CDHeader) + cd_header.filename_len + cd_header.extra_field_len + cd_header.comment_len;
-    if (p_cdheader > cd_end)
-      return false;
+    if (p_cdheader > cd_end){
+		return false;
+	}
     cd_headers.push_back(cd_header);
   }
   std::sort(cd_headers.begin(), cd_headers.end(),
@@ -138,13 +145,20 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
     return size;
   }
 
+#ifdef _WIN32
+  char tempname[MAX_PATH + 1];
+  GetTempFileName(".", "", 0, tempname);
+  const char* temp = ((std::string)tempname).replace(((std::string)tempname).length() - 4, 4, extension).c_str();
+  int fd = open(temp, O_WRONLY);
 
+#else
   char* t0 = getwd(0);
   string tmp = (std::string)t0 + "/XXXXXX" + extension;
   free(t0);
   char* temp = strdup(tmp.c_str());
 
   int fd = mkstemps(temp, extension.size());
+  #endif
   write(fd, data, size);
   close(fd);
 
@@ -158,8 +172,9 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   }
 
   unlink(temp);
+ #ifndef _WIN32
   free(temp);
-
+#endif
   return new_size;
 }
 
@@ -192,14 +207,16 @@ size_t Zip::Leanify(const ECTOptions& Options, unsigned long* files) {
       return size_;
     }
 
-    if (p_eocd + sizeof(EOCD) > p_end)
+    if (p_eocd + sizeof(EOCD) > p_end){
       continue;
-
+    }
+  
     memcpy(&eocd, p_eocd, sizeof(EOCD));
     uint8_t* cd_end = fp_ + eocd.cd_offset + eocd.cd_size;
-    if (cd_end > p_eocd)
+    if (cd_end > p_eocd){
       continue;
-
+    }
+	
     // Try to get all CD headers using this EOCD, if everything checks out then proceed.
     if (GetCDHeaders(fp_, size_, eocd, zip_offset, &cd_headers, &base_offset)) {
       break;
