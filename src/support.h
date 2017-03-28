@@ -9,8 +9,10 @@
 #ifndef __Efficient_Compression_Tool__support__
 #define __Efficient_Compression_Tool__support__
 
+#include <unistd.h>
+
 // Returns Filesize of Infile
-long long filesize (const char * Infile);
+size_t filesize (const char * Infile);
 
 bool exists(const char * Infile);
 

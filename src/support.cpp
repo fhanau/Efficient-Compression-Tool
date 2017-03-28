@@ -8,9 +8,8 @@
 
 #include "support.h"
 #include <sys/stat.h>
-#include <unistd.h>
 
-long long filesize (const char * Infile) {
+size_t filesize (const char * Infile) {
     struct stat stats;
     if (stat(Infile, &stats) != 0){
         return -1;

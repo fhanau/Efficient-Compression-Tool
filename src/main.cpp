@@ -346,7 +346,11 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
                     }
                 }
                 else{
-                    int f = filesize(paths[j].string().c_str());
+                    size_t f = filesize(paths[j].string().c_str());
+                    if(f > UINT_MAX){
+                        printf("%s: file too big", paths[j].string().c_str());
+                        continue;
+                    }
                     char* file = (char*)malloc(f);
                     if(!file){
                         exit(1);
@@ -381,7 +385,11 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
         else{
 
             const char* fname = argv[args[i]];
-            int f = filesize(fname);
+            size_t f = filesize(fname);
+            if(f > UINT_MAX){
+                printf("%s: file too big", fname);
+                continue;
+            }
             char* file = (char*)malloc(f);
             if(!file){
                 exit(1);
