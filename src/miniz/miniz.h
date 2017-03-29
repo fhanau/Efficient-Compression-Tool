@@ -62,17 +62,8 @@ extern "C" {
 
 #define MZ_CRC32_INIT (0)
 
-  // Compression strategies.
-  enum { MZ_DEFAULT_STRATEGY = 0, MZ_FILTERED = 1, MZ_HUFFMAN_ONLY = 2, MZ_RLE = 3, MZ_FIXED = 4 };
-
   // Method
 #define MZ_DEFLATED 8
-
-  // Return status codes. MZ_PARAM_ERROR is non-standard.
-  enum { MZ_OK = 0, MZ_STREAM_END = 1, MZ_NEED_DICT = 2, MZ_ERRNO = -1, MZ_STREAM_ERROR = -2, MZ_DATA_ERROR = -3, MZ_MEM_ERROR = -4, MZ_BUF_ERROR = -5, MZ_VERSION_ERROR = -6, MZ_PARAM_ERROR = -10000 };
-
-  // Compression levels: 0-9 are the standard zlib-style levels, 10 is best possible compression (not zlib compatible, and may be very slow), MZ_DEFAULT_COMPRESSION=MZ_DEFAULT_LEVEL.
-  enum { MZ_NO_COMPRESSION = 0, MZ_BEST_SPEED = 1, MZ_BEST_COMPRESSION = 9, MZ_UBER_COMPRESSION = 10, MZ_DEFAULT_LEVEL = 6, MZ_DEFAULT_COMPRESSION = -1 };
 
   // ------------------- Types and macros
 
@@ -124,9 +115,6 @@ extern "C" {
     char m_comment[MZ_ZIP_MAX_ARCHIVE_FILE_COMMENT_SIZE];
   } mz_zip_archive_file_stat;
 
-  typedef size_t (*mz_file_read_func)(void *pOpaque, mz_uint64 file_ofs, void *pBuf, size_t n);
-  typedef size_t (*mz_file_write_func)(void *pOpaque, mz_uint64 file_ofs, const void *pBuf, size_t n);
-
   struct mz_zip_internal_state_tag;
   typedef struct mz_zip_internal_state_tag mz_zip_internal_state;
 
@@ -147,8 +135,6 @@ extern "C" {
 
     mz_uint m_file_offset_alignment;
 
-    mz_file_read_func m_pRead;
-    mz_file_write_func m_pWrite;
     void *m_pIO_opaque;
 
     mz_zip_internal_state *m_pState;
@@ -164,11 +150,6 @@ extern "C" {
   } mz_zip_flags;
 
   // ZIP archive reading
-
-  // Inits a ZIP archive reader.
-  // These functions read and validate the archive's central directory.
-  mz_bool mz_zip_reader_init(mz_zip_archive *pZip, mz_uint64 size, mz_uint32 flags);
-  mz_bool mz_zip_reader_init_mem(mz_zip_archive *pZip, const void *pMem, size_t size, mz_uint32 flags);
 
 #ifndef MINIZ_NO_STDIO
   mz_bool mz_zip_reader_init_file(mz_zip_archive *pZip, const char *pFilename, mz_uint32 flags);
@@ -186,7 +167,6 @@ extern "C" {
 
   // Inits a ZIP archive writer.
   mz_bool mz_zip_writer_init(mz_zip_archive *pZip, mz_uint64 existing_size);
-  mz_bool mz_zip_writer_init_heap(mz_zip_archive *pZip, size_t size_to_reserve_at_beginning, size_t initial_allocation_size);
 
 #ifndef MINIZ_NO_STDIO
   mz_bool mz_zip_writer_init_file(mz_zip_archive *pZip, const char *pFilename, mz_uint64 size_to_reserve_at_beginning);
@@ -203,17 +183,12 @@ extern "C" {
   // Adds the contents of a memory buffer to an archive. These functions record the current local time into the archive.
   // To add a directory entry, call this method with an archive name ending in a forwardslash with empty buffer.
   // level_and_flags - compression level (0-10, see MZ_BEST_SPEED, MZ_BEST_COMPRESSION, etc.) logically OR'd with zero or more mz_zip_flags, or just set to MZ_DEFAULT_COMPRESSION.
-  mz_bool mz_zip_writer_add_mem_ex(mz_zip_archive *pZip, const char *pArchive_name, const void *pBuf, size_t buf_size, const void *pComment, mz_uint16 comment_size, mz_uint level_and_flags, mz_uint64 uncomp_size, mz_uint32 uncomp_crc32, const char* location);
-
-  // Adds a file to an archive by fully cloning the data from another archive.
-  // This function fully clones the source file's compressed data (no recompression), along with its full filename, extra data, and comment fields.
-  mz_bool mz_zip_writer_add_from_zip_reader(mz_zip_archive *pZip, mz_zip_archive *pSource_zip, mz_uint file_index);
+  mz_bool mz_zip_writer_add_mem_ex(mz_zip_archive *pZip, const char *pArchive_name, const void *pBuf, size_t buf_size, const void *pComment, mz_uint16 comment_size, const char* location);
 
   // Finalizes the archive by writing the central directory records followed by the end of central directory record.
   // After an archive is finalized, the only valid call on the mz_zip_archive struct is mz_zip_writer_end().
   // An archive must be manually finalized by calling this function for it to be valid.
   mz_bool mz_zip_writer_finalize_archive(mz_zip_archive *pZip);
-  mz_bool mz_zip_writer_finalize_heap_archive(mz_zip_archive *pZip, void **pBuf, size_t *pSize);
 
   // Ends archive writing, freeing all allocations, and closing the output file if mz_zip_writer_init_file() was used.
   // Note for the archive to be valid, it must have been finalized before ending.
@@ -223,7 +198,7 @@ extern "C" {
 
   // mz_zip_add_mem_to_archive_file_in_place() efficiently (but not atomically) appends a memory blob to a ZIP archive.
   // level_and_flags - compression level (0-10, see MZ_BEST_SPEED, MZ_BEST_COMPRESSION, etc.) logically OR'd with zero or more mz_zip_flags, or just set to MZ_DEFAULT_COMPRESSION.
-  mz_bool mz_zip_add_mem_to_archive_file_in_place(const char *pZip_filename, const char *pArchive_name, const void *pBuf, size_t buf_size, const void *pComment, mz_uint16 comment_size, mz_uint level_and_flags, const char* location);
+  mz_bool mz_zip_add_mem_to_archive_file_in_place(const char *pZip_filename, const char *pArchive_name, const void *pBuf, size_t buf_size, const void *pComment, mz_uint16 comment_size, const char* location);
 
 #endif // #ifndef MINIZ_NO_ARCHIVE_WRITING_APIS
 
@@ -306,62 +281,6 @@ extern "C" {
     tinfl_huff_table m_tables[TINFL_MAX_HUFF_TABLES];
     mz_uint8 m_raw_header[4], m_len_codes[TINFL_MAX_HUFF_SYMBOLS_0 + TINFL_MAX_HUFF_SYMBOLS_1 + 137];
   };
-
-  // High level compression functions:
-  // tdefl_compress_mem_to_heap() compresses a block in memory to a heap block allocated via malloc().
-  // On entry:
-  //  pSrc_buf, src_buf_len: Pointer and size of source block to compress.
-  //  flags: The max match finder probes (default is 128) logically OR'd against the above flags. Higher probes are slower but improve compression.
-  // On return:
-  //  Function returns a pointer to the compressed data, or NULL on failure.
-  //  *pOut_len will be set to the compressed data's size, which could be larger than src_buf_len on uncompressible data.
-  //  The caller must free() the returned block when it's no longer needed.
-
-  // Output stream interface. The compressor uses this interface to write compressed data. It'll typically be called TDEFL_OUT_BUF_SIZE at a time.
-  typedef mz_bool (*tdefl_put_buf_func_ptr)(const void* pBuf, int len, void *pUser);
-
-  enum {TDEFL_LZ_DICT_SIZE = 32768, TDEFL_LZ_DICT_SIZE_MASK = TDEFL_LZ_DICT_SIZE - 1, TDEFL_MIN_MATCH_LEN = 3, TDEFL_MAX_MATCH_LEN = 258 };
-
-  // TDEFL_OUT_BUF_SIZE MUST be large enough to hold a single entire compressed output block (using static/fixed Huffman codes).
-  enum { TDEFL_OUT_BUF_SIZE = (64 * 1024 * 13 ) / 10 };
-
-  // The low-level tdefl functions below may be used directly if the above helper functions aren't flexible enough. The low-level functions don't make any heap allocations, unlike the above helper functions.
-  typedef enum
-  {
-    TDEFL_STATUS_BAD_PARAM = -2,
-    TDEFL_STATUS_PUT_BUF_FAILED = -1,
-    TDEFL_STATUS_OKAY = 0,
-    TDEFL_STATUS_DONE = 1,
-  } tdefl_status;
-
-  // Must map to MZ_NO_FLUSH, MZ_SYNC_FLUSH, etc. enums
-  typedef enum
-  {
-    TDEFL_FINISH = 4
-  } tdefl_flush;
-
-  // tdefl's compression state structure.
-  typedef struct
-  {
-    tdefl_put_buf_func_ptr m_pPut_buf_func;
-    void *m_pPut_buf_user;
-    mz_uint m_lookahead_pos, m_lookahead_size, m_dict_size;
-    mz_uint8 *m_pOutput_buf;
-    mz_uint m_total_lz_bytes, m_lz_code_buf_dict_pos, m_bits_in, m_bit_buffer;
-    tdefl_status m_prev_return_status;
-    const void *m_pIn_buf;
-    const mz_uint8 *m_pSrc;
-    size_t m_src_buf_left;
-    mz_uint8 m_dict[TDEFL_LZ_DICT_SIZE + TDEFL_MAX_MATCH_LEN - 1];
-    mz_uint8 m_output_buf[TDEFL_OUT_BUF_SIZE];
-  } tdefl_compressor;
-
-  // Initializes the compressor.
-  // There is no corresponding deinit() function because the tdefl API's do not dynamically allocate memory.
-  // pBut_buf_func: If NULL, output data will be supplied to the specified callback. In this case, the user should call the tdefl_compress_buffer() API for compression.
-  // If pBut_buf_func is NULL the user should always call the tdefl_compress() API.
-  // flags: See the above enums (TDEFL_HUFFMAN_ONLY, TDEFL_WRITE_ZLIB_HEADER, etc.)
-  tdefl_status tdefl_init(tdefl_compressor *d, tdefl_put_buf_func_ptr pPut_buf_func, void *pPut_buf_user);
 
 #ifdef __cplusplus
 }

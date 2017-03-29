@@ -167,7 +167,6 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
             x = Zopflipng(Options.strip, Infile, Options.Strict, _mode, 6 + Options.palette_sort, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, _mode, Options.palette_sort, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, _mode, 5 + Options.palette_sort, Options.DeflateMultithreading);
-
             Zopflipng(Options.strip, Infile, Options.Strict, _mode, 1 + Options.palette_sort, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, _mode, 2 + Options.palette_sort, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, _mode, 3 + Options.palette_sort, Options.DeflateMultithreading);
@@ -341,7 +340,7 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
                 if(isDirectory(paths[j].string().c_str())){
                     //Only add dir if it is empty to minimize filesize
                     std::string next = paths[j + 1].string();
-                    if (next.compare(0, paths[j].string().size() + 1, paths[j].string() + "/") != 0 && !mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), ((std::string)name + "/").c_str(), 0, 0, 0, 0, -1, paths[j].string().c_str())) {
+                    if (next.compare(0, paths[j].string().size() + 1, paths[j].string() + "/") != 0 && !mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), ((std::string)name + "/").c_str(), 0, 0, 0, 0, paths[j].string().c_str())) {
                         printf("can't add directory '%s'\n", argv[args[i]]);
                     }
                 }
@@ -363,7 +362,7 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
                         fclose(stream); free(file); error = 1; continue;
                     }
                     fclose(stream);
-                    if(!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), name, file, f, 0, 0, -1, paths[j].string().c_str())){
+                    if(!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), name, file, f, 0, 0, paths[j].string().c_str())){
                         printf("can't add file '%s'\n", paths[j].string().c_str());
                         free(file); error = 1; continue;
                     }
@@ -374,7 +373,7 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
                 }
             }
             if(!paths.size()){
-                if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), (fold.erase(0, substr) + "/").c_str(), 0, 0, 0, 0, -1, argv[args[i]])) {
+                if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), (fold.erase(0, substr) + "/").c_str(), 0, 0, 0, 0, argv[args[i]])) {
                     printf("can't add directory '%s'", argv[args[i]]);
                 }
             }
@@ -406,7 +405,7 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
             }
 
             fclose(stream);
-            if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), ((std::string)argv[args[i]]).substr(((std::string)argv[args[i]]).find_last_of("/\\") + 1).c_str(), file, f, 0, 0, -1, argv[args[i]])
+            if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), ((std::string)argv[args[i]]).substr(((std::string)argv[args[i]]).find_last_of("/\\") + 1).c_str(), file, f, 0, 0, argv[args[i]])
                 ) {
                 printf("can't add file '%s'", argv[0]);
                 free(file); error = 1; continue;
