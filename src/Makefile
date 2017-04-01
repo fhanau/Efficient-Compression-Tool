@@ -19,7 +19,7 @@ bin:
 	zopfli/blocksplitter.c optipng/opngreduc/opngreduc.c LzFind.c miniz/miniz.c
 	$(CXX) $(CXXFLAGS) main.cpp $(OBJECTS) $(CXXSRC) mozjpeg/.libs/libjpeg.a libpng/libpng.a zlib/libz.a -o ../ECT
 clean:
-	rm -f *.o zlib/*.o zlib/*.a libpng*.o libpng*.a
+	rm -f *.o zlib/*.o zlib/*.a libpng/*.o libpng/*.a
 deps: zlib libpng mozjpeg
 zlib:
 	cd zlib/; \
