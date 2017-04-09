@@ -17,14 +17,6 @@ z_const char * const z_errmsg[10] = {
 "incompatible version",/* Z_VERSION_ERROR (-6) */
 ""};
 
-/* exported to allow conversion of error code to string for compress() and
- * uncompress()
- */
-const char* zError(int err)
-{
-    return ERR_MSG(err);
-}
-
 void* ZLIB_INTERNAL zcalloc (void* opaque, unsigned items, unsigned size)
 {
     (void)opaque;

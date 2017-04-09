@@ -952,11 +952,6 @@ struct gzFile_s {
 
 #endif /* !Z_SOLO */
 
-/* hack for buggy compilers */
-#if !defined(ZUTIL_H) && !defined(NO_DUMMY_DECL)
-    struct internal_state {int dummy;};
-#endif
-
 #ifdef __cplusplus
 }
 #endif

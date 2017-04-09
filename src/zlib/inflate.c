@@ -85,7 +85,7 @@
 #include "inflate.h"
 #include "inffast.h"
 
-int inflateResetKeep(z_streamp strm)
+static int inflateResetKeep(z_streamp strm)
 {
     struct inflate_state *state;
 
