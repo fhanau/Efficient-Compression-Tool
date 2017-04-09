@@ -3604,6 +3604,46 @@ static void filterScanline2(unsigned char* scanline, const unsigned char* prevli
 extern "C" size_t ZopfliLZ77LazyLauncher(const unsigned char* in,
                               size_t instart, size_t inend, unsigned fs);
 
+static void initRandomUInt64(uint64_t* s) {
+  /* xorshift+ requires 128 bits of state */
+  s[0] = 1;
+  s[1] = 2;
+}
+
+/* xorshift+ pseudorandom number generator */
+static uint64_t randomUInt64(uint64_t* s) {
+  uint64_t x = s[0];
+  uint64_t const y = s[1];
+  s[0] = y;
+  x ^= x << 23;
+  s[1] = x ^ y ^ (x >> 17) ^ (y >> 26);
+  return s[1] + y;
+}
+
+/* generate random number between 0 and 1 */
+static double randomDecimal(uint64_t* s) {
+  return double(randomUInt64(s)) / UINT64_MAX;
+}
+
+typedef struct GeneticAlgorithmSettings
+{
+  unsigned number_of_stagnations;
+  unsigned population_size;
+  float mutation_probability;
+  float crossover_probability;
+  unsigned number_of_offspring;
+} GeneticAlgorithmSettings;
+
+#include <signal.h>
+static int signaled = 0;
+static void sig_handler(int signo)
+{
+  if (signo == SIGINT){
+    printf("received SIGINT, will stop after this iteration\n");
+    signaled = 1;
+  }
+}
+
 static char windowbits(unsigned long len){
   int result = 0;
 #ifdef __GNUC__
@@ -3640,14 +3680,6 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
   unsigned x, y;
   unsigned error = 0;
   LodePNGFilterStrategy strategy = settings->filter_strategy;
-  if(linebytes < 100 && settings->filter_style){
-    if(strategy == LFS_BRUTE_FORCE){
-      strategy = LFS_INCREMENTAL;
-    }
-    else if(strategy == LFS_INCREMENTAL){
-      strategy = LFS_BRUTE_FORCE;
-    }
-  }
 
   if(bpp == 0) return 31; /*error: invalid color type*/
 
@@ -3750,7 +3782,6 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       else{
         prevline = &in[y * linebytes];
       }
-
     }
 
     free(dummy);
@@ -3789,6 +3820,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
       if(!attempt[type]) return 83; /*alloc fail*/
     }
+
     for(y = 0; y != h; ++y) /*try the 5 filter types*/
     {
       smallest = SIZE_MAX;
@@ -4125,7 +4157,6 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
         prevline = &in[y * linebytes];
       }
     }
-
 
     for(type = 0; type != 5; ++type) free(attempt[type]);
   }

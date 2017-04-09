@@ -257,9 +257,12 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
 
         opng_write_file(session, 0, 1, level, true);
 
-      if (best_idat * (options->optim_level > 3 ? 1 : 203 / 200) > session->out_stats.idat_size){
-          best_idat = session->out_stats.idat_size;
-          optimal_filter = options->optim_level == 2 ? 8 : 5;}
+      if (best_idat *
+          (options->optim_level > 4 ? 1.015 : 1) // Account for better filtering
+          > session->out_stats.idat_size){
+        best_idat = session->out_stats.idat_size;
+        optimal_filter = options->optim_level == 2 ? 8 : options->optim_level > 3 ? 11 : 5;
+      }
 
         if (options->optim_level == 1){
             fstream = fopen(Infile, "wb");

@@ -343,7 +343,10 @@ typedef enum LodePNGFilterStrategy
   /*Use the filter type that gives the least number of distinct bigrams*/
   LFS_DISTINCT_BIGRAMS = 8,
   LFS_MINSUM = 10,
-  LFS_INCREMENTAL = 11
+  LFS_INCREMENTAL = 11,
+  LFS_INCREMENTAL2 = 12,
+  LFS_INCREMENTAL3 = 13,
+  LFS_GENETIC = 14
 } LodePNGFilterStrategy;
 
 typedef enum LodePNGPalettePriorityStrategy
