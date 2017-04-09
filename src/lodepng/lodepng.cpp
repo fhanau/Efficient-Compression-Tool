@@ -3604,6 +3604,24 @@ static void filterScanline2(unsigned char* scanline, const unsigned char* prevli
 extern "C" size_t ZopfliLZ77LazyLauncher(const unsigned char* in,
                               size_t instart, size_t inend, unsigned fs);
 
+static char windowbits(unsigned long len){
+  int result = 0;
+#ifdef __GNUC__
+  result = __builtin_clzl(len) ^ (8 * sizeof(unsigned long) - 1);
+#else
+  while (len >>= 1){result++;}
+#endif
+
+  result++;
+  if (result < 9){
+    result = 9;
+  }
+  else if (result > 15){
+    result = 15;
+  }
+  return -result;
+}
+
 static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsigned h,
                        const LodePNGColorMode* info, LodePNGEncoderSettings* settings)
 {
@@ -3670,23 +3688,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
     stream.zfree = 0;
     stream.opaque = 0;
 
-    int result = 0;
-#ifdef __GNUC__
-    result = __builtin_clz(linebytes) ^ (8 * sizeof(unsigned) - 1);
-#else
-    unsigned n = linebytes;
-    while (n >>= 1){result++;}
-#endif
-
-    result++;
-    if (result < 9){
-      result = 9;
-    }
-    else if (result > 15){
-      result = 15;
-    }
-
-    int err = deflateInit2(&stream, 3, Z_DEFLATED, -result, 3, Z_FILTERED);
+    int err = deflateInit2(&stream, 3, Z_DEFLATED, windowbits(linebytes), 3, Z_FILTERED);
     if (err != Z_OK) exit(1);
     unsigned char* dummy = (unsigned char *)malloc(deflateBound(&stream, linebytes));
     if(!dummy){
