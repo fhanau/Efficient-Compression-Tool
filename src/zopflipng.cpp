@@ -90,8 +90,6 @@ static void CountColors(std::set<unsigned>* unique, const unsigned char* image, 
 // Remove RGB information from pixels with alpha=0
 static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* image,
                                      unsigned w, unsigned h, int filter) {
-  //TODO: Only set "palette" when palette is actually used.
-
   std::set<unsigned> count;  // Color count, up to 257.
 
   // If true, means palette is possible so avoid using different RGB values for
