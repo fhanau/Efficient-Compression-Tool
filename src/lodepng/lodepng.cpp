@@ -4171,7 +4171,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
   else if(strategy == LFS_GENETIC)
   {
     printf("warning: You have decided to enable genetic filtering, which may take a very long time.\n");
-    printf("the current generation andnumber of bytes is displayed.\n");
+    printf("the current generation and number of bytes is displayed.\n");
     printf("you can stop the genetic filtering anytime by pressing ctrl-c\n");
     printf("it will automatically stop after 400 generations without progress\n");
 
