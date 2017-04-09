@@ -459,7 +459,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
     for (i = 3; i < 259; i++){
       litlentable[i] = 12 + (i > 114) + ZopfliGetLengthExtraBits(i);
     }
-    for (i = 0; i < 1024; i++){
+    for (i = 0; i < 1025; i++){
       disttable[i] = ZopfliGetDistExtraBits(i);
     }
     for (; i < 2049; i++){
