@@ -56,12 +56,12 @@ typedef enum {
     finish_done     /* finish done, accept no more input or output */
 } block_state;
 
-typedef block_state (*compress_func) (deflate_state *s, int flush);
+typedef block_state (*compress_func) (deflate_state *s, int flush, uLong* put);
 /* Compression function. Returns the block state after the call. */
 
 static void fill_window(deflate_state *s);
-static block_state deflate_fast(deflate_state *s, int flush);
-static block_state deflate_slow(deflate_state *s, int flush);
+static block_state deflate_fast(deflate_state *s, int flush, uLong* put);
+static block_state deflate_slow(deflate_state *s, int flush, uLong* put);
 static void lm_init(deflate_state *s);
 static void flush_pending(z_streamp strm);
 static unsigned longest_match(deflate_state *s, IPos cur_match);
@@ -272,74 +272,7 @@ int deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
     return deflateReset(strm);
 }
 
-int deflateSetDictionary (strm, dictionary, dictLength)
-z_streamp strm;
-const Bytef *dictionary;
-uInt  dictLength;
-{
-  deflate_state *s;
-  uInt str, n;
-  int wrap;
-  unsigned avail;
-  z_const unsigned char *next;
-
-  if (strm == Z_NULL || strm->state == Z_NULL || dictionary == Z_NULL)
-    return Z_STREAM_ERROR;
-  s = strm->state;
-  wrap = s->wrap;
-  if (wrap == 2 || (wrap == 1 && s->status != INIT_STATE) || s->lookahead)
-    return Z_STREAM_ERROR;
-
-  /* when using zlib wrappers, compute Adler-32 for provided dictionary */
-  if (wrap == 1)
-    strm->adler = adler32(strm->adler, dictionary, dictLength);
-    s->wrap = 0;                    /* avoid computing Adler-32 in read_buf */
-
-  /* if dictionary would fill window, just replace the history */
-    if (dictLength >= s->w_size) {
-      if (wrap == 0) {            /* already empty otherwise */
-        CLEAR_HASH(s);
-        s->strstart = 0;
-        s->block_start = 0L;
-        s->insert = 0;
-      }
-      dictionary += dictLength - s->w_size;  /* use the tail */
-      dictLength = s->w_size;
-    }
-
-  /* insert dictionary into window and hash */
-  avail = strm->avail_in;
-  next = strm->next_in;
-  strm->avail_in = dictLength;
-  strm->next_in = (z_const Bytef *)dictionary;
-  fill_window(s);
-  while (s->lookahead >= MIN_MATCH) {
-    str = s->strstart;
-    n = s->lookahead - (MIN_MATCH-1);
-    uInt ins_h = s->ins_h;
-    do {
-      UPDATE_HASH(s, ins_h, &s->window[str + MIN_MATCH-1]);
-      s->head[ins_h] = (Pos)str;
-      str++;
-    } while (--n);
-    s->ins_h = ins_h;
-    s->strstart = str;
-    s->lookahead = MIN_MATCH-1;
-    fill_window(s);
-  }
-  s->strstart += s->lookahead;
-  s->block_start = (long)s->strstart;
-  s->insert = s->lookahead;
-  s->lookahead = 0;
-  s->match_length = s->prev_length = MIN_MATCH-1;
-  s->match_available = 0;
-  strm->next_in = next;
-  strm->avail_in = avail;
-  s->wrap = wrap;
-  return Z_OK;
-}
-
-int deflateResetKeep (strm)
+static int deflateResetKeep (strm)
     z_streamp strm;
 {
     deflate_state *s;
@@ -511,9 +444,10 @@ static void flush_pending(strm)
     }
 }
 
-int deflate (strm, flush)
+static int deflate_ (strm, flush, put)
     z_streamp strm;
     int flush;
+    int put;
 {
     int old_flush; /* value of flush param for previous deflate call */
     deflate_state *s;
@@ -597,7 +531,7 @@ int deflate (strm, flush)
      */
     if (strm->avail_in != 0 || s->lookahead != 0 ||
         (flush != Z_NO_FLUSH && s->status != FINISH_STATE)) {
-        block_state bstate = ((*(configuration_table[s->level].func))(s, flush));
+      block_state bstate = ((*(configuration_table[s->level].func))(s, flush, !put ? &(strm->total_out) : 0));
 
         if (bstate == finish_started || bstate == finish_done) {
             s->status = FINISH_STATE;
@@ -657,6 +591,14 @@ int deflate (strm, flush)
     return s->pending != 0 ? Z_OK : Z_STREAM_END;
 }
 
+int deflate(z_streamp strm, int flush){
+  return deflate_(strm, flush, 1);
+}
+
+int deflate_nooutput (z_streamp strm, int flush){
+  return deflate_(strm, flush, 0);
+}
+
 int deflateEnd (z_streamp strm)
 {
     if (strm == Z_NULL || strm->state == Z_NULL) return Z_STREAM_ERROR;
@@ -682,6 +624,79 @@ int deflateEnd (z_streamp strm)
     strm->state = Z_NULL;
 
     return status == BUSY_STATE ? Z_DATA_ERROR : Z_OK;
+}
+
+/* =========================================================================
+ * Copy the source state to the destination state.
+ * To simplify the source, this is not supported for 16-bit MSDOS (which
+ * doesn't have enough memory anyway to duplicate compression states).
+ */
+int ZEXPORT deflateCopy (z_stream* dest, z_stream* source, unsigned char alloc)
+{
+  deflate_state *ds;
+  deflate_state *ss;
+  uint16_t *overlay;
+
+
+  if (source == Z_NULL || dest == Z_NULL || source->state == Z_NULL) {
+    return Z_STREAM_ERROR;
+  }
+
+  ss = source->state;
+
+
+  if(alloc){
+    memcpy((voidpf)dest, (voidpf)source, sizeof(z_stream));
+
+    ds = (deflate_state *) ZALLOC(dest, 1, sizeof(deflate_state));
+    if (ds == Z_NULL) return Z_MEM_ERROR;
+    dest->state = (struct internal_state *) ds;
+    memcpy((voidpf)ds, (voidpf)ss, sizeof(deflate_state));
+  }
+  else {
+    ds = dest->state;
+    memcpy((voidpf)dest, (voidpf)source, sizeof(z_stream));
+    dest->state = ds;
+
+    void* window = ds->window, *prev = ds->prev, *head = ds->head, *pending_buf = ds->pending_buf;
+    memcpy((voidpf)ds, (voidpf)ss, sizeof(deflate_state));
+
+    ds->window = window;
+    ds->prev   = prev;
+    ds->head   = head;
+    ds->pending_buf = pending_buf;
+  }
+  ds->strm = dest;
+
+  if(alloc){
+    ds->window = (uint8_t *) ZALLOC(dest, ds->w_size, 2*sizeof(uint8_t));
+    ds->prev   = (Pos *)  ZALLOC(dest, ds->w_size, sizeof(Pos));
+    ds->head   = (Pos *)  ZALLOC(dest, ds->hash_size, sizeof(Pos));
+    overlay = (uint16_t *) ZALLOC(dest, ds->lit_bufsize, sizeof(uint16_t)+2);
+    ds->pending_buf = (uint8_t *) overlay;
+  }
+
+  if (ds->window == Z_NULL || ds->prev == Z_NULL || ds->head == Z_NULL ||
+      ds->pending_buf == Z_NULL) {
+    deflateEnd (dest);
+    return Z_MEM_ERROR;
+  }
+
+  memcpy(ds->window, ss->window, ds->w_size * 2 * sizeof(uint8_t));
+  memcpy((voidpf)ds->prev, (voidpf)ss->prev, ds->w_size * sizeof(Pos));
+  memcpy((voidpf)ds->head, (voidpf)ss->head, ds->hash_size * sizeof(Pos));
+  //Do not copy due to performance reasons. If we ever need to copy a stream that actually produces used output, it'll be enabled again.
+  //memcpy(ds->pending_buf, ss->pending_buf, (uint32_t)ds->pending_buf_size);
+
+  ds->pending_out = ds->pending_buf + (ss->pending_out - ss->pending_buf);
+  ds->d_buf = ((uint16_t *)ds->pending_buf) + ds->lit_bufsize/sizeof(uint16_t);
+  ds->l_buf = ds->pending_buf + (1+sizeof(uint16_t))*ds->lit_bufsize;
+
+  ds->l_desc.dyn_tree = ds->dyn_ltree;
+  ds->d_desc.dyn_tree = ds->dyn_dtree;
+  ds->bl_desc.dyn_tree = ds->bl_tree;
+
+  return Z_OK;
 }
 
 /* ===========================================================================
@@ -1259,19 +1274,19 @@ deflate_state *s;
  * Flush the current block, with given end-of-file flag.
  * IN assertion: strstart is set to the end of the current match.
  */
-#define FLUSH_BLOCK_ONLY(s, last) { \
+#define FLUSH_BLOCK_ONLY(s, last, put) { \
   _tr_flush_block(s, (s->block_start >= 0L ? \
     (char *)&s->window[(uint64_t)s->block_start] : \
     (char *)Z_NULL), \
     (uint64_t)((int64_t)s->strstart - s->block_start), \
-    (last)); \
+    (last), put); \
   s->block_start = s->strstart; \
   flush_pending(s->strm); \
 }
 
 /* Same but force premature exit if necessary. */
-#define FLUSH_BLOCK(s, last) { \
-   FLUSH_BLOCK_ONLY(s, last); \
+#define FLUSH_BLOCK(s, last, put) { \
+   FLUSH_BLOCK_ONLY(s, last, put); \
    if (s->strm->avail_out == 0) return (last) ? finish_started : need_more; \
 }
 
@@ -1282,9 +1297,10 @@ deflate_state *s;
  * new strings in the dictionary only for unmatched strings or for short
  * matches. It is used only for the fast compression options.
  */
-static block_state deflate_fast(s, flush)
+static block_state deflate_fast(s, flush, put)
     deflate_state *s;
     int flush;
+    uLong* put;
 {
     IPos hash_head;       /* head of the hash chain */
     int bflush;           /* set if current block must be flushed */
@@ -1357,15 +1373,15 @@ static block_state deflate_fast(s, flush)
             s->lookahead--;
             s->strstart++;
         }
-        if (bflush) FLUSH_BLOCK(s, 0);
+        if (bflush) FLUSH_BLOCK(s, 0, put);
     }
     s->insert = s->strstart < MIN_MATCH-1 ? s->strstart : MIN_MATCH-1;
     if (flush == Z_FINISH) {
-        FLUSH_BLOCK(s, 1);
+        FLUSH_BLOCK(s, 1, put);
         return finish_done;
     }
     if (s->last_lit)
-        FLUSH_BLOCK(s, 0);
+        FLUSH_BLOCK(s, 0, put);
     return block_done;
 }
 
@@ -1374,9 +1390,10 @@ static block_state deflate_fast(s, flush)
  * evaluation for matches: a match is finally adopted only if there is
  * no better match at the next window position.
  */
-static block_state deflate_slow(s, flush)
+static block_state deflate_slow(s, flush, put)
     deflate_state *s;
     int flush;
+    uLong* put;
 {
     IPos hash_head;          /* head of hash chain */
     int bflush;              /* set if current block must be flushed */
@@ -1456,7 +1473,7 @@ static block_state deflate_slow(s, flush)
                 s->strstart += mov_fwd + 1;
             }
 
-            if (bflush) FLUSH_BLOCK(s, 0);
+            if (bflush) FLUSH_BLOCK(s, 0, put);
 
         } else if (s->match_available) {
             /* If there was no match at the previous position, output a
@@ -1465,7 +1482,7 @@ static block_state deflate_slow(s, flush)
              */
             bflush = _tr_tally_lit(s, s->window[s->strstart-1]);
             if (bflush) {
-                FLUSH_BLOCK_ONLY(s, 0);
+                FLUSH_BLOCK_ONLY(s, 0, put);
             }
             s->strstart++;
             s->lookahead--;
@@ -1486,10 +1503,10 @@ static block_state deflate_slow(s, flush)
     }
     s->insert = s->strstart < MIN_MATCH-1 ? s->strstart : MIN_MATCH-1;
     if (flush == Z_FINISH) {
-        FLUSH_BLOCK(s, 1);
+        FLUSH_BLOCK(s, 1, put);
         return finish_done;
     }
     if (s->last_lit)
-        FLUSH_BLOCK(s, 0);
+        FLUSH_BLOCK(s, 0, put);
     return block_done;
 }

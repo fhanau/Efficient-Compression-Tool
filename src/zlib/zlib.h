@@ -237,6 +237,7 @@ ZEXTERN int ZEXPORT deflateInit OF((z_streamp strm, int level));
 
 
 ZEXTERN int ZEXPORT deflate OF((z_streamp strm, int flush));
+int deflate_nooutput (z_streamp strm, int flush);
 /*
     deflate compresses as much data as possible, and stops when the input
   buffer becomes empty or the output buffer becomes full.  It may introduce
@@ -576,6 +577,21 @@ ZEXTERN int ZEXPORT deflateInit2 OF((z_streamp strm,
    set to null if there is no error message.  deflateInit2 does not perform any
    compression: this will be done by deflate().
 */
+
+ZEXTERN int ZEXPORT deflateCopy OF((z_streamp dest, z_streamp source, unsigned char alloc));
+/*
+ Sets the destination stream as a complete copy of the source stream.
+ This function can be useful when several compression strategies will be
+ tried, for example when there are several ways of pre-processing the input
+ data with a filter.  The streams that will be discarded should then be freed
+ by calling deflateEnd.  Note that deflateCopy duplicates the internal
+ compression state which can be quite large, so this strategy is slow and can
+ consume lots of memory.
+ deflateCopy returns Z_OK if success, Z_MEM_ERROR if there was not
+ enough memory, Z_STREAM_ERROR if the source stream state was inconsistent
+ (such as zalloc being Z_NULL).  msg is left unchanged in both source and
+ destination.
+ */
 
 ZEXTERN int ZEXPORT deflateReset OF((z_streamp strm));
 /*

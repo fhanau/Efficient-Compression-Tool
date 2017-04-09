@@ -109,6 +109,11 @@ static void bi_flush       (deflate_state *s);
  * Send a value on a given number of bits.
  * IN assertion: length <= 16 and value fits in length bits.
  */
+static void send_bits2(deflate_state* s, unsigned long len){
+  s->bi_valid += len;
+  s->pending += s->bi_valid / 8;
+  s->bi_valid &= 7;
+}
 #if defined(__x86_64__) || defined(_M_X64)
 static void send_bits(deflate_state* s, uint64_t val, int len) {
   s->bi_buf ^= (val<<s->bi_valid);
@@ -630,11 +635,12 @@ void ZLIB_INTERNAL _tr_align(s)
  * Determine the best encoding for the current block: dynamic trees, static
  * trees or store, and output the encoded block to the zip file.
  */
-void ZLIB_INTERNAL _tr_flush_block(s, buf, stored_len, last)
+void ZLIB_INTERNAL _tr_flush_block(s, buf, stored_len, last, put)
     deflate_state *s;
     char *buf;       /* input block, or NULL if too old */
     uint64_t stored_len;   /* length of input block */
     int last;         /* one if this is the last block for a file */
+    uLong* put;
 {
     ulg opt_lenb, static_lenb; /* opt_len and static_len in bytes */
     int max_blindex = 0;  /* index of last bit length code of non zero freq */
@@ -666,6 +672,26 @@ void ZLIB_INTERNAL _tr_flush_block(s, buf, stored_len, last)
         opt_lenb = static_lenb = stored_len + 5; /* force a stored block */
     }
 
+  if(put != 0){
+    if (stored_len+4 <= opt_lenb && buf != (char*)0) {
+        send_bits2(s, 3);    /* send block type */
+        bi_windup(s);        /* align on byte boundary */
+        s->pending += stored_len + 4;
+    }
+    else if (opt_lenb == static_lenb){
+      send_bits2(s, s->static_len + 3);
+    }
+    else{
+      send_bits2(s, s->opt_len + 3);
+    }
+    init_block(s);
+    if (last) {
+      bi_windup(s);
+    }
+    (*put) += s->pending;
+    s->pending = 0;
+    return;
+  }
     if (stored_len+4 <= opt_lenb && buf != (char*)0) {
                        /* 4: two words for the lengths */
         /* The test buf != NULL is only necessary if LIT_BUFSIZE > WSIZE.
@@ -678,8 +704,7 @@ void ZLIB_INTERNAL _tr_flush_block(s, buf, stored_len, last)
 
     } else if (static_lenb == opt_lenb) {
         send_bits(s, (STATIC_TREES<<1)+last, 3);
-        compress_block(s, (const ct_data *)static_ltree,
-                       (const ct_data *)static_dtree);
+        compress_block(s, (const ct_data *)static_ltree, (const ct_data *)static_dtree);
     } else {
         send_bits(s, (DYN_TREES<<1)+last, 3);
         send_all_trees(s, s->l_desc.max_code+1, s->d_desc.max_code+1,
