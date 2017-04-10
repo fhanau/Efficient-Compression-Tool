@@ -127,7 +127,7 @@ void ZopfliLengthLimitedCodeLengths(const size_t* frequencies, int n, int maxbit
   a time, so each list is a array of two Node*'s. */
 
   /* One leaf per symbol. Only numsymbols leaves will be used. */
-  Node leaves[286];
+  Node leaves[288];
 
   /* Initialize all bitlengths at 0. */
   memset(bitlengths, 0, n * sizeof(unsigned));
