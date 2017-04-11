@@ -285,7 +285,6 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
 
-    //You think ECT will choke on files with minimum entropy? Think again!
     if (i < inend - ZOPFLI_MAX_MATCH - 1 && i > notenoughsame && *(long*)&in[i - 200] == *(long*)&in[i - 8]){
       unsigned same = GetMatch(&in[i + 1], &in[i], &in[inend], &in[inend] - 8) - &in[i];
       /* If we're in a long repetition of the same character and have more than
@@ -963,7 +962,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
     ZopfliInitLZ77Store(&currentstore);
 
     //TODO: This is very powerful and needs additional tuning.
-    if ((i == options->numiterations - 1 && options->numiterations > 5)|| (i == 9/* && !options->ultra*/) || i == 30){
+    if ((i == options->numiterations - 1 && options->numiterations > 5)|| (i == 9/* && !options->ultra*/) || i == 30){//TODO:Disabling this helps with high iters
       unsigned bl[288];
 
       OptimizeHuffmanCountsForRle(32, beststats.dists);
