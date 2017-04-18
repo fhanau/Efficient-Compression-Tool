@@ -7,6 +7,7 @@
 #include "support.h"
 #include "miniz/miniz.h"
 #include <unistd.h>
+#include <limits.h>
 
 #ifndef NOMULTI
 #include <thread>
