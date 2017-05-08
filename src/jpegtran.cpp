@@ -17,13 +17,10 @@
 
 /* Modified by Felix Hanau. */
 
-#define JPEG_INTERNAL_OPTIONS   /* cjpeg.c, djpeg.c need to see xxx_SUPPORTED */
-
 #include "mozjpeg/jinclude.h"
 #include "mozjpeg/jpeglib.h"
 #include "main.h"
-
-#define INPUT_BUF_SIZE  4096
+#include "support.h"
 
 static void jcopy_markers_execute (j_decompress_ptr srcinfo, j_compress_ptr dstinfo)
 {
@@ -56,11 +53,8 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
   struct jpeg_compress_struct dstinfo;
   struct jpeg_error_mgr jsrcerr, jdsterr;
   FILE * fp;
-  unsigned char *inbuffer = 0;
-  unsigned long insize = 0;
   unsigned char *outbuffer = 0;
   unsigned long outsize = 0;
-  const char * progname = "ECT (JPEG)";
   /* Initialize the JPEG decompression object with default error handling. */
   srcinfo.err = jpeg_std_error(&jsrcerr);
   jpeg_create_decompress(&srcinfo);
@@ -73,23 +67,20 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
 
   /* Open the input file. */
   if (!(fp = fopen(Infile, "rb"))) {
-    fprintf(stderr, "%s: can't open %s for reading\n", progname, Infile);
+    fprintf(stderr, "ECT: can't open %s for reading\n", Infile);
     return 2;
   }
 
-  size_t nbytes;
-  do {
-    inbuffer = (unsigned char *)realloc(inbuffer, insize + INPUT_BUF_SIZE);
-    if (!inbuffer) {
-      fprintf(stderr, "%s: memory allocation failure\n", progname);
-      exit(1);
-    }
-    nbytes = JFREAD(fp, &inbuffer[insize], INPUT_BUF_SIZE);
-    if (nbytes < INPUT_BUF_SIZE && ferror(fp)) {
-      fprintf(stderr, "%s: can't read from %s\n", progname, Infile);
-    }
-    insize += (unsigned long)nbytes;
-  } while (nbytes == INPUT_BUF_SIZE);
+  size_t insize = filesize(Infile);
+  unsigned char* inbuffer = (unsigned char*)malloc(insize);
+  if (!inbuffer) {
+    fprintf(stderr, "ECT: memory allocation failure\n");
+    exit(1);
+  }
+
+  if (fread(inbuffer, 1, insize, fp) < insize) {
+    fprintf(stderr, "ECT: can't read from %s\n", Infile);
+  }
   fclose(fp);
 
   jpeg_mem_src(&srcinfo, inbuffer, insize);
@@ -111,12 +102,9 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
   jpeg_copy_critical_parameters(&srcinfo, &dstinfo);
 
   /* Adjust default compression parameters by re-parsing the options */
-  dstinfo.optimize_coding = !progressive && !arithmetic;
+  dstinfo.optimize_coding = !arithmetic;
   dstinfo.arith_code = arithmetic;
-  if (dstinfo.num_scans && progressive) {
-    jpeg_simple_progression(&dstinfo);
-  }
-  else{
+  if (!dstinfo.num_scans || !progressive) {
     dstinfo.num_scans = 0;
     dstinfo.scan_info = 0;
   }
@@ -136,7 +124,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
 
   bool x = 0;
 
-  if (insize < outsize || (progressive && insize == outsize)){
+  if (insize < outsize){
     x = 1;
   }
 
@@ -144,14 +132,14 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
   else{
     /* Open the output file. */
     if (!(fp = fopen(Outfile, "wb"))) {
-      fprintf(stderr, "%s: can't open %s for writing\n", progname, Outfile);
+      fprintf(stderr, "ECT: can't open %s for writing\n", Outfile);
       free(outbuffer);
       return 2;
     }
 
     /* Write new file. */
     if (JFWRITE(fp, outbuffer, outsize) < outsize) {
-      fprintf(stderr, "%s: can't write to %s\n", progname, Outfile);
+      fprintf(stderr, "ECT: can't write to %s\n", Outfile);
     }
   }
 
