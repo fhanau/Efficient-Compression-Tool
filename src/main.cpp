@@ -350,7 +350,7 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
                 else{
                     size_t f = filesize(paths[j].string().c_str());
                     if(f > UINT_MAX){
-                        printf("%s: file too big", paths[j].string().c_str());
+                        printf("%s: file too big\n", paths[j].string().c_str());
                         continue;
                     }
                     char* file = (char*)malloc(f);
@@ -377,7 +377,7 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
             }
             if(!paths.size()){
                 if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), (fold.erase(0, substr) + "/").c_str(), 0, 0, 0, 0, argv[args[i]])) {
-                    printf("can't add directory '%s'", argv[args[i]]);
+                    printf("can't add directory '%s'\n", argv[args[i]]);
                 }
             }
 #else
@@ -389,7 +389,7 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
             const char* fname = argv[args[i]];
             size_t f = filesize(fname);
             if(f > UINT_MAX){
-                printf("%s: file too big", fname);
+                printf("%s: file too big\n", fname);
                 continue;
             }
             char* file = (char*)malloc(f);
@@ -401,16 +401,14 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
             if (!stream){
                 free(file); error = 1; continue;
             }
-            int v;
-            if ((v = fread(file, 1, f, stream)) != f){
-                printf("%d\n", v);
+            if (fread(file, 1, f, stream) != f){
                 fclose(stream); free(file); error = 1; continue;
             }
 
             fclose(stream);
             if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), ((std::string)argv[args[i]]).substr(((std::string)argv[args[i]]).find_last_of("/\\") + 1).c_str(), file, f, 0, 0, argv[args[i]])
                 ) {
-                printf("can't add file '%s'", argv[0]);
+                printf("can't add file '%s'\n", argv[0]);
                 free(file); error = 1; continue;
             }
             else{

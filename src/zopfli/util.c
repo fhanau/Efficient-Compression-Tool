@@ -238,7 +238,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned _mode, unsigned multithr
   options->isPNG = isPNG;
   options->reuse_costmodel = (!isPNG || mode > 6) && multithreading < 2;
   options->useCache = 1;
-  options->ultra = mode >= 5 + (options->numiterations > 60) + (options->numiterations > 90);
+  options->ultra = (mode >= 5) + (options->numiterations > 60) + (options->numiterations > 90);
   options->entropysplit = mode < 3;
   options->greed = isPNG ? mode > 3 ? 258 : 50 : 258;
   options->advanced = mode >= 5;

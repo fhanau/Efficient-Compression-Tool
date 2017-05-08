@@ -158,7 +158,7 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   char* temp = strdup(tmp.c_str());
 
   int fd = mkstemps(temp, extension.size());
-  #endif
+#endif
   write(fd, data, size);
   close(fd);
 
@@ -172,7 +172,7 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   }
 
   unlink(temp);
- #ifndef _WIN32
+#ifndef _WIN32
   free(temp);
 #endif
   return new_size;
