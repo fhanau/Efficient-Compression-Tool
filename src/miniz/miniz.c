@@ -354,7 +354,7 @@ void *tinfl_decompress_mem_to_heap(const void *pSrc_buf, size_t src_buf_len, siz
     *pOut_len += dst_buf_size;
     if (status == TINFL_STATUS_DONE) break;
     new_out_buf_capacity = out_buf_capacity * 2; if (new_out_buf_capacity < 128) new_out_buf_capacity = 128;
-    pNew_buf = realloc(pBuf, new_out_buf_capacity);
+    pNew_buf = realloc(pBuf, new_out_buf_capacity + 8);
     if (!pNew_buf)
     {
       free(pBuf); *pOut_len = 0; return NULL;
