@@ -415,6 +415,7 @@ typedef struct LodePNGColorProfile
   unsigned numcolors; /*amount of colors, up to 257. Not valid if bits == 16.*/
   unsigned char palette[1024]; /*Remembers up to the first 256 RGBA colors, in no particular order*/
   unsigned bits; /*bits per channel (not for palette). 1,2 or 4 for greyscale only. 16 if 16-bit per channel required.*/
+  unsigned white; /* All pixels are white*/
 } LodePNGColorProfile;
 
 unsigned lodepng_can_have_alpha(const LodePNGColorMode* info);

@@ -1644,6 +1644,7 @@ void lodepng_color_profile_init(LodePNGColorProfile* profile)
   profile->key_r = profile->key_g = profile->key_b = 0;
   profile->numcolors = 0;
   profile->bits = 1;
+  profile->white = 1;
 }
 
 /*Returns how many bits needed to represent given value (max 8 bit)*/
@@ -1892,6 +1893,10 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
     profile->key_b += (profile->key_b << 8);
     color_tree_cleanup(&tree);
   }
+
+  unsigned char r = 0, g = 0, b = 0, a = 0;
+  getPixelColorRGBA8(&r, &g, &b, &a, in, 0, mode);
+  profile->white = profile->numcolors == 1 && profile->colored == 0 && r == 255;
 
   return 0;
 }
@@ -2215,7 +2220,7 @@ static unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out,
   palettebits = n <= 2 ? 1 : (n <= 4 ? 2 : (n <= 16 ? 4 : 8));
   palette_ok = n <= 256 && prof.bits <= 8;
   if(8 + n * 4 > (unsigned long long)w * h / div) {palette_ok = 0;} /*don't add palette overhead if image has only a few pixels*/
-  if(grey_ok && prof.bits <= palettebits) {palette_ok = 0;}  /*grey is less overhead*/
+  if(grey_ok && prof.bits <= palettebits && !prof.white) {palette_ok = 0;}  /*grey is less overhead*/
 
   if(palette_ok)
   {
