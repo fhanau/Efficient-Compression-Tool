@@ -206,12 +206,12 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
 }
 
 static void OptimizeJPEG(const char * Infile, const ECTOptions& Options){
+    size_t stsize = 0;
 
-    mozjpegtran(Options.Arithmetic, Options.Progressive && (Options.Mode > 1 || filesize(Infile) > 5000), Options.strip, Infile, Infile);
-    if (Options.Progressive && Options.Mode > 1){
-        long long fs = filesize(Infile);
-        if((Options.Mode == 2 && fs < 8192) || (Options.Mode == 3 && fs < 30720) || Options.Mode > 3){
-            mozjpegtran(Options.Arithmetic, false, Options.strip, Infile, Infile);
+    int res = mozjpegtran(Options.Arithmetic, Options.Progressive && (Options.Mode > 1 || filesize(Infile) > 5000), Options.strip, Infile, Infile, &stsize);
+    if (Options.Progressive && Options.Mode > 1 && res != 2){
+        if(res == 1 || (Options.Mode == 2 && stsize < 6500) || (Options.Mode == 3 && stsize < 10000) || (Options.Mode == 4 && stsize < 15000) || (Options.Mode > 4 && stsize < 20000)){
+            mozjpegtran(Options.Arithmetic, false, Options.strip, Infile, Infile, &stsize);
         }
     }
 }

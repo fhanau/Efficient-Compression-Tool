@@ -22,8 +22,9 @@
 #include "main.h"
 #include "support.h"
 
-static void jcopy_markers_execute (j_decompress_ptr srcinfo, j_compress_ptr dstinfo)
+static size_t jcopy_markers_execute (j_decompress_ptr srcinfo, j_compress_ptr dstinfo)
 {
+  size_t size = 0;
   for (jpeg_saved_marker_ptr marker = srcinfo->marker_list; marker; marker = marker->next) {
     if (dstinfo->write_JFIF_header &&
         marker->marker == JPEG_APP0 &&
@@ -44,10 +45,14 @@ static void jcopy_markers_execute (j_decompress_ptr srcinfo, j_compress_ptr dsti
         GETJOCTET(marker->data[4]) == 0x65)
       continue;                 /* reject duplicate Adobe */
     jpeg_write_marker(dstinfo, marker->marker, marker->data, marker->data_length);
+    if(marker->marker == JPEG_COM || (marker->marker >= JPEG_APP0 && marker->marker <= JPEG_APP0 + 15)){
+      size += marker->data_length;
+    }
   }
+  return size;
 }
 
-int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Infile, const char * Outfile)
+int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Infile, const char * Outfile, size_t* stripped_outsize)
 {
   struct jpeg_decompress_struct srcinfo;
   struct jpeg_compress_struct dstinfo;
@@ -55,6 +60,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
   FILE * fp;
   unsigned char *outbuffer = 0;
   unsigned long outsize = 0;
+  size_t extrasize = 0;
   /* Initialize the JPEG decompression object with default error handling. */
   srcinfo.err = jpeg_std_error(&jsrcerr);
   jpeg_create_decompress(&srcinfo);
@@ -116,20 +122,15 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
   jpeg_write_coefficients(&dstinfo, coef_arrays);
 
   /* Copy to the output file any extra markers that we want to preserve */
-  jcopy_markers_execute(&srcinfo, &dstinfo);
+  extrasize = jcopy_markers_execute(&srcinfo, &dstinfo);
 
   /* Finish compression and release memory */
   jpeg_finish_compress(&dstinfo);
   free(inbuffer);
 
-  bool x = 0;
+  bool x = insize < outsize;
 
-  if (insize < outsize){
-    x = 1;
-  }
-
-  /* Better file than before */
-  else{
+  if (outsize < insize){
     /* Open the output file. */
     if (!(fp = fopen(Outfile, "wb"))) {
       fprintf(stderr, "ECT: can't open %s for writing\n", Outfile);
@@ -148,5 +149,6 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
   jpeg_destroy_decompress(&srcinfo);
   fclose(fp);
   free(outbuffer);
+  (*stripped_outsize) = /*x ? insize : */outsize - extrasize;
   return x;
 }
