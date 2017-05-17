@@ -1355,6 +1355,7 @@ static void ZopfliDeflatePart(const ZopfliOptions* options, int final,
   DeflateSplittingFirst(options, final, in, instart, inend, bp, out, outsize, costmodelnotinited, twiceMode, twiceStore);
 }
 
+/*TODO: in needs to be alloc'd 8 bytes past inend. This may cause crashes if code is modified and nonstandard alloc function is used for allocation of in*/
 void ZopfliDeflate(const ZopfliOptions* options, int final,
                    const unsigned char* in, size_t insize,
                    unsigned char* bp, unsigned char** out, size_t* outsize) {
