@@ -1,3 +1,18 @@
+Grab mozjpeg:
+After cloning this repository, you need to update the submodule. In the root directory, run
+
+    git submodule init && git submodule update
+
+This will clone mozjpeg from the upstream repository into src/mozjpeg.
+
+Before build:
+Before you build anything, you need to generate the mozjpeg configure script. Run
+
+    cd src/mozjpeg/
+    autoreconf -fiv
+
+This will generate the ./configure script in src/mozjpeg/.
+
 Makefile Build:
 Use the Makefile to build dependencies and the binary:
 cd src/

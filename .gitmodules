@@ -1,0 +1,3 @@
+[submodule "src/mozjpeg"]
+	path = src/mozjpeg
+	url = https://github.com/mozilla/mozjpeg
