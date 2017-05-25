@@ -1896,7 +1896,7 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
 
   unsigned char r = 0, g = 0, b = 0, a = 0;
   getPixelColorRGBA8(&r, &g, &b, &a, in, 0, mode);
-  profile->white = profile->numcolors == 1 && profile->colored == 0 && r == 255;
+  profile->white = profile->numcolors == 1 && profile->colored == 0 && r == 255 && w > 20 && h > 20 && ((w>225 && h > 225) || w*h > 75000 || (w> 250 && w*h > 40000));
 
   return 0;
 }
