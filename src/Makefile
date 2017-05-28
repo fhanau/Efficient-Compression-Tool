@@ -18,7 +18,7 @@ leanify/zip.cpp leanify/leanify.cpp
 .PHONY: zlib libpng mozjpeg deps bin all install
 all: deps bin
 
-bin:
+bin: deps
 	$(CC) -c $(CFLAGS) optipng/codec.c optipng/image.c zopfli//util.c zopfli/squeeze.c zopfli/lz77.c \
 	zopfli/blocksplitter.c optipng/opngreduc/opngreduc.c LzFind.c miniz/miniz.c
 	$(CXX) $(CXXFLAGS) main.cpp $(OBJECTS) $(CXXSRC) mozjpeg/.libs/libjpeg.a libpng/libpng.a zlib/libz.a -o ../ECT
