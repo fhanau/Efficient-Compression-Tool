@@ -2,6 +2,10 @@ CC = gcc
 CXX = g++
 CFLAGS = -Ofast -std=gnu11
 CXXFLAGS= -pthread -Ofast -std=gnu++11
+PREFIX ?= /usr/local
+BINDIR ?= $(PREFIX)/bin
+INSTALL ?= install
+MAKEDIR ?= install -d
 
 ifeq ($(OS),Windows_NT)
 	CXXFLAGS += -mno-ms-bitfields
@@ -11,7 +15,7 @@ CXXSRC = support.cpp zopflipng.cpp zopfli/deflate.cpp zopfli/zopfli_gzip.cpp zop
 lodepng/lodepng.cpp lodepng/lodepng_util.cpp optipng/optipng.cpp jpegtran.cpp gztools.cpp \
 leanify/zip.cpp leanify/leanify.cpp
 
-.PHONY: zlib libpng mozjpeg deps bin all
+.PHONY: zlib libpng mozjpeg deps bin all install
 all: deps bin
 
 bin:
@@ -33,3 +37,6 @@ mozjpeg:
 	cd mozjpeg/; \
 	./configure --disable-dependency-tracking --disable-shared --without-turbojpeg --without-java CC="$(CC)" CFLAGS="$(CFLAGS)"; \
 	make
+install: all
+	$(MAKEDIR) $(DESTDIR)$(BINDIR)
+	$(INSTALL) ../ECT $(DESTDIR)$(BINDIR)
