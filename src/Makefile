@@ -1,7 +1,7 @@
 CC = gcc
 CXX = g++
-CFLAGS = -Ofast -std=gnu11
-CXXFLAGS= -pthread -Ofast -std=gnu++11
+CFLAGS = -Ofast -std=gnu11 -fsigned-char
+CXXFLAGS= -pthread -Ofast -std=gnu++11 -fsigned-char
 
 ifeq ($(OS),Windows_NT)
 	CXXFLAGS += -mno-ms-bitfields
