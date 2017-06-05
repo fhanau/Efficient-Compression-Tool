@@ -490,9 +490,9 @@ static mz_bool mz_zip_array_ensure_capacity(mz_zip_archive *pZip, mz_zip_array *
   return MZ_TRUE;
 }
 
-static MZ_FORCEINLINE mz_bool mz_zip_array_reserve(mz_zip_archive *pZip, mz_zip_array *pArray, size_t new_capacity, mz_uint growing)
+static MZ_FORCEINLINE mz_bool mz_zip_array_reserve(mz_zip_archive *pZip, mz_zip_array *pArray, size_t new_capacity)
 {
-  if (new_capacity > pArray->m_capacity) { if (!mz_zip_array_ensure_capacity(pZip, pArray, new_capacity, growing)) return MZ_FALSE; }
+  if (new_capacity > pArray->m_capacity) { if (!mz_zip_array_ensure_capacity(pZip, pArray, new_capacity, MZ_TRUE)) return MZ_FALSE; }
   return MZ_TRUE;
 }
 
@@ -505,7 +505,7 @@ static MZ_FORCEINLINE mz_bool mz_zip_array_resize(mz_zip_archive *pZip, mz_zip_a
 
 static MZ_FORCEINLINE mz_bool mz_zip_array_ensure_room(mz_zip_archive *pZip, mz_zip_array *pArray, size_t n)
 {
-  return mz_zip_array_reserve(pZip, pArray, pArray->m_size + n, MZ_TRUE);
+  return mz_zip_array_reserve(pZip, pArray, pArray->m_size + n);
 }
 
 static MZ_FORCEINLINE mz_bool mz_zip_array_push_back(mz_zip_archive *pZip, mz_zip_array *pArray, const void *pElements, size_t n)
