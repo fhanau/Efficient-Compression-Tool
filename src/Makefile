@@ -39,4 +39,4 @@ mozjpeg:
 	make
 install: all
 	$(MAKEDIR) $(DESTDIR)$(BINDIR)
-	$(INSTALL) ../ECT $(DESTDIR)$(BINDIR)
+	$(INSTALL) ../ect $(DESTDIR)$(BINDIR)
