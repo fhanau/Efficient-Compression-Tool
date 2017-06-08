@@ -298,7 +298,7 @@ size_t Zip::Leanify(const ECTOptions& Options, unsigned long* files) {
     // decompress
     size_t decompressed_size = 0;
     uint8_t* decompress_buf = static_cast<uint8_t*>(
-    tinfl_decompress_mem_to_heap(p_read, local_header->compressed_size, &decompressed_size, 0));
+    tinfl_decompress_mem_to_heap(p_read, local_header->compressed_size, &decompressed_size));
 
     if (!decompress_buf || decompressed_size != local_header->uncompressed_size ||
         local_header->crc32 != crc32(0, decompress_buf, local_header->uncompressed_size)) {

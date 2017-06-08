@@ -256,7 +256,7 @@ static void lodepng_add32bitInt(ucvector* buffer, unsigned value)
 #ifdef LODEPNG_COMPILE_ZLIB
 #ifdef LODEPNG_COMPILE_DECODER
 
-static unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
+unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
                                 const unsigned char* in, size_t insize)
 {
 
