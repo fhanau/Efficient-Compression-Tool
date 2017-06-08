@@ -21,10 +21,10 @@ void ungz(const char * Infile, const char * Outfile){
     if (!stream){
         return;
     }
-    char buf [4096];
+    char buf [8192];
     int bytes;
     do {
-        bytes = gzread(r, &buf, 4096);
+        bytes = gzread(r, &buf, 8192);
         fwrite(buf, 1, bytes, stream);
     }
     while (!gzeof(r));
