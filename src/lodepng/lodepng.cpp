@@ -3683,7 +3683,6 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
   size_t bytewidth = (bpp + 7) / 8;
   const unsigned char* prevline = 0;
   unsigned x, y;
-  unsigned error = 0;
   LodePNGFilterStrategy strategy = settings->filter_strategy;
 
   if(bpp == 0) return 31; /*error: invalid color type*/
@@ -3760,7 +3759,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
           filterScanline(attempt[type].data, &in[y * linebytes], prevline, linebytes, bytewidth, type);
         }
 
-        if(settings->filter_style < 2){
+        if(settings->filter_style < 2 || 1){
           deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
           stream.next_in = (z_const unsigned char *)attempt[type].data;
           stream.avail_in = linebytes;
@@ -4431,7 +4430,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
     free(in2);
   }
 
-  return error;
+  return 0;
 }
 
 static void addPaddingBits(unsigned char* out, const unsigned char* in,

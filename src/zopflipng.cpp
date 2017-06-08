@@ -395,6 +395,9 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
     state.encoder.auto_convert = 0;
     lodepng_color_mode_copy(&state.info_png.color, &inputstate.info_png.color);
   }
+  else if(best_filter == 15){
+    state.encoder.predefined_filters = &filters[0];
+  }
 
   LodePNGPaletteSettings p;
   p.order = LPOS_NONE;
@@ -537,7 +540,7 @@ int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int f
 
   std::vector<unsigned char> filters;
   lodepng::load_file(origpng, Infile);
-  if (filter == 6){
+  if (filter == 6 || filter == 15){
     lodepng::getFilterTypes(filters, origpng);
     if(!filters.size()){
       printf("Could not load PNG filters\n");

@@ -346,7 +346,8 @@ typedef enum LodePNGFilterStrategy
   LFS_INCREMENTAL = 11,
   LFS_INCREMENTAL2 = 12,
   LFS_INCREMENTAL3 = 13,
-  LFS_GENETIC = 14
+  LFS_GENETIC = 14,
+  LFS_ALL_CHEAP = 15
 } LodePNGFilterStrategy;
 
 typedef enum LodePNGPalettePriorityStrategy
