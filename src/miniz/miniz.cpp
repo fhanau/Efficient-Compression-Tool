@@ -28,10 +28,9 @@
 // Higher level helper functions.
 void *tinfl_decompress_mem_to_heap(const void *pSrc_buf, size_t src_buf_len, size_t *pOut_len)
 {
-  void *pBuf = 0;
+  unsigned char *pBuf = 0;
 
-  unsigned char* x = (unsigned char*)pBuf;
-  unsigned error = lodepng_inflate(&x, pOut_len, (unsigned char*)pSrc_buf, src_buf_len);
+  unsigned error = lodepng_inflate(&pBuf, pOut_len, (unsigned char*)pSrc_buf, src_buf_len);
   if(error){
     free(pBuf); *pOut_len = 0; return NULL;
   }

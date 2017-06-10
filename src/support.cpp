@@ -8,6 +8,9 @@
 
 #include "support.h"
 #include <sys/stat.h>
+#include <time.h>
+#include <utime.h>
+#include <stdio.h>
 
 size_t filesize (const char * Infile) {
     struct stat stats;
@@ -31,4 +34,22 @@ bool isDirectory(const char *path) {
   if (!stat(path, &sb))
     return (sb.st_mode & S_IFDIR) != 0;
   return false;
+}
+
+time_t get_file_time(const char* Infile){
+  struct stat stats;
+  if(stat(Infile, &stats)){
+    printf("%s: Could not get time\n", Infile);
+    return -1;
+  }
+  return stats.st_mtime;
+}
+
+void set_file_time(const char* Infile, time_t otime){
+  struct utimbuf oldtime;
+  oldtime.actime = time(0);
+  oldtime.modtime = otime;
+  if (utime(Infile, &oldtime)){
+    printf("%s: Could not set time\n", Infile);
+  }
 }

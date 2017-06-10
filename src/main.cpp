@@ -25,7 +25,7 @@ static void Usage() {
     printf (
             "Efficient Compression Tool\n"
             "(c) 2014-2016 Felix Hanau.\n"
-            "Version 0.7"
+            "Version 0.8"
 #ifdef __DATE__
             " compiled on %s\n"
 #endif
@@ -53,6 +53,7 @@ static void Usage() {
             " -gzip          Compress file with GZIP algorithm\n"
             " -quiet         Print only error messages\n"
             " -help          Print this help\n"
+            " -keep          Keep modification time\n"
             "Advanced Options:\n"
 #ifdef BOOST_SUPPORTED
             " --disable-png  Disable PNG optimization\n"
@@ -253,8 +254,12 @@ static void OptimizeMP3(const char * Infile, const ECTOptions& Options){
 void fileHandler(const char * Infile, const ECTOptions& Options, int internal){
     std::string Ext = Infile;
     std::string x = Ext.substr(Ext.find_last_of(".") + 1);
+    time_t t;
 
     if ((Options.PNG_ACTIVE && (x == "PNG" || x == "png")) || (Options.JPEG_ACTIVE && (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg")) || (Options.Gzip && !internal)){
+        if(Options.keep){
+            t = get_file_time(Infile);
+        }
         long long size = filesize(Infile);
         if (size < 0){
             printf("%s: bad file\n", Infile);
@@ -286,6 +291,9 @@ void fileHandler(const char * Infile, const ECTOptions& Options, int internal){
             }
         }
         else{printf("File too big\n");}
+        if(Options.keep && !statcompressedfile){
+            set_file_time(Infile, t);
+        }
     }
 #ifdef MP3_SUPPORTED
     else if(x == "mp3"){
@@ -300,9 +308,13 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
     unsigned long local_bytes = 0;
     unsigned i = 0;
     if(extension=="zip" || extension=="ZIP"){
+    time_t t = -1;
         i++;
-        if(exists(zipfilename.c_str())){
+        if(exists(argv[args[0]])){
             local_bytes += filesize(zipfilename.c_str());
+            if(Options.keep){
+                t = get_file_time(argv[args[0]]);
+            }
         }
     }
     else{
@@ -421,6 +433,9 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
     }
 
     ReZipFile(zipfilename.c_str(), Options, &processedfiles);
+    if(t >= 0){
+        set_file_time(zipfilename.c_str(), t);
+    }
 
     bytes += local_bytes;
     savings += local_bytes - filesize(zipfilename.c_str());
@@ -446,6 +461,7 @@ int main(int argc, const char * argv[]) {
     Options.Allfilters = 0;
     Options.Allfiltersbrute = 0;
     Options.palette_sort = 0;
+    Options.keep = false;
     std::vector<int> args;
     int files = 0;
     if (argc >= 2){
@@ -467,6 +483,7 @@ int main(int argc, const char * argv[]) {
             else if (strncmp(argv[i], "-zip", 2) == 0) {Options.Zip = true; Options.Gzip = true;}
             else if (strncmp(argv[i], "-help", 2) == 0) {Usage(); return 0;}
             else if (strncmp(argv[i], "-quiet", 2) == 0) {Options.SavingsCounter = false;}
+            else if (strncmp(argv[i], "-keep", 2) == 0) {Options.keep = true;}
 #ifdef BOOST_SUPPORTED
             else if (strcmp(argv[i], "--disable-jpeg") == 0 || strcmp(argv[i], "--disable-jpg") == 0 ){Options.JPEG_ACTIVE = false;}
             else if (strcmp(argv[i], "--disable-png") == 0){Options.PNG_ACTIVE = false;}

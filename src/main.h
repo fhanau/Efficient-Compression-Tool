@@ -38,6 +38,7 @@ struct ECTOptions{
   bool Recurse;
 #endif
   unsigned DeflateMultithreading;
+  bool keep;
 };
 
 int Optipng(unsigned filter, const char * Infile, bool force_no_palette, int nda);

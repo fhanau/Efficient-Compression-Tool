@@ -20,4 +20,8 @@ bool writepermission (const char * Infile);
 
 bool isDirectory(const char *path);
 
+time_t get_file_time(const char* Infile);
+
+void set_file_time(const char* Infile, time_t otime);
+
 #endif /* defined(__Efficient_Compression_Tool__support__) */
