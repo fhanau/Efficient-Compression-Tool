@@ -1,6 +1,5 @@
 #include "miniz.h"
 #include "../zlib/zlib.h"
-#include "../lodepng/lodepng.h"
 
 #include <string.h>
 #include <assert.h>
@@ -24,18 +23,6 @@
 #ifdef __cplusplus
   extern "C" {
 #endif
-
-// Higher level helper functions.
-void *tinfl_decompress_mem_to_heap(const void *pSrc_buf, size_t src_buf_len, size_t *pOut_len)
-{
-  unsigned char *pBuf = 0;
-
-  unsigned error = lodepng_inflate(&pBuf, pOut_len, (unsigned char*)pSrc_buf, src_buf_len);
-  if(error){
-    free(pBuf); *pOut_len = 0; return NULL;
-  }
-  return pBuf;
-}
 
 // ------------------- .ZIP archive reading
 

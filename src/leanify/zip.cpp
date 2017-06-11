@@ -13,6 +13,7 @@
 #include "../miniz/miniz.h"
 #include "../zlib/zlib.h"
 #include "../support.h"
+#include "../lodepng/lodepng.h"
 
 #if defined __GNUC__
 #define PACK(...) __VA_ARGS__ __attribute__((__packed__))
@@ -22,6 +23,18 @@ using std::cerr;
 using std::endl;
 using std::string;
 using std::vector;
+
+//From miniz
+static void *decompress_mem_to_heap(const void *pSrc_buf, size_t src_buf_len, size_t *pOut_len)
+{
+  unsigned char *pBuf = 0;
+
+  unsigned error = lodepng_inflate(&pBuf, pOut_len, (unsigned char*)pSrc_buf, src_buf_len);
+  if(error){
+    free(pBuf); *pOut_len = 0; return 0;
+  }
+  return pBuf;
+}
 
 const uint8_t Zip::header_magic[] = { 0x50, 0x4B, 0x03, 0x04 };
 
@@ -300,7 +313,7 @@ size_t Zip::Leanify(const ECTOptions& Options, unsigned long* files) {
     // decompress
     size_t decompressed_size = 0;
     uint8_t* decompress_buf = static_cast<uint8_t*>(
-    tinfl_decompress_mem_to_heap(p_read, local_header->compressed_size, &decompressed_size));
+    decompress_mem_to_heap(p_read, local_header->compressed_size, &decompressed_size));
 
     if (!decompress_buf || decompressed_size != local_header->uncompressed_size ||
         local_header->crc32 != crc32(0, decompress_buf, local_header->uncompressed_size)) {
