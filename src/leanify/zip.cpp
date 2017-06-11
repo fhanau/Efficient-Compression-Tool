@@ -272,7 +272,9 @@ size_t Zip::Leanify(const ECTOptions& Options, unsigned long* files) {
       // method is store
       if (local_header->compressed_size) {
         uint32_t new_size = RecompressFile(p_read, local_header->compressed_size, p_read - p_write, filename, Options);
-
+        if(new_size == local_header->compressed_size){
+          memmove(p_write, p_read, local_header->compressed_size);
+        }
         cd_header.crc32 = local_header->crc32 = crc32(0, p_write, new_size);
         cd_header.compressed_size = local_header->compressed_size = new_size;
         cd_header.uncompressed_size = local_header->uncompressed_size = new_size;
@@ -281,7 +283,7 @@ size_t Zip::Leanify(const ECTOptions& Options, unsigned long* files) {
       continue;
     }
 
-    // If unsupported compression method or fast mode or encrypted, just move it.
+    // If unsupported compression method or encrypted, just move it.
     if (local_header->compression_method != 8 || local_header->flag & 1) {
       memmove(p_write, p_read, local_header->compressed_size);
       p_write += local_header->compressed_size;
