@@ -13,4 +13,5 @@
 
 void ungz(const char * Input, const char * Output);
 int IsGzip(const char * Input);
+int IsZIP(const char * Infile);
 #endif /* defined(__Efficient_Compression_Tool__ungz__) */

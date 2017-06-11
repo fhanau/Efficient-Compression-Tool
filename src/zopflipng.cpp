@@ -544,7 +544,7 @@ int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int f
     lodepng::getFilterTypes(filters, origpng);
     if(!filters.size()){
       printf("Could not load PNG filters\n");
-      return 0;
+      return -1;
     }
   }
   std::vector<unsigned char> resultpng;

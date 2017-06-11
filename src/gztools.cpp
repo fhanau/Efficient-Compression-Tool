@@ -8,6 +8,7 @@
 
 #include "gztools.h"
 #include "zlib/zlib.h"
+#include "leanify/zip.h"
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -46,4 +47,18 @@ int IsGzip(const char * Infile){
         return 1;
     }
     return 0;
+}
+
+int IsZIP(const char * Infile){
+  FILE * stream = fopen (Infile, "rb");
+  if (!stream){
+    return -1;
+  }
+  unsigned char buf [4];
+  if (fread(&buf, 1, 4, stream) != 4){
+    return -1;
+  }
+  fclose(stream);
+
+  return memcmp(buf, Zip::header_magic, 4) == 0;
 }

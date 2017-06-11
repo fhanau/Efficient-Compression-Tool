@@ -148,13 +148,14 @@ bool GetCDHeaders(const uint8_t* fp, size_t size, const EOCD& eocd, size_t zip_o
 }  // namespace
 
 uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_leanified, string filename, const ECTOptions& Options){
+  bool isZIP = size > sizeof(Zip::header_magic) && memcmp(data, Zip::header_magic, sizeof(Zip::header_magic)) == 0;
 
   int dotpos = filename.find_last_of(".");
   if(dotpos == filename.npos){
     return size;
   }
   string extension = filename.substr(filename.find_last_of("."));
-  if(!(extension == ".PNG" || extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".JPEG" || extension == ".JPG")){
+  if(!(extension == ".PNG" || extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".JPEG" || extension == ".JPG" || isZIP)){
     return size;
   }
 
@@ -175,7 +176,15 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   write(fd, data, size);
   close(fd);
 
-  fileHandler(temp, Options, 1);
+  if(isZIP){
+    std::vector<int> args;
+    args.push_back(0);
+    const char * v[1];
+    v[0] = temp;
+    zipHandler(args, v, 1, Options);
+  } else {
+    fileHandler(temp, Options, 1);
+  }
   uint32_t new_size = filesize(temp);
 
   if(new_size < size || size_leanified){

@@ -143,7 +143,7 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
     }
 }
 
-static void OptimizePNG(const char * Infile, const ECTOptions& Options){
+static unsigned char OptimizePNG(const char * Infile, const ECTOptions& Options){
     unsigned _mode = Options.Mode;
     unsigned mode = (Options.Mode % 10000) > 9 ? 9 : (Options.Mode % 10000);
     if (mode == 1 && Options.Reuse){
@@ -153,6 +153,9 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
     long long size = filesize(Infile);
     if(mode == 9 && !Options.Reuse && !Options.Allfilters){
         x = Zopflipng(Options.strip, Infile, Options.Strict, 3, 0, Options.DeflateMultithreading);
+        if(x < 0){
+            return 1;
+        }
     }
     //Disabled as using this causes libpng warnings
     //int filter = Optipng(Options.Mode, Infile, true, Options.Strict || Options.Mode > 1);
@@ -162,11 +165,14 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
     }
 
     if (filter == -1){
-        return;
+        return 1;
     }
     if (mode != 1){
         if (Options.Allfilters){
             x = Zopflipng(Options.strip, Infile, Options.Strict, _mode, 6 + Options.palette_sort, Options.DeflateMultithreading);
+            if(x < 0){
+                return 1;
+            }
             Zopflipng(Options.strip, Infile, Options.Strict, _mode, Options.palette_sort, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, _mode, 5 + Options.palette_sort, Options.DeflateMultithreading);
             Zopflipng(Options.strip, Infile, Options.Strict, _mode, 1 + Options.palette_sort, Options.DeflateMultithreading);
@@ -189,6 +195,9 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
         }
         else {
             x = Zopflipng(Options.strip, Infile, Options.Strict, _mode, filter + Options.palette_sort, Options.DeflateMultithreading);
+            if(x < 0){
+                return 1;
+            }
         }
     }
     else {
@@ -204,17 +213,19 @@ static void OptimizePNG(const char * Infile, const ECTOptions& Options){
     if(Options.strip && x){
         Optipng(0, Infile, false, 0);
     }
+    return 0;
 }
 
-static void OptimizeJPEG(const char * Infile, const ECTOptions& Options){
+static unsigned char OptimizeJPEG(const char * Infile, const ECTOptions& Options){
     size_t stsize = 0;
 
     int res = mozjpegtran(Options.Arithmetic, Options.Progressive && (Options.Mode > 1 || filesize(Infile) > 5000), Options.strip, Infile, Infile, &stsize);
     if (Options.Progressive && Options.Mode > 1 && res != 2){
         if(res == 1 || (Options.Mode == 2 && stsize < 6500) || (Options.Mode == 3 && stsize < 10000) || (Options.Mode == 4 && stsize < 15000) || (Options.Mode > 4 && stsize < 20000)){
-            mozjpegtran(Options.Arithmetic, false, Options.strip, Infile, Infile, &stsize);
+            res = mozjpegtran(Options.Arithmetic, false, Options.strip, Infile, Infile, &stsize);
         }
     }
+    return res == 2;
 }
 
 #ifdef MP3_SUPPORTED
@@ -251,10 +262,11 @@ static void OptimizeMP3(const char * Infile, const ECTOptions& Options){
 }
 #endif
 
-void fileHandler(const char * Infile, const ECTOptions& Options, int internal){
+unsigned fileHandler(const char * Infile, const ECTOptions& Options, int internal){
     std::string Ext = Infile;
     std::string x = Ext.substr(Ext.find_last_of(".") + 1);
     time_t t;
+    unsigned error = 0;
 
     if ((Options.PNG_ACTIVE && (x == "PNG" || x == "png")) || (Options.JPEG_ACTIVE && (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg")) || (Options.Gzip && !internal)){
         if(Options.keep){
@@ -263,20 +275,20 @@ void fileHandler(const char * Infile, const ECTOptions& Options, int internal){
         long long size = filesize(Infile);
         if (size < 0){
             printf("%s: bad file\n", Infile);
-            return;
+            return 1;
         }
         int statcompressedfile = 0;
         if (size < 1200000000) {//completely random value
             if (x == "PNG" || x == "png"){
-                OptimizePNG(Infile, Options);
+                error = OptimizePNG(Infile, Options);
             }
             else if (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"){
-                OptimizeJPEG(Infile, Options);
+                error = OptimizeJPEG(Infile, Options);
             }
             else if (Options.Gzip && !internal){
                 statcompressedfile = ECTGzip(Infile, Options.Mode, Options.DeflateMultithreading, size, Options.Zip);
                 if (statcompressedfile == 2){
-                    return;
+                    return 1;
                 }
             }
             if(Options.SavingsCounter && !internal){
@@ -300,15 +312,16 @@ void fileHandler(const char * Infile, const ECTOptions& Options, int internal){
         OptimizeMP3(Infile, Options);
     }
 #endif
+    return error;
 }
 
-static void zipHandler(std::vector<int> args, const char * argv[], int files, const ECTOptions& Options){
+unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const ECTOptions& Options){
     std::string extension = ((std::string)argv[args[0]]).substr(((std::string)argv[args[0]]).find_last_of(".") + 1);
     std::string zipfilename = argv[args[0]];
     unsigned long local_bytes = 0;
     unsigned i = 0;
-    if(extension=="zip" || extension=="ZIP"){
     time_t t = -1;
+    if(extension=="zip" || extension=="ZIP" || IsZIP(argv[args[0]])){
         i++;
         if(exists(argv[args[0]])){
             local_bytes += filesize(zipfilename.c_str());
@@ -335,7 +348,7 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
         zipfilename += ".zip";
         if(exists(zipfilename.c_str())){
             printf("Error: ZIP file for chosen file/folder already exists, but you didn't list it.\n");
-            return;
+            return 1;
         }
     }
 
@@ -439,9 +452,11 @@ static void zipHandler(std::vector<int> args, const char * argv[], int files, co
 
     bytes += local_bytes;
     savings += local_bytes - filesize(zipfilename.c_str());
+    return error;
 }
 
 int main(int argc, const char * argv[]) {
+    unsigned error = 0;
     ECTOptions Options;
     Options.strip = false;
     Options.Progressive = false;
@@ -518,31 +533,34 @@ int main(int argc, const char * argv[]) {
             Options.Allfilters = 0;
         }
         if(Options.Zip){
-            zipHandler(args, argv, files, Options);
+            error |= zipHandler(args, argv, files, Options);
         }
         else {
             for (int j = 0; j < files; j++){
 #ifdef BOOST_SUPPORTED
                 if (boost::filesystem::is_regular_file(argv[args[j]])){
-                    fileHandler(argv[args[j]], Options, 0);
+                    error |= fileHandler(argv[args[j]], Options, 0);
                 }
                 else if (boost::filesystem::is_directory(argv[args[j]])){
                     if(Options.Recurse){boost::filesystem::recursive_directory_iterator a(argv[args[j]]), b;
                         std::vector<boost::filesystem::path> paths(a, b);
                         for(unsigned i = 0; i < paths.size(); i++){
-                            fileHandler(paths[i].string().c_str(), Options, 0);
+                            error |= fileHandler(paths[i].string().c_str(), Options, 0);
                         }
                     }
                     else{
                         boost::filesystem::directory_iterator a(argv[args[j]]), b;
                         std::vector<boost::filesystem::path> paths(a, b);
                         for(unsigned i = 0; i < paths.size(); i++){
-                            fileHandler(paths[i].string().c_str(), Options, 0);
+                            error |= fileHandler(paths[i].string().c_str(), Options, 0);
                         }
                     }
                 }
+                else{
+                    error = 1;
+                }
 #else
-                fileHandler(argv[args[j]], Options, 0);
+                error |= fileHandler(argv[args[j]], Options, 0);
 #endif
             }
         }
@@ -552,4 +570,5 @@ int main(int argc, const char * argv[]) {
         if(Options.SavingsCounter){ECT_ReportSavings();}
     }
     else {Usage();}
+    return error;
 }
