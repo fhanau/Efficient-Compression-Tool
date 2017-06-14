@@ -79,7 +79,7 @@ void opng_init_codec_context(struct opng_codec_context *context, struct opng_ima
  * The image may be either in PNG format or in an external file format.
  * The function returns 0 on success or -1 on error.
  */
-int opng_decode_image(struct opng_codec_context *context, FILE *stream, const char *fname, bool force_no_palette);
+int opng_decode_image(struct opng_codec_context *context, FILE *stream, const char *fname, bool force_no_palette, unsigned clean_alpha);
 
 /*
  * Attempts to reduce the imported image.

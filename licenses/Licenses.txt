@@ -5,11 +5,11 @@ Mozjpeg (https://github.com/mozilla/mozjpeg/) is copyrighted by the Mozilla Corp
 Zlib (http://www.zlib.net/) is (C) 1995-2013 Jean-loup Gailly and Mark Adler and licensed under the Zlib license, see src/zlib/zlib.h and includes changes by cloudflare (https://github.com/cloudflare/zlib).
 Libpng (www.libpng.org/pub/png/libpng.html) is licensed under the PNG license in src/libpng/png.h and (C) Glenn Randers-Pehrson.
 Optipng (http://optipng.sourceforge.net/) is (C) 2001-2013 Cosmin Truta and licensed under the zlib license.
+Pngcrush (https://pmt.sourceforge.io/pngcrush/) is  (C) 1998-2002, 2006-2016 Glenn Randers-Pehrson, Portions (C) 2005 Greg Roelofs.
 Opngreduc (part of optipng) is (C) 2001-2013 Cosmin Truta and licensed under the libpng license.
 Cexcept (http://www.nicemice.net/cexcept/) is (C) 2000-2008 Adam M. Costello and Cosmin Truta and licensed under the Cexcept license.
 Brotli(https://github.com/google/brotli), Zopfli and Zopflipng (https://github.com/google/zopfli) are (C) Google Inc. and licensed under the Apache License, see src/zopfli/COPYING.
 Lodepng (https://github.com/lvandeve/lodepng/) is Copyright (c) 2005-2014 Lode Vandevenne and licensed under the Lodepng License, see src/zopfli/src/zopflipng/lodepng/lodepng.h.
-ImageOptim is (C) Kornel Lesiński and licensed under the GNU GPL V2.
 Leanify is Copyright (c) 2014 JayXon and licensed under The MIT License.
 FSE(https://github.com/Cyan4973/FiniteStateEntropy) is (C) 2013, Yann Collet 
 LZ4(https://github.com/Cyan4973/lz4) is (C) 2011-2015, Yann Collet 

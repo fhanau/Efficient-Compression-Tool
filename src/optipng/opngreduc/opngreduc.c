@@ -1165,75 +1165,6 @@ static png_uint_32 opng_reduce_palette(png_structp png_ptr, png_infop info_ptr, 
    return OPNG_REDUCE_PALETTE_TO_GRAY;  /* ignore the former result */
 }
 
-
-/*Remove RGB components or transparent pixels in RGB+alpha images.
-The function returns OPNG_REDUCE_DIRTY_ALPHA if any pixels were cleared.*/
-static png_uint_32 opng_reduce_dirty_alpha(png_structp png_ptr, png_infop info_ptr)
-{
-  png_uint_32 result = OPNG_REDUCE_NONE;
-  png_bytep sample_ptr;
-  png_uint_32 height, width, j;
-  int bit_depth, color_type;
-
-  png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, 0, 0, 0);
-
-
-  if (bit_depth != 8){
-    return OPNG_REDUCE_NONE;  /* nothing is done in this case */
-  }
-
-  OPNG_ASSERT(!(color_type & PNG_COLOR_MASK_PALETTE));
-
-  png_bytepp row_ptr = png_get_rows(png_ptr, info_ptr);
-  png_byte channels  = png_get_channels(png_ptr, info_ptr);
-  png_bytep alpha_row = (png_bytep)png_malloc(png_ptr, width);
-
-  png_row_info row_info;
-  row_info.width = width;
-  row_info.rowbytes = 0;  /* not used */
-  row_info.color_type = (png_byte)color_type;
-  row_info.bit_depth = (png_byte)bit_depth;
-  row_info.channels = (png_byte)channels;
-  row_info.pixel_depth = 0;  /* not used */
-
-  png_color_16p trans_color = 0;
-  png_get_tRNS(png_ptr, info_ptr, 0, 0, &trans_color);
-  /* Search for transparent pixels. */
-  for (unsigned i = 0; i < height; ++i, ++row_ptr)
-  {
-    sample_ptr = *row_ptr;
-    opng_get_alpha_row(&row_info, trans_color,  *row_ptr, alpha_row);
-
-    if (color_type & PNG_COLOR_MASK_COLOR)
-    {
-      for (j = 0; j < width; ++j, sample_ptr += channels)
-      {
-        if (alpha_row[j] == 0)
-        {
-          sample_ptr[0] = 0;
-          sample_ptr[1] = 0;
-          sample_ptr[2] = 0;
-          result = OPNG_REDUCE_DIRTY_ALPHA;
-        }
-      }
-    }
-    else  /* grayscale */
-    {
-      for (j = 0; j < width; ++j, sample_ptr += channels)
-      {
-        if (alpha_row[j] == 0)
-        {
-          sample_ptr[0] = 0;
-          result = OPNG_REDUCE_DIRTY_ALPHA;
-        }
-      }
-    }
-  }
-
-  png_free(png_ptr, alpha_row);
-  return result;
-}
-
 /*
  * Reduce the image (bit depth + color type + palette) without
  * losing any information. The palette (if applicable) and the
@@ -1252,19 +1183,12 @@ png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, pn
 
    int color_type = png_get_color_type(png_ptr, info_ptr);
 
-
    /* The reductions below must be applied in this particular order. */
 
-  png_uint_32 result = 0;
-     if ((color_type == PNG_COLOR_TYPE_RGB_ALPHA ||
-                   color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
-                 && (reductions & OPNG_REDUCE_DIRTY_ALPHA)
-                )
-     {result |= opng_reduce_dirty_alpha(png_ptr, info_ptr);}
-
+  png_uint_32 result;
 
    /* Try to reduce the high bits and color/alpha channels. */
-   result |= opng_reduce_bits(png_ptr, info_ptr, reductions);
+   result = opng_reduce_bits(png_ptr, info_ptr, reductions);
 
    /* Try to reduce the palette image. */
    if (color_type == PNG_COLOR_TYPE_PALETTE &&

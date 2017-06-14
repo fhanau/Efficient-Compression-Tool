@@ -37,8 +37,9 @@
 struct opng_options
 {
     int fix;
-    int nda, nz;
+    int nz;
     unsigned optim_level;
+    unsigned clean_alpha;
 };
 
 // The optimization engine
@@ -113,7 +114,7 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
     struct opng_encoding_stats *stats = &session->in_stats;
 
     opng_init_codec_context(&context, image, stats, session->transformer);
-    if (opng_decode_image(&context, stream, session->Infile, force_no_palette) < 0)
+    if (opng_decode_image(&context, stream, session->Infile, force_no_palette, session->options->clean_alpha) < 0)
     {
         opng_decode_finish(&context, 1);
         return -1;
@@ -125,9 +126,6 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
     {
         // Do not reduce files with PNG datastreams under -nz, signed files or files with APNG chunks.
         reductions = OPNG_REDUCE_NONE;
-    }
-    else if (options->nda){
-        reductions &= ~OPNG_REDUCE_DIRTY_ALPHA;
     }
     // Try to reduce the image.
     if (reductions != OPNG_REDUCE_NONE){
@@ -287,7 +285,7 @@ static int opng_optimize_file(opng_optimizer *optimizer, const char *Infile, boo
     return optimal_filter;
 }
 
-int Optipng(unsigned level, const char * Infile, bool force_no_palette, int nda)
+int Optipng(unsigned level, const char * Infile, bool force_no_palette, unsigned clean_alpha)
 {
   struct opng_options options;
   memset(&options, 0, sizeof(options));
@@ -307,7 +305,7 @@ int Optipng(unsigned level, const char * Infile, bool force_no_palette, int nda)
   else{
     options.optim_level = level;
   }
-  options.nda = nda;
+  options.clean_alpha = clean_alpha;
   the_optimizer->options = options;
   the_optimizer->transformer = the_transformer;
   int val = opng_optimize_file(the_optimizer, Infile, force_no_palette);

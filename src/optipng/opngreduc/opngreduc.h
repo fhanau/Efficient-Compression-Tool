@@ -60,7 +60,6 @@ png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, pn
 #define OPNG_REDUCE_PALETTE_TO_GRAY  0x0080  /* ...also palette/tRNS to GA */
 #define OPNG_REDUCE_PALETTE     0x0200  /* remove trailing sterile entries
                                                 only; do not reorder PLTE */
-#define OPNG_REDUCE_DIRTY_ALPHA      0x0400
 #define OPNG_REDUCE_REPAIR           0x2000  /* repair broken image data */
 
 #define OPNG_REDUCE_COLOR_TYPE  \
@@ -70,7 +69,7 @@ png_uint_32 PNGAPI opng_reduce_image(png_structp png_ptr, png_infop info_ptr, pn
 
 #define OPNG_REDUCE_ALL  \
    (OPNG_REDUCE_16_TO_8 | OPNG_REDUCE_8_TO_4_2_1 | OPNG_REDUCE_COLOR_TYPE | \
-    OPNG_REDUCE_PALETTE | OPNG_REDUCE_DIRTY_ALPHA)
+    OPNG_REDUCE_PALETTE)
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -364,11 +364,117 @@ static void opng_write_data(png_structp png_ptr, png_bytep data, size_t length)
         png_error(png_ptr, "Can't write file");
 }
 
+/* pngcrush.c - recompresses png files
+ * Copyright (C) 1998-2002, 2006-2016 Glenn Randers-Pehrson
+ *                                   (glennrp at users.sf.net)
+ * Portions Copyright (C) 2005 Greg Roelofs
+ *
+ * LICENSE:
+ *
+ * Permission is hereby irrevocably granted to everyone to use, copy, modify,
+ * and distribute this source code, or portions hereof, or executable programs
+ * compiled from it, for any purpose, without payment of any fee, subject to
+ * the following restrictions:
+ *
+ * 1. The origin of this source code must not be misrepresented.
+ *
+ * 2. Altered versions must be plainly marked as such and must not be
+ *    misrepresented as being the original source.
+ *
+ * 3. This Copyright notice, disclaimers, and license may not be removed
+ *    or altered from any source or altered source distribution.
+ *
+ * DISCLAIMERS:
+ *
+ * The pngcrush computer program is supplied "AS IS".  The Author disclaims all
+ * warranties, expressed or implied, including, without limitation, the
+ * warranties of merchantability and of fitness for any purpose.  The
+ * Author assumes no liability for direct, indirect, incidental, special,
+ * exemplary, or consequential damages, which may result from the use of
+ * the computer program, even if advised of the possibility of such damage.
+ * There is no warranty against interference with your enjoyment of the
+ * computer program or against infringement.  There is no warranty that my
+ * efforts or the computer program will fulfill any of your particular purposes
+ * or needs.  This computer program is provided with all faults, and the entire
+ * risk of satisfactory quality, performance, accuracy, and effort is with
+ * the user.*/
+static void pngcrush_transform_pixels_fn(png_structp png_ptr, png_row_infop row_info,
+                                  png_bytep data)
+{
+  int i;
+  (void)png_ptr;
+
+    /* change the underlying color of any fully transparent pixels to black */
+    i=(int) row_info->rowbytes-1;
+
+    if (row_info->color_type == 4) /* GA */
+    {
+      if (row_info->bit_depth == 8)
+      {
+        for ( ; i > 0 ; )
+        {
+          if (data[i] == 0 &&  data[i-1] != 0)
+          {
+            data[i-1]=0;
+          }
+          i-=2;
+        }
+      }
+
+      else /* bit depth == 16 */
+      {
+        for ( ; i > 0 ; )
+        {
+          if (data[i] == 0 && data[i-1] == 0)
+          {
+            data[i-2]=0;
+            data[i-3]=0;
+          }
+          i-=4;
+        }
+      }
+    }
+
+    else if(row_info->color_type == 6) /* color_type == 6, RGBA */
+    {
+      if (row_info->bit_depth == 8)
+      {
+        for ( ; i > 0 ; )
+        {
+          if (data[i] == 0)
+          {
+            data[i-1]=0;
+            data[i-2]=0;
+            data[i-3]=0;
+          }
+          i-=4;
+        }
+      }
+
+      else /* bit depth == 16 */
+      {
+        for ( ; i > 0 ; )
+        {
+          if (data[i] == 0 && data[i-1] == 0)
+          {
+            data[i-2]=0;
+            data[i-3]=0;
+            data[i-4]=0;
+            data[i-5]=0;
+            data[i-6]=0;
+            data[i-7]=0;
+          }
+          i-=8;
+        }
+      }
+    }
+}
+
 /*
  * Imports an image from an PNG file stream.
  * The function returns 0 on success or -1 on error.
  */
-int opng_decode_image(struct opng_codec_context *context, FILE *stream, const char *fname, bool force_no_palette)
+int opng_decode_image(struct opng_codec_context *context, FILE *stream, const char *fname, bool force_no_palette, unsigned clean_alpha)
 {
     context->libpng_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, 0, opng_read_error, opng_read_warning);
     context->info_ptr = png_create_info_struct(context->libpng_ptr);
@@ -393,6 +499,9 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
     {
         png_set_keep_unknown_chunks(context->libpng_ptr, PNG_HANDLE_CHUNK_ALWAYS, 0, 0);
         png_set_read_fn(context->libpng_ptr, context, opng_read_data);
+        if(!clean_alpha){
+          png_set_read_user_transform_fn(context->libpng_ptr, pngcrush_transform_pixels_fn);
+        }
         png_read_png(context->libpng_ptr, context->info_ptr, 0, 0);
     }
     Catch (err_msg)
