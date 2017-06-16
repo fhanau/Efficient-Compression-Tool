@@ -23,16 +23,15 @@ bin: deps
 	zopfli/blocksplitter.c optipng/opngreduc/opngreduc.c LzFind.c miniz/miniz.c
 	$(CXX) $(CXXFLAGS) main.cpp $(OBJECTS) $(CXXSRC) mozjpeg/.libs/libjpeg.a libpng/libpng.a zlib/libz.a -o ../ect
 clean:
-	rm -f *.o zlib/*.o zlib/*.a libpng/*.o libpng/*.a
+	rm -f *.o zlib/*.o zlib/*.a libpng/*.o libpng/*.a libpng/pngusr.h
 deps: zlib libpng mozjpeg
 zlib:
 	cd zlib/; \
 	$(CC) $(CFLAGS) -c adler32.c crc32.c deflate.c inffast.c inflate.c inftrees.c trees.c zutil.c gzlib.c gzread.c; \
 	ar rcs libz.a adler32.o crc32.o deflate.o inffast.o inflate.o inftrees.o trees.o zutil.o gzlib.o gzread.o
 libpng:
-	cd libpng/; \
-	$(CC) -c -I../zlib $(CFLAGS) -DPNG_USE_ABS png.c pngerror.c pngget.c pngmem.c pngread.c pngrio.c pngrtran.c pngrutil.c pngset.c pngtrans.c pngwio.c pngwrite.c pngwutil.c; \
-	ar rcs libpng.a png.o pngerror.o pngget.o pngmem.o pngread.o pngrio.o pngrtran.o pngrutil.o pngset.o pngtrans.o pngwio.o pngwrite.o pngwutil.o
+	cp pngusr.h libpng/pngusr.h
+	make -C libpng/ -f scripts/makefile.gcc CC="$(CC)" CFLAGS="$(CFLAGS) -DPNG_USER_CONFIG -Wno-macro-redefined" libpng.a
 mozjpeg:
 	cd mozjpeg/; \
 	./configure --disable-dependency-tracking --disable-shared --without-turbojpeg --without-java CC="$(CC)" CFLAGS="$(CFLAGS)"; \
