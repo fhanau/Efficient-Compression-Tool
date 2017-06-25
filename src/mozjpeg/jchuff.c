@@ -892,7 +892,7 @@ jpeg_gen_optimal_table (j_compress_ptr cinfo, JHUFF_TBL *htbl, long freq[])
   int others[257];              /* next symbol in current branch of tree */
   int c1, c2;
   int p, i, j;
-  long v;
+  long v, v2;
 
   /* This algorithm is explained in section K.2 of the JPEG standard */
 
@@ -906,29 +906,34 @@ jpeg_gen_optimal_table (j_compress_ptr cinfo, JHUFF_TBL *htbl, long freq[])
    * that no real symbol is given code-value of all ones, because 256
    * will be placed last in the largest codeword category.
    */
+  for (i = 0; i <= 256; i++) {
+    if (!freq[i]) {
+      freq[i] = LONG_MAX;
+    }
+  }
+
 
   /* Huffman's basic algorithm to assign optimal code lengths to symbols */
 
   for (;;) {
-    /* Find the smallest nonzero frequency, set c1 = its symbol */
+    /* Find the two smallest nonzero frequencies */
     /* In case of ties, take the larger symbol number */
     c1 = -1;
-    v = 1000000000L;
-    for (i = 0; i <= 256; i++) {
-      if (freq[i] && freq[i] <= v) {
-        v = freq[i];
-        c1 = i;
-      }
-    }
-
-    /* Find the next smallest nonzero frequency, set c2 = its symbol */
-    /* In case of ties, take the larger symbol number */
     c2 = -1;
-    v = 1000000000L;
+    v = LONG_MAX - 1;
+    v2 = LONG_MAX - 1;
     for (i = 0; i <= 256; i++) {
-      if (freq[i] && freq[i] <= v && i != c1) {
-        v = freq[i];
-        c2 = i;
+      if (freq[i] <= v2) {
+        if(freq[i] <= v){
+          c2 = c1;
+          v2 = v;
+          v = freq[i];
+          c1 = i;
+        }
+        else {
+          v2 = freq[i];
+          c2 = i;
+        }
       }
     }
 
@@ -938,7 +943,7 @@ jpeg_gen_optimal_table (j_compress_ptr cinfo, JHUFF_TBL *htbl, long freq[])
 
     /* Else merge the two counts/trees */
     freq[c1] += freq[c2];
-    freq[c2] = 0;
+    freq[c2] = LONG_MAX;
 
     /* Increment the codesize of everything in c1's tree branch */
     codesize[c1]++;
@@ -969,6 +974,25 @@ jpeg_gen_optimal_table (j_compress_ptr cinfo, JHUFF_TBL *htbl, long freq[])
     }
   }
 
+  /* Return a list of the symbols sorted by code length */
+  /* It's not real clear to me why we don't need to consider the codelength
+   * changes, but the JPEG spec seems to think this works.
+   */
+  p = 0;
+  int bitpos[32];
+  int it = 0;
+  for (i = 1; i <= MAX_CLEN; i++) {
+    bitpos[i] = it;
+    it += bits[i];
+  }
+
+  for (j = 0; j <= 255; j++) {
+    if (codesize[j]) {
+      htbl->huffval[bitpos[codesize[j]]] = (UINT8) j;
+      bitpos[codesize[j]]++;
+    }
+  }
+  
   /* JPEG doesn't allow symbols with code lengths over 16 bits, so if the pure
    * Huffman procedure assigned any such lengths, we must adjust the coding.
    * Here is what the JPEG spec says about how this next bit works:
@@ -1000,20 +1024,6 @@ jpeg_gen_optimal_table (j_compress_ptr cinfo, JHUFF_TBL *htbl, long freq[])
 
   /* Return final symbol counts (only for lengths 0..16) */
   MEMCOPY(htbl->bits, bits, sizeof(htbl->bits));
-
-  /* Return a list of the symbols sorted by code length */
-  /* It's not real clear to me why we don't need to consider the codelength
-   * changes made above, but the JPEG spec seems to think this works.
-   */
-  p = 0;
-  for (i = 1; i <= MAX_CLEN; i++) {
-    for (j = 0; j <= 255; j++) {
-      if (codesize[j] == i) {
-        htbl->huffval[p] = (UINT8) j;
-        p++;
-      }
-    }
-  }
 
   /* Set sent_table FALSE so updated table will be written to JPEG file. */
   htbl->sent_table = FALSE;
