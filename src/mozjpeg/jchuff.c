@@ -979,7 +979,7 @@ jpeg_gen_optimal_table (j_compress_ptr cinfo, JHUFF_TBL *htbl, long freq[])
    * changes, but the JPEG spec seems to think this works.
    */
   p = 0;
-  int bitpos[32];
+  int bitpos[MAX_CLEN + 1];
   int it = 0;
   for (i = 1; i <= MAX_CLEN; i++) {
     bitpos[i] = it;
