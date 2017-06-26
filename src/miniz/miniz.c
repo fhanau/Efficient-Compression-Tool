@@ -135,13 +135,13 @@ struct mz_zip_internal_state_tag
 #define MZ_ZIP_ARRAY_SET_ELEMENT_SIZE(array_ptr, element_size) (array_ptr)->m_element_size = element_size
 #define MZ_ZIP_ARRAY_ELEMENT(array_ptr, element_type, index) ((element_type *)((array_ptr)->m_p))[index]
 
-static MZ_FORCEINLINE void mz_zip_array_clear(mz_zip_archive *pZip, mz_zip_array *pArray)
+static MZ_FORCEINLINE void mz_zip_array_clear(mz_zip_array *pArray)
 {
   free(pArray->m_p);
   memset(pArray, 0, sizeof(mz_zip_array));
 }
 
-static mz_bool mz_zip_array_ensure_capacity(mz_zip_archive *pZip, mz_zip_array *pArray, size_t min_new_capacity, mz_uint growing)
+static mz_bool mz_zip_array_ensure_capacity(mz_zip_array *pArray, size_t min_new_capacity, mz_uint growing)
 {
   void *pNew_p; size_t new_capacity = min_new_capacity; assert(pArray->m_element_size); if (pArray->m_capacity >= min_new_capacity) return MZ_TRUE;
   if (growing) { new_capacity = MZ_MAX(1, pArray->m_capacity); while (new_capacity < min_new_capacity) new_capacity *= 2; }
@@ -150,27 +150,27 @@ static mz_bool mz_zip_array_ensure_capacity(mz_zip_archive *pZip, mz_zip_array *
   return MZ_TRUE;
 }
 
-static MZ_FORCEINLINE mz_bool mz_zip_array_reserve(mz_zip_archive *pZip, mz_zip_array *pArray, size_t new_capacity)
+static MZ_FORCEINLINE mz_bool mz_zip_array_reserve(mz_zip_array *pArray, size_t new_capacity)
 {
-  if (new_capacity > pArray->m_capacity) { if (!mz_zip_array_ensure_capacity(pZip, pArray, new_capacity, MZ_TRUE)) return MZ_FALSE; }
+  if (new_capacity > pArray->m_capacity) { if (!mz_zip_array_ensure_capacity(pArray, new_capacity, MZ_TRUE)) return MZ_FALSE; }
   return MZ_TRUE;
 }
 
-static MZ_FORCEINLINE mz_bool mz_zip_array_resize(mz_zip_archive *pZip, mz_zip_array *pArray, size_t new_size, mz_uint growing)
+static MZ_FORCEINLINE mz_bool mz_zip_array_resize(mz_zip_array *pArray, size_t new_size, mz_uint growing)
 {
-  if (new_size > pArray->m_capacity) { if (!mz_zip_array_ensure_capacity(pZip, pArray, new_size, growing)) return MZ_FALSE; }
+  if (new_size > pArray->m_capacity) { if (!mz_zip_array_ensure_capacity(pArray, new_size, growing)) return MZ_FALSE; }
   pArray->m_size = new_size;
   return MZ_TRUE;
 }
 
-static MZ_FORCEINLINE mz_bool mz_zip_array_ensure_room(mz_zip_archive *pZip, mz_zip_array *pArray, size_t n)
+static MZ_FORCEINLINE mz_bool mz_zip_array_ensure_room(mz_zip_array *pArray, size_t n)
 {
-  return mz_zip_array_reserve(pZip, pArray, pArray->m_size + n);
+  return mz_zip_array_reserve(pArray, pArray->m_size + n);
 }
 
-static MZ_FORCEINLINE mz_bool mz_zip_array_push_back(mz_zip_archive *pZip, mz_zip_array *pArray, const void *pElements, size_t n)
+static MZ_FORCEINLINE mz_bool mz_zip_array_push_back(mz_zip_array *pArray, const void *pElements, size_t n)
 {
-  size_t orig_size = pArray->m_size; if (!mz_zip_array_resize(pZip, pArray, orig_size + n, MZ_TRUE)) return MZ_FALSE;
+  size_t orig_size = pArray->m_size; if (!mz_zip_array_resize(pArray, orig_size + n, MZ_TRUE)) return MZ_FALSE;
   memcpy((mz_uint8*)pArray->m_p + orig_size * pArray->m_element_size, pElements, n * pArray->m_element_size);
   return MZ_TRUE;
 }
@@ -433,13 +433,13 @@ static mz_bool mz_zip_reader_read_central_dir(mz_zip_archive *pZip, mz_uint32 fl
      mz_uint i, n;
 
     // Read the entire central directory into a heap block, and allocate another heap block to hold the unsorted central dir file record offsets, and another to hold the sorted indices.
-    if ((!mz_zip_array_resize(pZip, &pZip->m_pState->m_central_dir, cdir_size, MZ_FALSE)) ||
-        (!mz_zip_array_resize(pZip, &pZip->m_pState->m_central_dir_offsets, pZip->m_total_files, MZ_FALSE)))
+    if ((!mz_zip_array_resize(&pZip->m_pState->m_central_dir, cdir_size, MZ_FALSE)) ||
+        (!mz_zip_array_resize(&pZip->m_pState->m_central_dir_offsets, pZip->m_total_files, MZ_FALSE)))
       return MZ_FALSE;
 
     if (sort_central_dir)
     {
-      if (!mz_zip_array_resize(pZip, &pZip->m_pState->m_sorted_central_dir_offsets, pZip->m_total_files, MZ_FALSE))
+      if (!mz_zip_array_resize(&pZip->m_pState->m_sorted_central_dir_offsets, pZip->m_total_files, MZ_FALSE))
         return MZ_FALSE;
     }
 
@@ -520,9 +520,9 @@ mz_bool mz_zip_reader_end(mz_zip_archive *pZip)
   if (pZip->m_pState)
   {
     mz_zip_internal_state *pState = pZip->m_pState; pZip->m_pState = NULL;
-    mz_zip_array_clear(pZip, &pState->m_central_dir);
-    mz_zip_array_clear(pZip, &pState->m_central_dir_offsets);
-    mz_zip_array_clear(pZip, &pState->m_sorted_central_dir_offsets);
+    mz_zip_array_clear(&pState->m_central_dir);
+    mz_zip_array_clear(&pState->m_central_dir_offsets);
+    mz_zip_array_clear(&pState->m_sorted_central_dir_offsets);
 
 #ifndef MINIZ_NO_STDIO
     if (pState->m_pFile)
@@ -709,14 +709,14 @@ static mz_bool mz_zip_writer_add_to_central_dir(mz_zip_archive *pZip, const char
   if (!mz_zip_writer_create_central_dir_header(pZip, central_dir_header, filename_size, extra_size, comment_size, uncomp_size, comp_size, uncomp_crc32, method, bit_flags, dos_time, dos_date, local_header_ofs, ext_attributes))
     return MZ_FALSE;
 
-  if ((!mz_zip_array_push_back(pZip, &pState->m_central_dir, central_dir_header, MZ_ZIP_CENTRAL_DIR_HEADER_SIZE)) ||
-      (!mz_zip_array_push_back(pZip, &pState->m_central_dir, pFilename, filename_size)) ||
-      (!mz_zip_array_push_back(pZip, &pState->m_central_dir, pExtra, extra_size)) ||
-      (!mz_zip_array_push_back(pZip, &pState->m_central_dir, pComment, comment_size)) ||
-      (!mz_zip_array_push_back(pZip, &pState->m_central_dir_offsets, &central_dir_ofs, 1)))
+  if ((!mz_zip_array_push_back(&pState->m_central_dir, central_dir_header, MZ_ZIP_CENTRAL_DIR_HEADER_SIZE)) ||
+      (!mz_zip_array_push_back(&pState->m_central_dir, pFilename, filename_size)) ||
+      (!mz_zip_array_push_back(&pState->m_central_dir, pExtra, extra_size)) ||
+      (!mz_zip_array_push_back(&pState->m_central_dir, pComment, comment_size)) ||
+      (!mz_zip_array_push_back(&pState->m_central_dir_offsets, &central_dir_ofs, 1)))
   {
     // Try to push the central directory array back into its original state.
-    mz_zip_array_resize(pZip, &pState->m_central_dir, orig_central_dir_size, MZ_FALSE);
+    mz_zip_array_resize(&pState->m_central_dir, orig_central_dir_size, MZ_FALSE);
     return MZ_FALSE;
   }
 
@@ -844,7 +844,7 @@ mz_bool mz_zip_writer_add_mem_ex(mz_zip_archive *pZip, const char *pArchive_name
   }
 
   // Try to do any allocations before writing to the archive, so if an allocation fails the file remains unmodified. (A good idea if we're doing an in-place modification.)
-  if ((!mz_zip_array_ensure_room(pZip, &pState->m_central_dir, MZ_ZIP_CENTRAL_DIR_HEADER_SIZE + archive_name_size + comment_size)) || (!mz_zip_array_ensure_room(pZip, &pState->m_central_dir_offsets, 1)))
+  if ((!mz_zip_array_ensure_room(&pState->m_central_dir, MZ_ZIP_CENTRAL_DIR_HEADER_SIZE + archive_name_size + comment_size)) || (!mz_zip_array_ensure_room(&pState->m_central_dir_offsets, 1)))
     return MZ_FALSE;
 
   if (!mz_zip_writer_write_zeros(pZip, cur_archive_file_ofs, num_alignment_padding_bytes + sizeof(local_dir_header)))
@@ -951,9 +951,9 @@ mz_bool mz_zip_writer_end(mz_zip_archive *pZip)
 
   pState = pZip->m_pState;
   pZip->m_pState = NULL;
-  mz_zip_array_clear(pZip, &pState->m_central_dir);
-  mz_zip_array_clear(pZip, &pState->m_central_dir_offsets);
-  mz_zip_array_clear(pZip, &pState->m_sorted_central_dir_offsets);
+  mz_zip_array_clear(&pState->m_central_dir);
+  mz_zip_array_clear(&pState->m_central_dir_offsets);
+  mz_zip_array_clear(&pState->m_sorted_central_dir_offsets);
 
 #ifndef MINIZ_NO_STDIO
   if (pState->m_pFile)
