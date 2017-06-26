@@ -10,6 +10,7 @@
 #define __Efficient_Compression_Tool__support__
 
 #include <unistd.h>
+#include <time.h>
 
 // Returns Filesize of Infile
 size_t filesize (const char * Infile);
