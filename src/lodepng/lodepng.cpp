@@ -4194,7 +4194,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
     ga.population_size = 19;
     ga.mutation_probability = 0.01;
     ga.crossover_probability = 0.9;
-    ga.number_of_offspring = 3;//3 is good
+    ga.number_of_offspring = 3;
     ga.number_of_stagnations = 400;
     /*Genetic algorithm filter finder. Attempts to find better filters through mutation and recombination.*/
     const size_t population_size = ga.population_size;
@@ -4218,66 +4218,108 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
     if (err != Z_OK) exit(1);
     unsigned char* dummy = (unsigned char *)1;
 
-    /* for very small images, try every combination instead of genetic algorithm */
-    if(h * log2f(5) < log2f(population_size * ga.number_of_stagnations))
+    uint64_t r2[2];
+    initRandomUInt64(r2);
+    signal(SIGINT, sig_handler);
+    for(int ix = 0; ix < h * ga.population_size; ++ix) population[ix] = randomUInt64(r2) % 5;
+
+    for(g = 0; g <= last; ++g)
     {
-      for(i = 0; i < h; ++i) population[h + i] = 0;
-      while(i + 1 > 0)
+      prevline = 0;
+      for(y = 0; y < h; ++y)
       {
-        prevline = 0;
-        for(y = 0; y < h; ++y)
-        {
-          type = population[h + y];
-          out[y * (linebytes + 1)] = type;
-          if(clean){
-            memcpy(linebuf, &in[y * linebytes], linebytes);
-            filterScanline2(linebuf, prevline, linebytes, type, 0);
-            filterScanline(&out[y * (linebytes + 1) + 1], linebuf, prevline, linebytes, bytewidth, type);
-            memcpy(prevlinebuf, linebuf, linebytes);
-            prevline = prevlinebuf;
-          }
-          else{
-            filterScanline(&out[y * (linebytes + 1) + 1], &in[y * linebytes], prevline, linebytes, bytewidth, type);
-            prevline = &in[y * linebytes];
-          }
+        type = population[g * h + y];
+        out[y * (linebytes + 1)] = type;
+        if(clean){
+          memcpy(linebuf, &in[y * linebytes], linebytes);
+          filterScanline2(linebuf, prevline, linebytes, type, 0);
+          filterScanline(&out[y * (linebytes + 1) + 1], linebuf, prevline, linebytes, bytewidth, type);
+          memcpy(prevlinebuf, linebuf, linebytes);
+          prevline = prevlinebuf;
         }
-        deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
-        stream.next_in = (z_const unsigned char *)out;
-        stream.avail_in = h * (linebytes + 1);
-        stream.avail_out = UINT_MAX;
-        stream.next_out = dummy;
-
-        deflate_nooutput(&stream, Z_FINISH);
-
-        size[0] = stream.total_out;
-        deflateReset(&stream);
-
-        if(size[0] < best_size)
-        {
-          memcpy(&population[h], population, h);
-          best_size = size[0];
-        }
-        for(i = h - 1 ; i + 1 > 0 ; --i)
-        {
-          if(++population[h + i] < 5) break;
-          else population[h + i] = 0;
+        else{
+          filterScanline(&out[y * (linebytes + 1) + 1], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+          prevline = &in[y * linebytes];
         }
       }
-      ranking[0] = 0;
+      deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
+      stream.next_in = (z_const unsigned char *)out;
+      stream.avail_in = h * (linebytes + 1);
+      stream.avail_out = UINT_MAX;
+      stream.next_out = dummy;
+
+      deflate_nooutput(&stream, Z_FINISH);
+
+      size[g] = stream.total_out;
+      deflateReset(&stream);
+      total_size += size[g];
+      ranking[g] = g;
     }
-    else
+    //ctrl-c signals last iteration
+    for(e = 0; /*e < 13 && */e_since_best < ga.number_of_stagnations && !signaled; ++e)
     {
-      uint64_t r2[2];
-      initRandomUInt64(r2);
-      signal(SIGINT, sig_handler);
-      for(int ix = 0; ix < h * ga.population_size; ++ix) population[ix] = randomUInt64(r2) % 5;
-
-      for(g = 0; g <= last; ++g)
+      /*resort rankings*/
+      for(i = 1; i < population_size; ++i)
       {
+        t = ranking[i];
+        for(j = i - 1; j + 1 > 0 && size[ranking[j]] > size[t]; --j) ranking[j + 1] = ranking[j];
+        ranking[j + 1] = t;
+      }
+      if(size[ranking[0]] < best_size)
+      {
+        best_size = size[ranking[0]];
+        e_since_best = 0;
+        if(1) printf("Generation %d: %d bytes\n", e, best_size);
+      }
+      else ++e_since_best;
+      /*generate offspring*/
+      for(c = 0; c < ga.number_of_offspring; ++c)
+      {
+        /*tournament selection*/
+        /*parent 1*/
+        selection_size = UINT_MAX;
+        for(t = 0; t < tournament_size; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
+        size_sum = 0;
+        for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
+        parent1 = &population[ranking[j - 1] * h];
+        /*parent 2*/
+        selection_size = UINT_MAX;
+        for(t = 0; t < tournament_size; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
+        size_sum = 0;
+        for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
+        parent2 = &population[ranking[j - 1] * h];
+        /*two-point crossover*/
+        child = &population[(ranking[last - c]) * h];
+        if(randomDecimal(r) < ga.crossover_probability)
+        {
+          crossover1 = randomUInt64(r) % h;
+          crossover2 = randomUInt64(r) % h;
+          if(crossover1 > crossover2)
+          {
+            crossover1 ^= crossover2;
+            crossover2 ^= crossover1;
+            crossover1 ^= crossover2;
+          }
+          if(child != parent1)
+          {
+            memcpy(child, parent1, crossover1);
+            memcpy(&child[crossover2], &parent1[crossover2], h - crossover2);
+          }
+          if(child != parent2) memcpy(&child[crossover1], &parent2[crossover1], crossover2 - crossover1);
+        }
+        else if(randomUInt64(r) & 1) memcpy(child, parent1, h);
+        else memcpy(child, parent2, h);
+        /*mutation*/
+        for(y = 0; y < h; ++y)
+        {
+          if(randomDecimal(r) < ga.mutation_probability) child[y] = randomUInt64(r) % 5;
+        }
+        /*evaluate new genome*/
+        total_size -= size[ranking[last - c]];
         prevline = 0;
         for(y = 0; y < h; ++y)
         {
-          type = population[g * h + y];
+          type = child[y];
           out[y * (linebytes + 1)] = type;
           if(clean){
             memcpy(linebuf, &in[y * linebytes], linebytes);
@@ -4292,6 +4334,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
           }
         }
         deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
+
         stream.next_in = (z_const unsigned char *)out;
         stream.avail_in = h * (linebytes + 1);
         stream.avail_out = UINT_MAX;
@@ -4299,103 +4342,9 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
 
         deflate_nooutput(&stream, Z_FINISH);
 
-        size[g] = stream.total_out;
+        size[ranking[last - c]] = stream.total_out;
         deflateReset(&stream);
-        total_size += size[g];
-        ranking[g] = g;
-      }
-      //ctrl-c signals last iteration
-      for(e = 0; /*e < 13 && */e_since_best < ga.number_of_stagnations && !signaled; ++e)
-      {
-        /*resort rankings*/
-        for(i = 1; i < population_size; ++i)
-        {
-          t = ranking[i];
-          for(j = i - 1; j + 1 > 0 && size[ranking[j]] > size[t]; --j) ranking[j + 1] = ranking[j];
-          ranking[j + 1] = t;
-        }
-        if(size[ranking[0]] < best_size)
-        {
-          best_size = size[ranking[0]];
-          e_since_best = 0;
-          if(1) printf("Generation %d: %d bytes\n", e, best_size);
-        }
-        else ++e_since_best;
-        /*generate offspring*/
-        for(c = 0; c < ga.number_of_offspring; ++c)
-        {
-          /*tournament selection*/
-          /*parent 1*/
-          selection_size = UINT_MAX;
-          for(t = 0; t < tournament_size; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
-          size_sum = 0;
-          for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
-          parent1 = &population[ranking[j - 1] * h];
-          /*parent 2*/
-          selection_size = UINT_MAX;
-          for(t = 0; t < tournament_size; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
-          size_sum = 0;
-          for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
-          parent2 = &population[ranking[j - 1] * h];
-          /*two-point crossover*/
-          child = &population[(ranking[last - c]) * h];
-          if(randomDecimal(r) < ga.crossover_probability)
-          {
-            crossover1 = randomUInt64(r) % h;
-            crossover2 = randomUInt64(r) % h;
-            if(crossover1 > crossover2)
-            {
-              crossover1 ^= crossover2;
-              crossover2 ^= crossover1;
-              crossover1 ^= crossover2;
-            }
-            if(child != parent1)
-            {
-              memcpy(child, parent1, crossover1);
-              memcpy(&child[crossover2], &parent1[crossover2], h - crossover2);
-            }
-            if(child != parent2) memcpy(&child[crossover1], &parent2[crossover1], crossover2 - crossover1);
-          }
-          else if(randomUInt64(r) & 1) memcpy(child, parent1, h);
-          else memcpy(child, parent2, h);
-          /*mutation*/
-          for(y = 0; y < h; ++y)
-          {
-            if(randomDecimal(r) < ga.mutation_probability) child[y] = randomUInt64(r) % 5;
-          }
-          /*evaluate new genome*/
-          total_size -= size[ranking[last - c]];
-          prevline = 0;
-          for(y = 0; y < h; ++y)
-          {
-            type = child[y];
-            out[y * (linebytes + 1)] = type;
-            if(clean){
-              memcpy(linebuf, &in[y * linebytes], linebytes);
-              filterScanline2(linebuf, prevline, linebytes, type, 0);
-              filterScanline(&out[y * (linebytes + 1) + 1], linebuf, prevline, linebytes, bytewidth, type);
-              memcpy(prevlinebuf, linebuf, linebytes);
-              prevline = prevlinebuf;
-            }
-            else{
-              filterScanline(&out[y * (linebytes + 1) + 1], &in[y * linebytes], prevline, linebytes, bytewidth, type);
-              prevline = &in[y * linebytes];
-            }
-          }
-          deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
-          //deflateTune(&stream, 25, 25, 25, 55);
-
-          stream.next_in = (z_const unsigned char *)out;
-          stream.avail_in = h * (linebytes + 1);
-          stream.avail_out = UINT_MAX;
-          stream.next_out = dummy;
-
-          deflate_nooutput(&stream, Z_FINISH);
-
-          size[ranking[last - c]] = stream.total_out;
-          deflateReset(&stream);
-          total_size += size[ranking[last - c]];
-        }
+        total_size += size[ranking[last - c]];
       }
     }
     /*final choice*/
