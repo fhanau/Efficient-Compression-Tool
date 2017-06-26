@@ -34,6 +34,7 @@ struct ECTOptions{
   bool Reuse;
   bool Allfilters;
   bool Allfiltersbrute;
+  bool Allfilterscheap;
 #ifdef BOOST_SUPPORTED
   bool Recurse;
 #endif

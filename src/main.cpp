@@ -167,6 +167,9 @@ static unsigned char OptimizePNG(const char * Infile, const ECTOptions& Options)
     if (filter == -1){
         return 1;
     }
+    if(filter && !Options.Allfilters && Options.Allfilterscheap && !Options.Reuse){
+        filter = 15;
+    }
     if (mode != 1){
         if (Options.Allfilters){
             x = Zopflipng(Options.strip, Infile, Options.Strict, _mode, 6 + Options.palette_sort, Options.DeflateMultithreading);
@@ -475,6 +478,7 @@ int main(int argc, const char * argv[]) {
     Options.Reuse = 0;
     Options.Allfilters = 0;
     Options.Allfiltersbrute = 0;
+    Options.Allfilterscheap = 0;
     Options.palette_sort = 0;
     Options.keep = false;
     std::vector<int> args;
@@ -508,6 +512,7 @@ int main(int argc, const char * argv[]) {
             else if (strcmp(argv[i], "--reuse") == 0) {Options.Reuse = true;}
             else if (strcmp(argv[i], "--allfilters") == 0) {Options.Allfilters = true;}
             else if (strcmp(argv[i], "--allfilters-b") == 0) {Options.Allfiltersbrute = Options.Allfilters = true;}
+            else if (strcmp(argv[i], "--allfilters-c") == 0) {Options.Allfilterscheap = true;}
             else if (strncmp(argv[i], "--pal_sort=", 11) == 0){
                 Options.palette_sort = atoi(argv[i] + 11) << 8;
                 if(Options.palette_sort > 120 << 8){

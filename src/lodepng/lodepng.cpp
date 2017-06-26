@@ -3630,15 +3630,6 @@ static double randomDecimal(uint64_t* s) {
   return double(randomUInt64(s)) / UINT64_MAX;
 }
 
-typedef struct GeneticAlgorithmSettings
-{
-  unsigned number_of_stagnations;
-  unsigned population_size;
-  float mutation_probability;
-  float crossover_probability;
-  unsigned number_of_offspring;
-} GeneticAlgorithmSettings;
-
 #include <signal.h>
 static int signaled = 0;
 static void sig_handler(int signo)
@@ -4172,12 +4163,15 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
 
     for(type = 0; type != 5; ++type) free(attempt[type]);
   }
-  else if(strategy == LFS_GENETIC)
+  else if(strategy == LFS_GENETIC || strategy == LFS_ALL_CHEAP)
   {
-    printf("warning: You have decided to enable genetic filtering, which may take a very long time.\n");
-    printf("the current generation and number of bytes is displayed.\n");
-    printf("you can stop the genetic filtering anytime by pressing ctrl-c\n");
-    printf("it will automatically stop after 400 generations without progress\n");
+    if (strategy == LFS_GENETIC){
+      printf("warning: You have decided to enable genetic filtering, which may take a very long time.\n"
+             "the current generation and number of bytes is displayed.\n"
+             "you can stop the genetic filtering anytime by pressing ctrl-c\n"
+             "it will automatically stop after 500 generations without progress\n");
+      signaled = 0;
+    }
 
     unsigned char* prevlinebuf = 0;
     unsigned char* linebuf;
@@ -4186,45 +4180,46 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       linebuf = (unsigned char*)malloc(linebytes);
     }
 
-    signaled = 0;
     uint64_t r[2];
     initRandomUInt64(r);
 
-    GeneticAlgorithmSettings ga;
-    ga.population_size = 19;
-    ga.mutation_probability = 0.01;
-    ga.crossover_probability = 0.9;
-    ga.number_of_offspring = 3;
-    ga.number_of_stagnations = 400;
+    const int Strategies = strategy == LFS_ALL_CHEAP ? 3 : 0;
     /*Genetic algorithm filter finder. Attempts to find better filters through mutation and recombination.*/
-    const size_t population_size = ga.population_size;
+    const size_t population_size = strategy == LFS_ALL_CHEAP ? Strategies : 19;
     const size_t last = population_size - 1;
     unsigned char* population = (unsigned char*)lodepng_malloc(h * population_size);
     size_t* size = (size_t*)lodepng_malloc(population_size * sizeof(size_t));
     unsigned* ranking = (unsigned*)lodepng_malloc(population_size * sizeof(int));
     unsigned g, i, j, e, t, c, type, crossover1, crossover2, selection_size, size_sum;
-    unsigned char* parent1, *parent2, *child;
     unsigned best_size = UINT_MAX;
     unsigned total_size = 0;
     unsigned e_since_best = 0;
-    unsigned tournament_size = 2;
 
     z_stream stream;
     stream.zalloc = 0;
     stream.zfree = 0;
     stream.opaque = 0;
-
+#define TUNE deflateTune(&stream, 16, 258, 258, 200);
     int err = deflateInit2(&stream, 3, Z_DEFLATED, windowbits(h * (linebytes + 1)), 8, Z_FILTERED);
     if (err != Z_OK) exit(1);
     unsigned char* dummy = (unsigned char *)1;
-
+    size_t popcnt;
     uint64_t r2[2];
     initRandomUInt64(r2);
     signal(SIGINT, sig_handler);
-    for(int ix = 0; ix < h * ga.population_size; ++ix) population[ix] = randomUInt64(r2) % 5;
+    for(popcnt = 0; popcnt < h * (population_size - Strategies); ++popcnt) population[popcnt] = randomUInt64(r2) % 5;
 
     for(g = 0; g <= last; ++g)
     {
+      if (strategy == LFS_ALL_CHEAP){
+        settings->filter_strategy = (LodePNGFilterStrategy)(g + 11);
+        filter(out, in, w, h, info, settings);
+        settings->filter_strategy = LFS_ALL_CHEAP;
+        for(size_t k = 0; k < h * (linebytes + 1); k += (linebytes + 1))
+        {
+          population[popcnt++] = out[k];
+        }
+      }
       prevline = 0;
       for(y = 0; y < h; ++y)
       {
@@ -4242,7 +4237,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
           prevline = &in[y * linebytes];
         }
       }
-      deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
+      TUNE
       stream.next_in = (z_const unsigned char *)out;
       stream.avail_in = h * (linebytes + 1);
       stream.avail_out = UINT_MAX;
@@ -4255,8 +4250,15 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       total_size += size[g];
       ranking[g] = g;
     }
+    for(i = 0; strategy == LFS_ALL_CHEAP && i < population_size; i++)
+    {
+      if(size[i] < best_size){
+        ranking[0] = i;
+        best_size = size[i];
+      }
+    }
     //ctrl-c signals last iteration
-    for(e = 0; /*e < 13 && */e_since_best < ga.number_of_stagnations && !signaled; ++e)
+    for(e = 0; strategy == LFS_GENETIC && e_since_best < 500 && !signaled; ++e)
     {
       /*resort rankings*/
       for(i = 1; i < population_size; ++i)
@@ -4269,28 +4271,28 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       {
         best_size = size[ranking[0]];
         e_since_best = 0;
-        if(1) printf("Generation %d: %d bytes\n", e, best_size);
+        printf("Generation %d: %d bytes\n", e, best_size);
       }
       else ++e_since_best;
       /*generate offspring*/
-      for(c = 0; c < ga.number_of_offspring; ++c)
+      for(c = 0; c < 3; ++c)
       {
         /*tournament selection*/
         /*parent 1*/
         selection_size = UINT_MAX;
-        for(t = 0; t < tournament_size; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
+        for(t = 0; t < 2; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
         size_sum = 0;
         for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
-        parent1 = &population[ranking[j - 1] * h];
+        unsigned char* parent1 = &population[ranking[j - 1] * h];
         /*parent 2*/
         selection_size = UINT_MAX;
-        for(t = 0; t < tournament_size; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
+        for(t = 0; t < 2; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
         size_sum = 0;
         for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
-        parent2 = &population[ranking[j - 1] * h];
+        unsigned char* parent2 = &population[ranking[j - 1] * h];
         /*two-point crossover*/
-        child = &population[(ranking[last - c]) * h];
-        if(randomDecimal(r) < ga.crossover_probability)
+        unsigned char* child = &population[(ranking[last - c]) * h];
+        if(randomDecimal(r) < 0.9)
         {
           crossover1 = randomUInt64(r) % h;
           crossover2 = randomUInt64(r) % h;
@@ -4312,7 +4314,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
         /*mutation*/
         for(y = 0; y < h; ++y)
         {
-          if(randomDecimal(r) < ga.mutation_probability) child[y] = randomUInt64(r) % 5;
+          if(randomDecimal(r) < 0.01) child[y] = randomUInt64(r) % 5;
         }
         /*evaluate new genome*/
         total_size -= size[ranking[last - c]];
@@ -4333,7 +4335,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
             prevline = &in[y * linebytes];
           }
         }
-        deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
+        TUNE
 
         stream.next_in = (z_const unsigned char *)out;
         stream.avail_in = h * (linebytes + 1);
