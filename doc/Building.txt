@@ -1,3 +1,5 @@
+To build ECT, you need to recursively clone it, just downloading isn’t enough, i. e. git clone --recursive https://github.com/fhanau/Efficient-Compression-Tool.git
+
 Makefile Build:
 Use the Makefile to build dependencies and the binary:
 cd src/
