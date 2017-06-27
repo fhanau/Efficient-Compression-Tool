@@ -52,6 +52,18 @@ static size_t jcopy_markers_execute (j_decompress_ptr srcinfo, j_compress_ptr ds
   return size;
 }
 
+METHODDEF(void)
+output_message (j_common_ptr cinfo)
+{
+  char buffer[JMSG_LENGTH_MAX];
+
+  /* Create the message */
+  (*cinfo->err->format_message) (cinfo, buffer);
+
+  /* Send it to stderr, adding a newline */
+  fprintf(stderr, "%s: %s\n", cinfo->err->addon_message_table[0], buffer);
+}
+
 int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Infile, const char * Outfile, size_t* stripped_outsize)
 {
   struct jpeg_decompress_struct srcinfo;
@@ -63,6 +75,9 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
   size_t extrasize = 0;
   /* Initialize the JPEG decompression object with default error handling. */
   srcinfo.err = jpeg_std_error(&jsrcerr);
+  srcinfo.err->output_message = output_message;
+  const char* addon = Infile;
+  srcinfo.err->addon_message_table = &addon;
   jpeg_create_decompress(&srcinfo);
   /* Initialize the JPEG compression object with default error handling. */
   dstinfo.err = jpeg_std_error(&jdsterr);
