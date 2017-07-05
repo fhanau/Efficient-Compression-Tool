@@ -7,6 +7,8 @@
  * to libjpeg-turbo.
  * mozjpeg Modifications:
  * Copyright (C) 2014, Mozilla Corporation.
+ * Copyright (C) 2016, Matthieu Darbois.
+
  * For conditions of distribution and use, see the accompanying README file.
  *
  * This file contains Huffman entropy encoding routines for progressive JPEG.
@@ -330,13 +332,11 @@ emit_buffered_bits (phuff_entropy_ptr entropy, char * bufstart,
 LOCAL(void)
 emit_eobrun (phuff_entropy_ptr entropy)
 {
-  register int temp, nbits;
+  register int nbits;
 
   if (entropy->EOBRUN > 0) {    /* if there is any pending EOBRUN */
-    temp = entropy->EOBRUN;
-    nbits = 0;
-    while ((temp >>= 1))
-      nbits++;
+    nbits = JPEG_NBITS_NONZERO(entropy->EOBRUN) - 1;
+
     /* safety check: shouldn't happen given limited correction-bit buffer */
     if (nbits > 14)
       ERREXIT(entropy->cinfo, JERR_HUFF_MISSING_CODE);

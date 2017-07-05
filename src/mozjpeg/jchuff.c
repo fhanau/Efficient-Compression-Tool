@@ -25,35 +25,6 @@
 #include "jconfigint.h"
 #include <limits.h>
 
-/*
- * NOTE: If USE_CLZ_INTRINSIC is defined, then clz/bsr instructions will be
- * used for bit counting rather than the lookup table.  This will reduce the
- * memory footprint by 64k, which is important for some mobile applications
- * that create many isolated instances of libjpeg-turbo (web browsers, for
- * instance.)  This may improve performance on some mobile platforms as well.
- * This feature is enabled by default only on ARM processors, because some x86
- * chips have a slow implementation of bsr, and the use of clz/bsr cannot be
- * shown to have a significant performance impact even on the x86 chips that
- * have a fast implementation of it.  When building for ARMv6, you can
- * explicitly disable the use of clz/bsr by adding -mthumb to the compiler
- * flags (this defines __thumb__).
- */
-
-/* NOTE: Both GCC and Clang define __GNUC__ */
-#if defined __GNUC__
-#if !defined __thumb__ || defined __thumb2__
-#define USE_CLZ_INTRINSIC
-#endif
-#endif
-
-#ifdef USE_CLZ_INTRINSIC
-#define JPEG_NBITS_NONZERO(x) (32 - __builtin_clz(x))
-#define JPEG_NBITS(x) (x ? JPEG_NBITS_NONZERO(x) : 0)
-#else
-#include "jpeg_nbits_table.h"
-#define JPEG_NBITS(x) (jpeg_nbits_table[x])
-#define JPEG_NBITS_NONZERO(x) JPEG_NBITS(x)
-#endif
 
 #ifndef min
  #define min(a,b) ((a)<(b)?(a):(b))
@@ -765,11 +736,7 @@ htest_one_block (j_compress_ptr cinfo, JCOEFPTR block, int last_dc_val,
     temp = -temp;
 
   /* Find the number of bits needed for the magnitude of the coefficient */
-  nbits = 0;
-  while (temp) {
-    nbits++;
-    temp >>= 1;
-  }
+  nbits = JPEG_NBITS(temp);
   /* Check for out-of-range coefficient values.
    * Since we're encoding a difference, the range limit is twice as much.
    */
@@ -798,9 +765,7 @@ htest_one_block (j_compress_ptr cinfo, JCOEFPTR block, int last_dc_val,
         temp = -temp;
 
       /* Find the number of bits needed for the magnitude of the coefficient */
-      nbits = 1;                /* there must be at least one 1 bit */
-      while ((temp >>= 1))
-        nbits++;
+      nbits = JPEG_NBITS_NONZERO(temp);  /* there must be at least one 1 bit */
       /* Check for out-of-range coefficient values */
       if (nbits > MAX_COEF_BITS)
         ERREXIT(cinfo, JERR_BAD_DCT_COEF);
