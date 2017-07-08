@@ -615,13 +615,7 @@ encode_mcu_AC_first (j_compress_ptr cinfo, JBLOCKROW *MCU_data)
     }
 
     /* Find the number of bits needed for the magnitude of the coefficient */
-#ifdef USE_INTRIN
-    nbits = 32 - __builtin_clz(temp);
-#else
-    nbits = 1;                  /* there must be at least one 1 bit */
-    while ((temp >>= 1))
-      nbits++;
-#endif
+    nbits = JPEG_NBITS_NONZERO(temp);
     /* Check for out-of-range coefficient values */
     if (nbits > MAX_COEF_BITS)
       ERREXIT(cinfo, JERR_BAD_DCT_COEF);
