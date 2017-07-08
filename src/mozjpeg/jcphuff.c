@@ -485,6 +485,7 @@ encode_mcu_AC_first (j_compress_ptr cinfo, JBLOCKROW *MCU_data)
   int Se = cinfo->Se;
   int Al = cinfo->Al;
   JBLOCKROW block;
+  int deadzone = (1 << Al) - 1;
 #ifdef USE_INTRIN
   short t1[DCTSIZE2 + 8];
   short t2[DCTSIZE2 + 8];
@@ -530,14 +531,10 @@ encode_mcu_AC_first (j_compress_ptr cinfo, JBLOCKROW *MCU_data)
   }
   for (; k <= Se; k++) {
     temp = (*block)[jpeg_natural_order[k]];
-    if (temp < 0) {
-      temp = -temp;             /* temp is abs value of input */
-      temp >>= Al;              /* apply the point transform */
-      temp2 = ~temp;
-    } else {
-      temp >>= Al;              /* apply the point transform */
-      temp2 = temp;
-    }
+    int sign = temp >> 31;
+    temp += sign;
+    temp2 = temp >> Al;
+    temp = (temp ^ sign) >> Al;
     t1[k] = temp;
     t2[k] = temp2;
   }
@@ -578,7 +575,8 @@ encode_mcu_AC_first (j_compress_ptr cinfo, JBLOCKROW *MCU_data)
     temp2 = t2[k];
 
 #else
-    if ((temp = (*block)[jpeg_natural_order[k]]) == 0) {
+    temp = (*block)[jpeg_natural_order[k]];
+    if ((unsigned)(temp + deadzone) <= 2*deadzone) {
       r++;
       k++;
       continue;
@@ -588,21 +586,10 @@ encode_mcu_AC_first (j_compress_ptr cinfo, JBLOCKROW *MCU_data)
      * in C, we shift after obtaining the absolute value; so the code is
      * interwoven with finding the abs value (temp) and output bits (temp2).
      */
-    if (temp < 0) {
-      temp = -temp;             /* temp is abs value of input */
-      temp >>= Al;              /* apply the point transform */
-      /* For a negative coef, want temp2 = bitwise complement of abs(coef) */
-      temp2 = ~temp;
-    } else {
-      temp >>= Al;              /* apply the point transform */
-      temp2 = temp;
-    }
-    /* Watch out for case that nonzero coef is zero after point transform */
-    if (temp == 0) {
-      r++;
-      k++;
-      continue;
-    }
+    int sign = temp >> 31;
+    temp += sign;
+    temp2 = temp >> Al;
+    temp = (temp ^ sign) >> Al;
 #endif
 
     /* Emit any pending EOBRUN */
