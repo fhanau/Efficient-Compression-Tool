@@ -30,6 +30,8 @@ static void *decompress_mem_to_heap(const void *pSrc_buf, size_t src_buf_len, si
   unsigned char *pBuf = 0;
 
   unsigned error = lodepng_inflate(&pBuf, pOut_len, (unsigned char*)pSrc_buf, src_buf_len);
+  //Work around problem w/ nonstandard malloc's
+  pBuf = (unsigned char*)realloc(pBuf, (*(pOut_len)) + 8);
   if(error){
     free(pBuf); *pOut_len = 0; return 0;
   }

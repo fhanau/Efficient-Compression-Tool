@@ -212,7 +212,8 @@ static void string_cleanup(char** out)
 static void string_set(char** out, const char* in)
 {
   size_t insize = strlen(in), i;
-  if(string_resize(out, insize))
+  //+ 8: Work around potential crash
+  if(string_resize(out, insize + 8))
   {
     for(i = 0; i != insize; ++i)
     {
@@ -4723,6 +4724,8 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
     }
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
     /*IDAT (multiple IDAT chunks must be consecutive)*/
+    //Work around problem w/ nonstandard malloc's. This can most likely be disabled.
+    data = (unsigned char*)realloc(data, datasize + 8);
     state->error = addChunk_IDAT(&outv, data, datasize, &state->encoder.zlibsettings);
     if(state->error) break;
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS

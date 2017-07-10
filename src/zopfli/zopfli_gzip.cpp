@@ -193,7 +193,7 @@ static void LoadFile(const char* filename,
   *outsize = ftell(file);
   rewind(file);
 
-  *out = (unsigned char*)malloc(*outsize);
+  *out = (unsigned char*)malloc(*outsize + 8);
   if (!*out && *outsize){
     exit(1);
   }
