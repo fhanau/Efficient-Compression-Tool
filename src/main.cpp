@@ -328,7 +328,7 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
     unsigned long local_bytes = 0;
     unsigned i = 0;
     time_t t = -1;
-    if(extension=="zip" || extension=="ZIP" || IsZIP(argv[args[0]])){
+    if((extension=="zip" || extension=="ZIP" || IsZIP(argv[args[0]])) && !isDirectory(argv[args[0]])){
         i++;
         if(exists(argv[args[0]])){
             local_bytes += filesize(zipfilename.c_str());
