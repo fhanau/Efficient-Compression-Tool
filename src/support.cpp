@@ -12,7 +12,7 @@
 #include <utime.h>
 #include <stdio.h>
 
-size_t filesize (const char * Infile) {
+long long filesize (const char * Infile) {
     struct stat stats;
     if (stat(Infile, &stats) != 0){
         return -1;

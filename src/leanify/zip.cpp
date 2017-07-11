@@ -187,12 +187,15 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   } else {
     fileHandler(temp, Options, 1);
   }
-  uint32_t new_size = filesize(temp);
+  long long new_size = filesize(temp);
 
-  if(new_size < size || size_leanified){
+  if(new_size < size && new_size >= 0){
     fd = open(temp, O_RDONLY);
     read(fd, data - size_leanified, new_size);
     close(fd);
+  }
+  else if (size_leanified){
+    memcpy(data - size_leanified, data, size);
   }
 
   unlink(temp);

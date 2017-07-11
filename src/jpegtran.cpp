@@ -92,7 +92,11 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
     return 2;
   }
 
-  size_t insize = filesize(Infile);
+  long long insize = filesize(Infile);
+  if(insize < 0){
+    fprintf(stderr, "ECT: can't read from %s\n", Infile);
+    return 2;
+  }
   unsigned char* inbuffer = (unsigned char*)malloc(insize);
   if (!inbuffer) {
     fprintf(stderr, "ECT: memory allocation failure\n");

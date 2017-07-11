@@ -151,6 +151,10 @@ static unsigned char OptimizePNG(const char * Infile, const ECTOptions& Options)
     }
     int x = 1;
     long long size = filesize(Infile);
+    if(size < 0){
+        printf("Can't read from %s\n", Infile);
+        return 1;
+    }
     if(mode == 9 && !Options.Reuse && !Options.Allfilters){
         x = Zopflipng(Options.strip, Infile, Options.Strict, 3, 0, Options.DeflateMultithreading);
         if(x < 0){
@@ -376,9 +380,13 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
                     }
                 }
                 else{
-                    size_t f = filesize(paths[j].string().c_str());
+                    long long f = filesize(paths[j].string().c_str());
                     if(f > UINT_MAX){
                         printf("%s: file too big\n", paths[j].string().c_str());
+                        continue;
+                    }
+                    if(f < 0){
+                        printf("%s: can't read file\n", paths[j].string().c_str());
                         continue;
                     }
                     char* file = (char*)malloc(f);
@@ -415,9 +423,13 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
         else{
 
             const char* fname = argv[args[i]];
-            size_t f = filesize(fname);
+            long long f = filesize(fname);
             if(f > UINT_MAX){
                 printf("%s: file too big\n", fname);
+                continue;
+            }
+            if(f < 0){
+                printf("%s: can't read file\n", fname);
                 continue;
             }
             char* file = (char*)malloc(f);

@@ -13,7 +13,7 @@
 #include <time.h>
 
 // Returns Filesize of Infile
-size_t filesize (const char * Infile);
+long long filesize (const char * Infile);
 
 bool exists(const char * Infile);
 
