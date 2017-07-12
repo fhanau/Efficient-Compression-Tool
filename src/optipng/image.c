@@ -89,9 +89,6 @@ void opng_store_image(struct opng_image *image, png_structp png_ptr, png_infop i
     if (image->num_unknowns)
     {
         png_set_unknown_chunks(png_ptr, info_ptr, image->unknowns, image->num_unknowns);
-        /* Is this really necessary? Should it not be implemented in libpng? */
-        for (int i = 0; i < image->num_unknowns; ++i)
-            png_set_unknown_chunk_location(png_ptr, info_ptr, i, image->unknowns[i].location);
     }
 }
 

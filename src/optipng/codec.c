@@ -620,6 +620,7 @@ int opng_encode_image(struct opng_codec_context *context, int filtered, FILE *st
         return -1;
     }
     png_data_freer(context->libpng_ptr, context->info_ptr, PNG_USER_WILL_FREE_DATA, PNG_FREE_ALL);
+    png_data_freer(context->libpng_ptr, context->info_ptr, PNG_DESTROY_WILL_FREE_DATA, PNG_FREE_PLTE | PNG_FREE_TRNS | PNG_FREE_UNKN);
     png_destroy_write_struct(&context->libpng_ptr, &context->info_ptr);
     return 0;
 }
