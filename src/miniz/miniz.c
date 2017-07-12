@@ -790,16 +790,16 @@ static void AddNonCompressedBlock(const unsigned char* in, size_t insize, unsign
 
 mz_bool mz_zip_writer_add_mem_ex(mz_zip_archive *pZip, const char *pArchive_name, const void *pBuf, size_t buf_size, const void *pComment, mz_uint16 comment_size, const char* location)
 {
+  void * data;
   mz_uint32 uncomp_crc32 = (mz_uint32)crc32(MZ_CRC32_INIT, (const mz_uint8*)pBuf, buf_size);
   mz_uint64 uncomp_size = buf_size;
   buf_size = uncomp_size ? uncomp_size + 5 * ((uncomp_size / 65535) + !!(uncomp_size % 65535)) : 0;
   if(buf_size){
-    unsigned char* data = (unsigned char*)malloc(buf_size);
+    data = (unsigned char*)malloc(buf_size);
     if(!data){
       return MZ_FALSE;
     }
     AddNonCompressedBlock((const unsigned char*)pBuf, uncomp_size, data);
-    pBuf = data;
   }
 
   mz_uint16 method = 0, dos_time = 0, dos_date = 0;
@@ -864,10 +864,12 @@ mz_bool mz_zip_writer_add_mem_ex(mz_zip_archive *pZip, const char *pArchive_name
 
   if (buf_size)
   {
-    if (mz_zip_file_write_func(pZip->m_pIO_opaque, cur_archive_file_ofs, pBuf, buf_size) != buf_size)
+    if (mz_zip_file_write_func(pZip->m_pIO_opaque, cur_archive_file_ofs, data, buf_size) != buf_size)
     {
+      free(data);
       return MZ_FALSE;
     }
+    free(data);
 
     cur_archive_file_ofs += buf_size;
 
