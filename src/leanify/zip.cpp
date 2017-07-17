@@ -205,7 +205,7 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   return new_size;
 }
 
-size_t Zip::Leanify(const ECTOptions& Options, unsigned long* files) {
+size_t Zip::Leanify(const ECTOptions& Options, size_t* files) {
   uint8_t* first_local_header = std::search(fp_, fp_ + size_, header_magic, std::end(header_magic));
   // The offset of the first local header, we should keep everything before this offset.
   size_t zip_offset = first_local_header - fp_;

@@ -85,7 +85,7 @@ void File::UnMapFile(size_t new_size) {
 // the new location of the file will be file_pointer - size_leanified
 // it's designed this way to avoid extra memmove or memcpy
 // return new size
-static size_t LeanifyFile(void* file_pointer, size_t file_size, const ECTOptions& Options, unsigned long* files) {
+static size_t LeanifyFile(void* file_pointer, size_t file_size, const ECTOptions& Options, size_t* files) {
 
   if (memcmp(file_pointer, Zip::header_magic, sizeof(Zip::header_magic)) != 0) {
     return file_size;
@@ -98,7 +98,7 @@ static size_t LeanifyFile(void* file_pointer, size_t file_size, const ECTOptions
   return r;
 }
 
-void ReZipFile(const char* file_path, const ECTOptions& Options, unsigned long* files) {
+void ReZipFile(const char* file_path, const ECTOptions& Options, size_t* files) {
   string filename(file_path);
   File input_file(file_path);
 

@@ -26,11 +26,11 @@ static inline const unsigned char* GetMatch(const unsigned char* scan,
   /* Optimized Function based on cloudflare's zlib fork.*/
   if (sizeof(size_t) == 8) {
     do {
-      unsigned long sv = *(unsigned long*)(void*)scan;
-      unsigned long mv = *(unsigned long*)(void*)match;
-      unsigned long xor = sv ^ mv;
+      size_t sv = *(size_t*)(void*)scan;
+      size_t mv = *(size_t*)(void*)match;
+      size_t xor = sv ^ mv;
       if (xor) {
-        scan += __builtin_ctzl(xor) / 8;
+        scan += __builtin_ctzll(xor) / 8;
         break;
       }
       else {
