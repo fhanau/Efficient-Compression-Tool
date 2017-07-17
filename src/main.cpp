@@ -17,7 +17,7 @@
 #include <id3/tag.h>
 #endif
 
-static unsigned long processedfiles;
+static size_t processedfiles;
 static size_t bytes;
 static long long savings;
 
@@ -325,7 +325,7 @@ unsigned fileHandler(const char * Infile, const ECTOptions& Options, int interna
 unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const ECTOptions& Options){
     std::string extension = ((std::string)argv[args[0]]).substr(((std::string)argv[args[0]]).find_last_of(".") + 1);
     std::string zipfilename = argv[args[0]];
-    unsigned long local_bytes = 0;
+    size_t local_bytes = 0;
     unsigned i = 0;
     time_t t = -1;
     if((extension=="zip" || extension=="ZIP" || IsZIP(argv[args[0]])) && !isDirectory(argv[args[0]])){

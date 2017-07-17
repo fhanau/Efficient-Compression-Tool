@@ -49,4 +49,4 @@ int ZopfliGzip(const char* filename, const char* outname, unsigned mode, unsigne
 void ZopfliBuffer(unsigned mode, unsigned multithreading, const unsigned char* in, size_t insize, unsigned char** out, size_t* outsize);
 unsigned fileHandler(const char * Infile, const ECTOptions& Options, int internal);
 unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const ECTOptions& Options);
-void ReZipFile(const char* file_path, const ECTOptions& Options, unsigned long* files);
+void ReZipFile(const char* file_path, const ECTOptions& Options, size_t* files);

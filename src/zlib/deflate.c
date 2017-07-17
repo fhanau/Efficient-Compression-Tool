@@ -908,16 +908,20 @@ IPos cur_match;                             /* current match */
             scan += 2, match+=2;
             Assert(*scan == *match, "match[2]?");
             do {
-                unsigned long sv = *(unsigned long*)(void*)scan;
-                unsigned long mv = *(unsigned long*)(void*)match;
-                unsigned long xor = sv ^ mv;
+                size_t sv = *(size_t*)(void*)scan;
+                size_t mv = *(size_t*)(void*)match;
+                size_t xor = sv ^ mv;
                 if (xor) {
-                    int match_byte = __builtin_ctzl(xor) / 8;
+#ifdef __x86_64
+                    int match_byte = __builtin_ctzll(xor) / sizeof(size_t);
+#else
+                    int match_byte = __builtin_ctzl(xor) / sizeof(size_t);
+#endif
                     scan += match_byte;
                     break;
                 } else {
-                    scan += sizeof(unsigned long);
-                    match += sizeof(unsigned long);
+                    scan += sizeof(size_t);
+                    match += sizeof(size_t);
                 }
             } while (scan < strend);
 
