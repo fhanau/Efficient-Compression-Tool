@@ -71,7 +71,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
   struct jpeg_error_mgr jsrcerr, jdsterr;
   FILE * fp;
   unsigned char *outbuffer = 0;
-  size_t outsize = 0;
+  unsigned long outsize = 0;
   size_t extrasize = 0;
   /* Initialize the JPEG decompression object with default error handling. */
   srcinfo.err = jpeg_std_error(&jsrcerr);
