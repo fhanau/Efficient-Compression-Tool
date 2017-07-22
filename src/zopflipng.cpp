@@ -420,6 +420,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
           for (int k1 = 0; k1 < 2; k1++){
             p.direction = (LodePNGPaletteDirectionStrategy)k1;
 
+            lodepng_color_mode_cleanup(&state.out_mode);
             lodepng::encode(out2, image, w, h, state, p);
             p._first = 0;
 

@@ -4637,6 +4637,7 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
       if (!color_tree_inc(&ct, crc & 0xFF, crc & 0xFF00, crc & 0xFF0000, crc & 0xFF000000)) {
       }
       else{
+        lodepng_info_cleanup(&info);
         return 96;
       }
     }
