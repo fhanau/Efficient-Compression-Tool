@@ -1333,6 +1333,7 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
       twiceStore->size += stores->size;
       stores++;
     }
+    free(stores - (npoints + 1));
   }
 
   free(splitpoints);
