@@ -225,8 +225,8 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned _mode, unsigned multithr
   options->searchext = min.searchext;
   options->filter_style = min.filter_style;
   options->noblocksplit = min.noblocksplit;
-  options->skipdynamic = min.skipdynamic;
   options->trystatic = min.trystatic;
+  options->skipdynamic = min.skipdynamic;
   options->noblocksplitlz = min.noblocksplitlz;
 
   options->numiterations = _mode % 10000 > 9 ? _mode % 10000 : options->numiterations;
