@@ -496,6 +496,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
       Bt3Zip_MatchFinder_Skip(&p, ZOPFLI_MAX_MATCH);
 
       assert(p.buffer == &in[instart]);
+      right = 0;
     }
     else{
       p.buffer = &in[windowstart];
@@ -504,7 +505,6 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
       MatchFinder_Create(&p);
       Bt3Zip_MatchFinder_Skip(&p, instart - windowstart);
     }
-  right = 0;
 
   unsigned short* matches;
   if (!storeincache){

@@ -4626,8 +4626,7 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
     state->error = lodepng_auto_choose_color(&info.color, image, w, h, &state->info_raw, state->div);
     if(info.color.colortype == LCT_PALETTE && palset.order != LPOS_NONE)
     {
-      if (palset._first) {
-        color_tree_cleanup(&ct);
+      if (palset._first & 1) {
         color_tree_init(&ct);
       }
       optimize_palette(&info.color, (uint32_t*)image, w, h, palset.priority, palset.direction,
@@ -4637,8 +4636,14 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
       if (!color_tree_inc(&ct, crc & 0xFF, crc & 0xFF00, crc & 0xFF0000, crc & 0xFF000000)) {
       }
       else{
+        if (palset._first & 2) {
+          color_tree_cleanup(&ct);
+        }
         lodepng_info_cleanup(&info);
         return 96;
+      }
+      if (palset._first & 2) {
+        color_tree_cleanup(&ct);
       }
     }
     lodepng_color_mode_init(&state->out_mode);

@@ -421,6 +421,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
             p.direction = (LodePNGPaletteDirectionStrategy)k1;
 
             lodepng_color_mode_cleanup(&state.out_mode);
+            p._first += ((tries + 1) == palette_filter) << 1;
             lodepng::encode(out2, image, w, h, state, p);
             p._first = 0;
 
