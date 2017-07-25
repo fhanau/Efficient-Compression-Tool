@@ -913,9 +913,9 @@ IPos cur_match;                             /* current match */
                 size_t xor = sv ^ mv;
                 if (xor) {
 #ifdef __x86_64
-                    int match_byte = __builtin_ctzll(xor) / sizeof(size_t);
+                    int match_byte = __builtin_ctzll(xor) / 8;
 #else
-                    int match_byte = __builtin_ctzl(xor) / sizeof(size_t);
+                    int match_byte = __builtin_ctz(xor) / 8;
 #endif
                     scan += match_byte;
                     break;
