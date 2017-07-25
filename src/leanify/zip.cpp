@@ -8,6 +8,9 @@
 #include <algorithm>
 #ifdef _WIN32
 #include <Windows.h>
+#ifdef _MSC_VER
+#include <io.h>
+#endif
 #endif
 
 #include "../miniz/miniz.h"
@@ -164,11 +167,21 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   }
 
 #ifdef _WIN32
-  char tempname[MAX_PATH + 1];
-  GetTempFileName(".", "", 0, tempname);
-  const char* temp = ((std::string)tempname).replace(((std::string)tempname).length() - 4, 4, extension).c_str();
-  int fd = open(temp, O_WRONLY);
+  char tempname[13];
+  memcpy(tempname, "fXXXXXX", 8);
+#ifdef _MSC_VER
+  _mktemp_s(tempname, 8);
+#else
+  mkstemp(tempname);
+#endf
 
+  memcpy(&(tempname[7]), extension.c_str(), extension.length());
+  tempname[7 + extension.length()] = '\0';
+  const char* temp = tempname;
+  if (exists(temp)) {
+	  return size;
+  }
+  FILE* stream = fopen(temp, "wb");
 #else
   char* t0 = getwd(0);
   string tmp = (std::string)t0 + "/XXXXXX" + extension;
@@ -176,9 +189,10 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   char* temp = strdup(tmp.c_str());
 
   int fd = mkstemps(temp, extension.size());
+  FILE* stream = fdopen(fd, "wb");
 #endif
-  write(fd, data, size);
-  close(fd);
+  fwrite(data, 1, size, stream);
+  fclose(stream);
 
   if(isZIP){
     std::vector<int> args;
@@ -192,9 +206,9 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   long long new_size = filesize(temp);
 
   if(new_size < size && new_size >= 0){
-    fd = open(temp, O_RDONLY);
-    read(fd, data - size_leanified, new_size);
-    close(fd);
+    FILE* stream = fopen(temp, "rb");
+    fread(data - size_leanified, 1, new_size, stream);
+    fclose(stream);
   }
   else if (size_leanified){
     memcpy(data - size_leanified, data, size);
