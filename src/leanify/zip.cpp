@@ -136,8 +136,7 @@ bool GetCDHeaders(const uint8_t* fp, size_t size, const EOCD& eocd, size_t zip_o
 	}
     cd_headers.push_back(cd_header);
   }
-  std::sort(cd_headers.begin(), cd_headers.end(),
-            [](const CDHeader& a, const CDHeader& b) { return a.local_header_offset < b.local_header_offset; });
+  std::sort(cd_headers.begin(), cd_headers.end(), [](const CDHeader& a, const CDHeader& b) { return a.local_header_offset < b.local_header_offset; });
   // Check if there's any overlaps.
   for (size_t i = 1; i < cd_headers.size(); i++) {
     if (cd_headers[i - 1].local_header_offset + sizeof(LocalHeader) + cd_headers[i - 1].filename_len +
@@ -173,7 +172,7 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   _mktemp_s(tempname, 8);
 #else
   mkstemp(tempname);
-#endf
+#endif
 
   memcpy(&(tempname[7]), extension.c_str(), extension.length());
   tempname[7 + extension.length()] = '\0';
