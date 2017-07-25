@@ -1307,7 +1307,7 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
   SymbolStats* statsp = 0;
   ZopfliBlockSplit(options, in, instart, inend, &splitpoints, &npoints, &statsp, twiceMode, *twiceStore);
 
-  ZopfliLZ77Store* stores;
+  ZopfliLZ77Store* stores = 0;
   if (twiceMode & 1){
     stores = (ZopfliLZ77Store*)malloc((npoints + 1) * sizeof(ZopfliLZ77Store));
     if(!stores){
@@ -1319,7 +1319,7 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
     size_t end = i == npoints ? inend : splitpoints[i];
     unsigned x = npoints == 0 ? 0 : i == 0 ? 2 : i == npoints ? 1 : 3;
     DeflateDynamicBlock(options, i == npoints && final, in, start, end,
-                        bp, out, outsize, costmodelnotinited, &(statsp[i]), twiceMode, stores + i, x);
+                        bp, out, outsize, costmodelnotinited, &(statsp[i]), twiceMode, stores ? stores + i : 0, x);
   }
   if (twiceMode & 1){
     ZopfliInitLZ77Store(twiceStore);

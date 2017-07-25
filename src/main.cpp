@@ -77,7 +77,7 @@ static void Usage() {
 
 static void ECT_ReportSavings(){
     if (processedfiles){
-        printf("Processed %lu file%s\n", processedfiles, processedfiles > 1 ? "s":"");
+        printf("Processed %zu file%s\n", processedfiles, processedfiles > 1 ? "s":"");
         if (savings < 0){
             printf("Result is bigger\n");
             return;
@@ -323,6 +323,11 @@ unsigned fileHandler(const char * Infile, const ECTOptions& Options, int interna
 }
 
 unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const ECTOptions& Options){
+#ifdef _WIN32
+#define EXTSEP "\\"
+#else
+#define EXTSEP "/"
+#endif
     std::string extension = ((std::string)argv[args[0]]).substr(((std::string)argv[args[0]]).find_last_of(".") + 1);
     std::string zipfilename = argv[args[0]];
     size_t local_bytes = 0;
@@ -344,11 +349,11 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
            && boost::filesystem::is_regular_file(argv[args[0]])
 #endif
            ){
-            if(zipfilename.find_last_of(".") > zipfilename.find_last_of("/")) {
+            if(zipfilename.find_last_of(".") > zipfilename.find_last_of("/\\")) {
                 zipfilename = zipfilename.substr(0, zipfilename.find_last_of("."));
             }
         }
-        else if(zipfilename.back() == '/'){
+        else if(zipfilename.back() == '/' || zipfilename.back() == '\\'){
             zipfilename.pop_back();
         }
 
@@ -375,7 +380,7 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
                 if(isDirectory(paths[j].string().c_str())){
                     //Only add dir if it is empty to minimize filesize
                     std::string next = paths[j + 1].string();
-                    if (next.compare(0, paths[j].string().size() + 1, paths[j].string() + "/") != 0 && !mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), ((std::string)name + "/").c_str(), 0, 0, 0, 0, paths[j].string().c_str())) {
+                    if ((next.compare(0, paths[j].string().size() + 1, paths[j].string() + "/") != 0 || next.compare(0, paths[j].string().size() + 1, paths[j].string() + "/") != 0)&& !mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), ((std::string)name + EXTSEP).c_str(), 0, 0, 0, 0, paths[j].string().c_str())) {
                         printf("can't add directory '%s'\n", argv[args[i]]);
                     }
                 }
@@ -412,7 +417,7 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
                 }
             }
             if(!paths.size()){
-                if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), (fold.erase(0, substr) + "/").c_str(), 0, 0, 0, 0, argv[args[i]])) {
+                if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), (fold.erase(0, substr) + EXTSEP).c_str(), 0, 0, 0, 0, argv[args[i]])) {
                     printf("can't add directory '%s'\n", argv[args[i]]);
                 }
             }

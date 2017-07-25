@@ -130,7 +130,9 @@
 #define ZEXTERN
 #define ZEXPORT
 #define ZEXPORTVA
+#ifndef FAR
 #define FAR
+#endif
 
 #if !defined(__MACTYPES__)
 typedef unsigned char  Byte;  /* 8 bits */

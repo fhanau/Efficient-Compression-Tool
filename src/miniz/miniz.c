@@ -18,7 +18,11 @@
   #define MZ_READ_LE32(p) ((mz_uint32)(((const mz_uint8 *)(p))[0]) | ((mz_uint32)(((const mz_uint8 *)(p))[1]) << 8U) | ((mz_uint32)(((const mz_uint8 *)(p))[2]) << 16U) | ((mz_uint32)(((const mz_uint8 *)(p))[3]) << 24U))
 #endif
 
+#ifdef __GNUC__
 #define MZ_FORCEINLINE inline __attribute__((__always_inline__))
+#else
+#define MZ_FORCEINLINE
+#endif
 
 #ifdef __cplusplus
   extern "C" {
