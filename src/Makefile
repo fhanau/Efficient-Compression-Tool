@@ -31,7 +31,7 @@ zlib:
 	ar rcs libz.a adler32.o crc32.o deflate.o inffast.o inflate.o inftrees.o trees.o zutil.o gzlib.o gzread.o
 libpng:
 	cp pngusr.h libpng/pngusr.h
-	make -C libpng/ -f scripts/makefile.gcc CC="$(CC)" CFLAGS="$(CFLAGS) -DPNG_USER_CONFIG -Wno-macro-redefined" libpng.a
+	make -C libpng/ -f scripts/makefile.linux-opt CC="$(CC)" CFLAGS="$(CFLAGS) -DPNG_USER_CONFIG -Wno-macro-redefined" libpng.a
 mozjpeg:
 	cd mozjpeg/; \
 	./configure --disable-dependency-tracking --disable-shared --without-turbojpeg --without-java CC="$(CC)" CFLAGS="$(CFLAGS)"; \
