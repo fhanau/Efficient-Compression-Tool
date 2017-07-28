@@ -173,6 +173,8 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
 #else
   int descriptor = mkstemp(tempname);
   close(descriptor);
+  //Just in case
+  unlink(tempname);
 #endif
 
   memcpy(&(tempname[7]), extension.c_str(), extension.length());
