@@ -502,12 +502,13 @@ int main(int argc, const char * argv[]) {
     int files = 0;
     if (argc >= 2){
         for (int i = 1; i < argc; i++) {
+            int strlen = strnlen(argv[i], 64);  //File names may be longer and are unaffected by this check
             if (strncmp(argv[i], "-", 1) != 0){
                 args.push_back(i);
                 files++;
             }
-            else if (strncmp(argv[i], "-strip", 2) == 0){Options.strip = true;}
-            else if (strncmp(argv[i], "-progressive", 2) == 0) {Options.Progressive = true;}
+            else if (strncmp(argv[i], "-strip", strlen) == 0){Options.strip = true;}
+            else if (strncmp(argv[i], "-progressive", strlen) == 0) {Options.Progressive = true;}
             else if (argv[i][0] == '-' && isdigit(argv[i][1])) {
                 int l = atoi(argv[i] + 1);
                 if (!l) {
@@ -515,15 +516,15 @@ int main(int argc, const char * argv[]) {
                 }
                 Options.Mode = l;
             }
-            else if (strncmp(argv[i], "-gzip", 2) == 0) {Options.Gzip = true;}
-            else if (strncmp(argv[i], "-zip", 2) == 0) {Options.Zip = true; Options.Gzip = true;}
-            else if (strncmp(argv[i], "-help", 2) == 0) {Usage(); return 0;}
-            else if (strncmp(argv[i], "-quiet", 2) == 0) {Options.SavingsCounter = false;}
-            else if (strncmp(argv[i], "-keep", 2) == 0) {Options.keep = true;}
+            else if (strncmp(argv[i], "-gzip", strlen) == 0) {Options.Gzip = true;}
+            else if (strncmp(argv[i], "-zip", strlen) == 0) {Options.Zip = true; Options.Gzip = true;}
+            else if (strncmp(argv[i], "-help", strlen) == 0) {Usage(); return 0;}
+            else if (strncmp(argv[i], "-quiet", strlen) == 0) {Options.SavingsCounter = false;}
+            else if (strncmp(argv[i], "-keep", strlen) == 0) {Options.keep = true;}
 #ifdef BOOST_SUPPORTED
             else if (strcmp(argv[i], "--disable-jpeg") == 0 || strcmp(argv[i], "--disable-jpg") == 0 ){Options.JPEG_ACTIVE = false;}
             else if (strcmp(argv[i], "--disable-png") == 0){Options.PNG_ACTIVE = false;}
-            else if (strncmp(argv[i], "-recurse", 2) == 0)  {Options.Recurse = 1;}
+            else if (strncmp(argv[i], "-recurse", strlen) == 0)  {Options.Recurse = 1;}
 #endif
             else if (strcmp(argv[i], "--strict") == 0) {Options.Strict = true;}
             else if (strcmp(argv[i], "--reuse") == 0) {Options.Reuse = true;}
@@ -543,7 +544,7 @@ int main(int argc, const char * argv[]) {
                 if (strncmp(argv[i], "--mt-deflate=", 13) == 0){
                     Options.DeflateMultithreading = atoi(argv[i] + 13);
                 }
-                else{
+                else if (strcmp(argv[i], "--mt-deflate") == 0) {
                     Options.DeflateMultithreading = std::thread::hardware_concurrency();
                 }
             }
