@@ -11,6 +11,8 @@
 #ifdef _MSC_VER
 #include <io.h>
 #endif
+#else
+#include <sys/param.h>
 #endif
 
 #include "../miniz/miniz.h"
@@ -185,7 +187,7 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   }
   FILE* stream = fopen(temp, "wb");
 #else
-  char* t0 = getwd(0);
+  char* t0 = getcwd(0, MAXPATHLEN);
   string tmp = (std::string)t0 + "/XXXXXX" + extension;
   free(t0);
   char* temp = strdup(tmp.c_str());
