@@ -109,12 +109,20 @@ static void ECT_ReportSavings(){
     else {printf("No compatible files found\n");}
 }
 
-static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multithreading, long long fs, unsigned ZIP){
+static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multithreading, long long fs, unsigned ZIP, int strict){
     if (!fs){
         printf("%s: Compression of empty files is currently not supported\n", Infile);
         return 2;
     }
-    if (ZIP || !IsGzip(Infile)){
+    int isGZ = IsGzip(Infile);
+    if(isGZ == 2){
+        return 2;
+    }
+    if(isGZ == 3 && strict){
+        printf("%s: File includes extra field, file name or comment, can't be optimized\n", Infile);
+        return 2;
+    }
+    if (ZIP || !isGZ){
         if (exists(((std::string)Infile).append(ZIP ? ".zip" : ".gz").c_str())){
             printf("%s: Compressed file already exists\n", Infile);
             return 2;
@@ -293,7 +301,7 @@ unsigned fileHandler(const char * Infile, const ECTOptions& Options, int interna
                 error = OptimizeJPEG(Infile, Options);
             }
             else if (Options.Gzip && !internal){
-                statcompressedfile = ECTGzip(Infile, Options.Mode, Options.DeflateMultithreading, size, Options.Zip);
+                statcompressedfile = ECTGzip(Infile, Options.Mode, Options.DeflateMultithreading, size, Options.Zip, Options.Strict);
                 if (statcompressedfile == 2){
                     return 1;
                 }

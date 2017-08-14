@@ -38,13 +38,22 @@ int IsGzip(const char * Infile){
     if (!stream){
         return 2;
     }
-    char buf [2];
-    if (fread(&buf, 1, 2, stream) != 2){
+    char buf [4];
+    if (fread(&buf, 1, 4, stream) != 4){
         return 2;
     }
     fclose(stream);
     if (buf[0] == 31 && buf[1] == -117){
-        return 1;
+      // FHCRC is stripped
+      //Requires big endian
+      if(buf[3] & 0x20){ //Encrypted
+        printf("%s: File is encrypted, can't be optimized\n", Infile);
+        return 2;
+      }
+      else if(buf[3] & 0x1c){ //extra field, file name or comment
+        return 3;
+      }
+      return 1;
     }
     return 0;
 }
