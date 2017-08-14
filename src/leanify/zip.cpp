@@ -183,11 +183,16 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   tempname[7 + extension.length()] = '\0';
   const char* temp = tempname;
   if (exists(temp)) {
+    printf("Error: Can't create temp file\n");
 	  return size;
   }
   FILE* stream = fopen(temp, "wb");
 #else
-  char* t0 = getcwd(0, MAXPATHLEN);
+  char* t0 = getcwd(0, MAXPATHLEN - 7 - extension.length());
+  if(!t0){
+    printf("Error: Can't get working directory\n");
+    return size;
+  }
   string tmp = (std::string)t0 + "/XXXXXX" + extension;
   free(t0);
   char* temp = strdup(tmp.c_str());
@@ -210,8 +215,16 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   long long new_size = filesize(temp);
 
   if(new_size < size && new_size >= 0){
-    FILE* stream = fopen(temp, "rb");
-    fread(data - size_leanified, 1, new_size, stream);
+    stream = fopen(temp, "rb");
+    if(fread(data - size_leanified, 1, new_size, stream) < new_size){
+      printf("Error: Read error\n");
+      if (size_leanified){
+        memcpy(data - size_leanified, data, size);
+      }
+    }
+    else{
+      size = new_size;
+    }
     fclose(stream);
   }
   else if (size_leanified){
@@ -222,7 +235,7 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
 #ifndef _WIN32
   free(temp);
 #endif
-  return new_size;
+  return size;
 }
 
 size_t Zip::Leanify(const ECTOptions& Options, size_t* files) {
