@@ -119,7 +119,7 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
         return 2;
     }
     if(isGZ == 3 && strict){
-        printf("%s: File includes extra field, file name or comment, can't be optimized\n", Infile);
+        printf("%s: File includes extra field, file name or comment, can't be optimized in strict mode\n", Infile);
         return 2;
     }
     if (ZIP || !isGZ){
