@@ -24,7 +24,7 @@ static long long savings;
 static void Usage() {
     printf (
             "Efficient Compression Tool\n"
-            "(c) 2014-2016 Felix Hanau.\n"
+            "(c) 2014-2017 Felix Hanau.\n"
             "Version 0.8.2"
 #ifdef __DATE__
             " compiled on %s\n"
@@ -137,7 +137,9 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
         if (exists(((std::string)Infile).append(".ungz.gz").c_str())){
             return 2;
         }
-        ungz(Infile, ((std::string)Infile).append(".ungz").c_str());
+        if(ungz(Infile, ((std::string)Infile).append(".ungz").c_str())){
+            return 2;
+        }
         ZopfliGzip(((std::string)Infile).append(".ungz").c_str(), 0, Mode, multithreading, ZIP);
         if (filesize(((std::string)Infile).append(".ungz.gz").c_str()) < filesize(Infile)){
             unlink(Infile);
