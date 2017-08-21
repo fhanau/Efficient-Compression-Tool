@@ -35,8 +35,8 @@ libpng:
 	make -C libpng/ -f scripts/makefile.linux-opt CC="$(CC)" CFLAGS="$(UCFLAGS) -DPNG_USER_CONFIG -Wno-macro-redefined" libpng.a
 mozjpeg:
 	cd mozjpeg/; \
-	./configure --disable-dependency-tracking --disable-shared --without-turbojpeg --without-java CC="$(CC)" CFLAGS="$(UCFLAGS)"; \
-	make
+	./configure --disable-dependency-tracking --disable-shared --without-turbojpeg --without-java CC="$(CC)" CFLAGS="$(UCFLAGS)" LDFLAGS=""; \
+	make LDFLAGS=""
 install: all
 	$(MAKEDIR) $(DESTDIR)$(BINDIR)
 	$(INSTALL) ../ect $(DESTDIR)$(BINDIR)
