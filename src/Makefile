@@ -24,6 +24,7 @@ bin: deps
 	$(CXX) $(UCXXFLAGS) main.cpp $(OBJECTS) $(CXXSRC) mozjpeg/.libs/libjpeg.a libpng/libpng.a zlib/libz.a -o ../ect $(LDFLAGS)
 clean:
 	rm -f *.o zlib/*.o zlib/*.a libpng/*.o libpng/*.a libpng/pngusr.h libpng/pnglibconf.h
+	make -C mozjpeg clean
 deps: zlib libpng mozjpeg
 zlib:
 	cd zlib/; \
