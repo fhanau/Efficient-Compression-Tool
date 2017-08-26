@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <unistd.h>
 
 int ungz(const char * Infile, const char * Outfile){
     gzFile r = gzopen(Infile, "rb");
