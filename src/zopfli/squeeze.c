@@ -1052,7 +1052,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
       else{
         ZopfliCleanLZ77Store(&peace);
 
-        if (options->ultra == 2){
+        if (options->ultra >= 2){
 
           for(;;){
 
