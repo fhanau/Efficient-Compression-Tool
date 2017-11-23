@@ -161,12 +161,12 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
     if (JFWRITE(fp, outbuffer, outsize) < outsize) {
       fprintf(stderr, "ECT: can't write to %s\n", Outfile);
     }
+    fclose(fp);
   }
 
   jpeg_destroy_compress(&dstinfo);
   jpeg_finish_decompress(&srcinfo);
   jpeg_destroy_decompress(&srcinfo);
-  fclose(fp);
   free(outbuffer);
   (*stripped_outsize) = /*x ? insize : */outsize - extrasize;
   return x;
