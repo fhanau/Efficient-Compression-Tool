@@ -21,7 +21,7 @@
 
 #include <cstdio>
 #include <cassert>
-#include <set>
+#include <unordered_set>
 #include <vector>
 #include <string>
 
@@ -75,22 +75,25 @@ static unsigned ColorIndex(const unsigned char* color) {
 // Counts amount of colors in the image, up to 257. If transparent_counts_as_one
 // is enabled, any color with alpha channel 0 is treated as a single color with
 // index 0.
-static void CountColors(std::set<unsigned>* unique, const unsigned char* image, unsigned w, unsigned h, bool transparent_counts_as_one) {
+static void CountColors(std::unordered_set<unsigned>* unique, const unsigned char* image, unsigned w, unsigned h, bool transparent_counts_as_one) {
   unique->clear();
+  unique->reserve(512);
+  unsigned prev = ~*(unsigned*)(image);
   for (size_t i = 0; i < w * h; i++) {
     unsigned index = ColorIndex(&image[i * 4]);
     if (transparent_counts_as_one && image[i * 4 + 3] == 0) index = 0;
-    unique->insert(index);
-    if (i>256){
-      if (unique->size() > 256) break;
+    if(prev!=index) {
+      unique->insert(index);
     }
+    prev = index;
+    if (unique->size() > 256) break;
   }
 }
 
 // Remove RGB information from pixels with alpha=0
 static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* image,
                                      unsigned w, unsigned h, int filter) {
-  std::set<unsigned> count;  // Color count, up to 257.
+  std::unordered_set<unsigned> count;  // Color count, up to 257.
 
   // If true, means palette is possible so avoid using different RGB values for
   // the transparent color.
