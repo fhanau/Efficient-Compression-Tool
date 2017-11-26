@@ -55,10 +55,8 @@ static void Usage() {
             " -help          Print this help\n"
             " -keep          Keep modification time\n"
             "Advanced Options:\n"
-#ifdef BOOST_SUPPORTED
             " --disable-png  Disable PNG optimization\n"
             " --disable-jpg  Disable JPEG optimization\n"
-#endif
             " --strict       Enable strict losslessness\n"
             " --reuse        Keep PNG filter and colortype\n"
             " --allfilters   Try all PNG filter modes\n"
@@ -531,9 +529,9 @@ int main(int argc, const char * argv[]) {
             else if (strncmp(argv[i], "-help", strlen) == 0) {Usage(); return 0;}
             else if (strncmp(argv[i], "-quiet", strlen) == 0) {Options.SavingsCounter = false;}
             else if (strncmp(argv[i], "-keep", strlen) == 0) {Options.keep = true;}
-#ifdef BOOST_SUPPORTED
             else if (strcmp(argv[i], "--disable-jpeg") == 0 || strcmp(argv[i], "--disable-jpg") == 0 ){Options.JPEG_ACTIVE = false;}
             else if (strcmp(argv[i], "--disable-png") == 0){Options.PNG_ACTIVE = false;}
+#ifdef BOOST_SUPPORTED
             else if (strncmp(argv[i], "-recurse", strlen) == 0)  {Options.Recurse = 1;}
 #endif
             else if (strcmp(argv[i], "--strict") == 0) {Options.Strict = true;}
