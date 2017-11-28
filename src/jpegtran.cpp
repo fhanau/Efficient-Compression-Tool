@@ -17,12 +17,11 @@
 
 /* Modified by Felix Hanau. */
 
-#include "mozjpeg/jinclude.h"
-#include "mozjpeg/jpeglib.h"
+#include "mozjpeg/transupp.c"
 #include "main.h"
 #include "support.h"
 
-static size_t jcopy_markers_execute (j_decompress_ptr srcinfo, j_compress_ptr dstinfo)
+static size_t jcopy_markers_execute_s (j_decompress_ptr srcinfo, j_compress_ptr dstinfo)
 {
   size_t size = 0;
   for (jpeg_saved_marker_ptr marker = srcinfo->marker_list; marker; marker = marker->next) {
@@ -52,6 +51,100 @@ static size_t jcopy_markers_execute (j_decompress_ptr srcinfo, j_compress_ptr ds
   return size;
 }
 
+/* Map Exif orientation values to correct JXFORM_CODE */
+static JXFORM_CODE orient_jxform[9] = {
+  JXFORM_NONE,
+  JXFORM_NONE,
+  JXFORM_FLIP_H,
+  JXFORM_ROT_180,
+  JXFORM_FLIP_V,
+  JXFORM_TRANSPOSE,
+  JXFORM_ROT_90,
+  JXFORM_TRANSVERSE,
+  JXFORM_ROT_270
+};
+
+/* Get Exif image orientation. Copied from adjust_exif_parameters. */
+LOCAL(unsigned int)
+get_exif_orientation (JOCTET *data, unsigned int length)
+{
+  boolean is_motorola; /* Flag for byte order */
+  unsigned int number_of_tags, tagnum;
+  unsigned int offset;
+
+  if (length < 12) return 0; /* Length of an IFD entry */
+
+  /* Discover byte order */
+  if (GETJOCTET(data[0]) == 0x49 && GETJOCTET(data[1]) == 0x49)
+    is_motorola = FALSE;
+  else if (GETJOCTET(data[0]) == 0x4D && GETJOCTET(data[1]) == 0x4D)
+    is_motorola = TRUE;
+  else
+    return 0;
+
+  /* Check Tag Mark */
+  if (is_motorola) {
+    if (GETJOCTET(data[2]) != 0) return 0;
+    if (GETJOCTET(data[3]) != 0x2A) return 0;
+  } else {
+    if (GETJOCTET(data[3]) != 0) return 0;
+    if (GETJOCTET(data[2]) != 0x2A) return 0;
+  }
+
+  /* Get first IFD offset (offset to IFD0) */
+  if (is_motorola) {
+    if (GETJOCTET(data[4]) != 0) return 0;
+    if (GETJOCTET(data[5]) != 0) return 0;
+    offset = GETJOCTET(data[6]);
+    offset <<= 8;
+    offset += GETJOCTET(data[7]);
+  } else {
+    if (GETJOCTET(data[7]) != 0) return 0;
+    if (GETJOCTET(data[6]) != 0) return 0;
+    offset = GETJOCTET(data[5]);
+    offset <<= 8;
+    offset += GETJOCTET(data[4]);
+  }
+  if (offset > length - 2) return 0; /* check end of data segment */
+
+  /* Get the number of directory entries contained in this IFD */
+  if (is_motorola) {
+    number_of_tags = GETJOCTET(data[offset]);
+    number_of_tags <<= 8;
+    number_of_tags += GETJOCTET(data[offset+1]);
+  } else {
+    number_of_tags = GETJOCTET(data[offset+1]);
+    number_of_tags <<= 8;
+    number_of_tags += GETJOCTET(data[offset]);
+  }
+  if (number_of_tags == 0) return 0;
+  offset += 2;
+
+  /* Search for Orientation Tag in this IFD */
+  do {
+    if (offset > length - 12) return 0; /* check end of data segment */
+    /* Get Tag number */
+    if (is_motorola) {
+      tagnum = GETJOCTET(data[offset]);
+      tagnum <<= 8;
+      tagnum += GETJOCTET(data[offset+1]);
+    } else {
+      tagnum = GETJOCTET(data[offset+1]);
+      tagnum <<= 8;
+      tagnum += GETJOCTET(data[offset]);
+    }
+    if (tagnum == 0x0112) {
+      if (is_motorola) {
+        return GETJOCTET(data[offset+9]);
+      } else {
+        return GETJOCTET(data[offset+8]);
+      }
+    }
+    offset += 12;
+  } while (--number_of_tags);
+  return 0;
+}
+
 METHODDEF(void)
 output_message (j_common_ptr cinfo)
 {
@@ -64,11 +157,12 @@ output_message (j_common_ptr cinfo)
   fprintf(stderr, "%s: %s\n", cinfo->err->addon_message_table[0], buffer);
 }
 
-int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Infile, const char * Outfile, size_t* stripped_outsize)
+int mozjpegtran (bool arithmetic, bool progressive, bool strip, unsigned autorotate, const char * Infile, const char * Outfile, size_t* stripped_outsize)
 {
   struct jpeg_decompress_struct srcinfo;
   struct jpeg_compress_struct dstinfo;
   struct jpeg_error_mgr jsrcerr, jdsterr;
+  jpeg_transform_info transformoption; /* image transformation options */
   FILE * fp;
   unsigned char *outbuffer = 0;
   unsigned long outsize = 0;
@@ -112,19 +206,58 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
 
   /* Enable saving of extra markers that we want to copy */
   if (!strip) {
-    jpeg_save_markers(&srcinfo, JPEG_COM, 0xFFFF);
-    for (unsigned m = 0; m < 16; m++)
-      jpeg_save_markers(&srcinfo, JPEG_APP0 + m, 0xFFFF);
+    jcopy_markers_setup(&srcinfo, JCOPYOPT_ALL);
+  } else if (autorotate > 0) {
+    jpeg_save_markers(&srcinfo, JPEG_APP0+1, 0xFFFF);
   }
 
   /* Read file header */
   jpeg_read_header(&srcinfo, 1);
 
+  /* Determine orientation from Exif */
+  transformoption.transform = JXFORM_NONE;
+  if (autorotate > 0 && srcinfo.marker_list != NULL &&
+      srcinfo.marker_list->marker == JPEG_APP0+1 &&
+      srcinfo.marker_list->data_length >= 6 &&
+      GETJOCTET(srcinfo.marker_list->data[0]) == 0x45 &&
+      GETJOCTET(srcinfo.marker_list->data[1]) == 0x78 &&
+      GETJOCTET(srcinfo.marker_list->data[2]) == 0x69 &&
+      GETJOCTET(srcinfo.marker_list->data[3]) == 0x66 &&
+      GETJOCTET(srcinfo.marker_list->data[4]) == 0 &&
+      GETJOCTET(srcinfo.marker_list->data[5]) == 0) {
+    unsigned int orientation = get_exif_orientation(srcinfo.marker_list->data + 6,
+                                                    srcinfo.marker_list->data_length - 6);
+    /* Setup transform options for auto-rotate */
+    if (orientation > 1 && orientation <= 8) {
+      transformoption.transform = orient_jxform[orientation];
+      transformoption.perfect = autorotate > 1;
+      transformoption.trim = TRUE;
+      transformoption.force_grayscale = FALSE;
+      transformoption.crop = FALSE;
+      transformoption.slow_hflip = FALSE;
+      /* Do not transform if --strict is given and transformation is not perfect */
+      if (!jtransform_request_workspace(&srcinfo, &transformoption)) {
+        fprintf(stderr, "ECT: transformation is not perfect %s\n", Infile);
+        transformoption.transform = JXFORM_NONE;
+      }
+    }
+  }
+
   /* Read source file as DCT coefficients */
-  jvirt_barray_ptr * coef_arrays = jpeg_read_coefficients(&srcinfo);
+  jvirt_barray_ptr * src_coef_arrays = jpeg_read_coefficients(&srcinfo);
 
   /* Initialize destination compression parameters from source values */
   jpeg_copy_critical_parameters(&srcinfo, &dstinfo);
+
+  /* Adjust destination parameters if required by transform options;
+   * also find out which set of coefficient arrays will hold the output.
+   */
+  jvirt_barray_ptr * dst_coef_arrays = src_coef_arrays;
+  if (transformoption.transform != JXFORM_NONE) {
+    dst_coef_arrays = jtransform_adjust_parameters(&srcinfo, &dstinfo,
+                                                   src_coef_arrays,
+                                                   &transformoption);
+  }
 
   /* Adjust default compression parameters by re-parsing the options */
   dstinfo.optimize_coding = !arithmetic;
@@ -138,10 +271,19 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Inf
   jpeg_mem_dest(&dstinfo, &outbuffer, &outsize);
 
   /* Start compressor (note no image data is actually written here) */
-  jpeg_write_coefficients(&dstinfo, coef_arrays);
+  jpeg_write_coefficients(&dstinfo, dst_coef_arrays);
 
   /* Copy to the output file any extra markers that we want to preserve */
-  extrasize = jcopy_markers_execute(&srcinfo, &dstinfo);
+  if (!strip) {
+    extrasize = jcopy_markers_execute_s(&srcinfo, &dstinfo);
+  }
+
+  /* Execute image transformation, if any */
+  if (transformoption.transform != JXFORM_NONE) {
+    jtransform_execute_transformation(&srcinfo, &dstinfo,
+                                      src_coef_arrays,
+                                      &transformoption);
+  }
 
   /* Finish compression and release memory */
   jpeg_finish_compress(&dstinfo);

@@ -46,6 +46,7 @@ static void Usage() {
             " -1 to -9       Set compression level (Default: 3)\n"
             " -strip         Strip metadata\n"
             " -progressive   Use progressive encoding for JPEGs\n"
+            " -autorotate    Automatically rotate JPEGs according to exif orientation\n"
 #ifdef BOOST_SUPPORTED
             " -recurse       Recursively search directories\n"
 #endif
@@ -236,10 +237,10 @@ static unsigned char OptimizePNG(const char * Infile, const ECTOptions& Options)
 static unsigned char OptimizeJPEG(const char * Infile, const ECTOptions& Options){
     size_t stsize = 0;
 
-    int res = mozjpegtran(Options.Arithmetic, Options.Progressive && (Options.Mode > 1 || filesize(Infile) > 5000), Options.strip, Infile, Infile, &stsize);
+    int res = mozjpegtran(Options.Arithmetic, Options.Progressive && (Options.Mode > 1 || filesize(Infile) > 5000), Options.strip, Options.Autorotate, Infile, Infile, &stsize);
     if (Options.Progressive && Options.Mode > 1 && res != 2){
         if(res == 1 || (Options.Mode == 2 && stsize < 6500) || (Options.Mode == 3 && stsize < 10000) || (Options.Mode == 4 && stsize < 15000) || (Options.Mode > 4 && stsize < 20000)){
-            res = mozjpegtran(Options.Arithmetic, false, Options.strip, Infile, Infile, &stsize);
+            res = mozjpegtran(Options.Arithmetic, false, Options.strip, Options.Autorotate, Infile, Infile, &stsize);
         }
     }
     return res == 2;
@@ -490,6 +491,7 @@ int main(int argc, const char * argv[]) {
     ECTOptions Options;
     Options.strip = false;
     Options.Progressive = false;
+    Options.Autorotate = 0;
     Options.Mode = 3;
 #ifdef BOOST_SUPPORTED
     Options.Recurse = false;
@@ -519,6 +521,7 @@ int main(int argc, const char * argv[]) {
             }
             else if (strncmp(argv[i], "-strip", strlen) == 0){Options.strip = true;}
             else if (strncmp(argv[i], "-progressive", strlen) == 0) {Options.Progressive = true;}
+            else if (strncmp(argv[i], "-autorotate", strlen) == 0) {Options.Autorotate = 1;}
             else if (argv[i][0] == '-' && isdigit(argv[i][1])) {
                 int l = atoi(argv[i] + 1);
                 if (!l) {
@@ -561,6 +564,10 @@ int main(int argc, const char * argv[]) {
 #endif
             else if (strcmp(argv[i], "--arithmetic") == 0) {Options.Arithmetic = true;}
             else {printf("Unknown flag: %s\n", argv[i]); return 0;}
+        }
+        if(Options.Autorotate == 1) {
+            if (!Options.strip) {printf("Flag -autorotate requires -strip\n"); return 0;}
+            if (Options.Strict) Options.Autorotate = 2;
         }
         if(Options.Reuse){
             Options.Allfilters = 0;
