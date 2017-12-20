@@ -28,6 +28,7 @@ else
 	endif
 endif
 ifeq ($(TARGET),windows)
+	CFLAGS += -mno-ms-bitfields
 	CXXFLAGS += -mno-ms-bitfields
 	BINARY = ../ect.exe
 endif
