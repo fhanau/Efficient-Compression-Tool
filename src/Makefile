@@ -33,9 +33,9 @@ zlib:
 libpng:
 	cp pngusr.h libpng/pngusr.h
 	make -C libpng/ -f scripts/makefile.linux-opt CC="$(CC)" CFLAGS="$(UCFLAGS) -DPNG_USER_CONFIG -Wno-macro-redefined" libpng.a
-mozjpeg:
+mozjpeg: zlib libpng
 	cd mozjpeg/; \
-	./configure --disable-dependency-tracking --disable-shared --without-turbojpeg --without-java CC="$(CC)" CFLAGS="$(UCFLAGS)" LDFLAGS=""; \
+	./configure --disable-dependency-tracking --disable-shared --without-turbojpeg --without-java CC="$(CC)" CFLAGS="$(UCFLAGS)" LDFLAGS="" libpng_CFLAGS="-I../libpng" libpng_LIBS="../libpng/libpng.a ../zlib/libz.a -lm"; \
 	make LDFLAGS=""
 install: all
 	$(MAKEDIR) $(DESTDIR)$(BINDIR)
