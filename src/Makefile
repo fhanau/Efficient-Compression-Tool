@@ -28,7 +28,7 @@ all: deps bin
 bin: deps
 	$(CC) -c $(UCFLAGS) optipng/codec.c optipng/image.c zopfli//util.c zopfli/squeeze.c zopfli/lz77.c \
 	zopfli/blocksplitter.c optipng/opngreduc/opngreduc.c LzFind.c miniz/miniz.c
-	$(CXX) $(UCXXFLAGS) main.cpp $(OBJECTS) $(CXXSRC) mozjpeg/.libs/libjpeg.a libpng/libpng.a zlib/libz.a -o ../ect $(LDFLAGS)
+	$(CXX) $(UCXXFLAGS) -static -s main.cpp $(OBJECTS) $(CXXSRC) mozjpeg/.libs/libjpeg.a libpng/libpng.a zlib/libz.a -o ../ect $(LDFLAGS)
 clean:
 	rm -f *.o zlib/*.o zlib/*.a libpng/*.o libpng/*.a libpng/pngusr.h libpng/pnglibconf.h
 	make -C mozjpeg clean
