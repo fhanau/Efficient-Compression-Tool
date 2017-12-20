@@ -14,9 +14,22 @@ BINDIR ?= $(PREFIX)/bin
 INSTALL ?= install
 MAKEDIR ?= install -d
 
-ifeq ($(OS),Windows_NT)
+TARGET =
+ifeq ($(HOST_TRIPLE),)
+	ifeq ($(OS),Windows_NT)
+		# Native compile on Windows.
+		TARGET = windows
+	endif
+else
+	ifeq ($(lastword $(subst -, ,$(HOST_TRIPLE))),mingw32)
+		# Cross-compile to Windows.
+		TARGET = windows
+	endif
+endif
+ifeq ($(TARGET),windows)
 	CXXFLAGS += -mno-ms-bitfields
 endif
+
 OBJECTS = blocksplitter.o codec.o image.o lz77.o opngreduc.o squeeze.o util.o LzFind.o miniz.o
 CXXSRC = support.cpp zopflipng.cpp zopfli/deflate.cpp zopfli/zopfli_gzip.cpp zopfli/katajainen.cpp \
 lodepng/lodepng.cpp lodepng/lodepng_util.cpp optipng/optipng.cpp jpegtran.cpp gztools.cpp \
