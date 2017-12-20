@@ -1,5 +1,12 @@
-CC = gcc
-CXX = g++
+ifeq ($(HOST_TRIPLE),)
+CROSS =
+else
+HOSTFLAG = --host=$(HOST_TRIPLE)
+CROSS = $(HOST_TRIPLE)-
+endif
+CC = $(CROSS)gcc
+CXX = $(CROSS)g++
+AR = $(CROSS)ar
 UCFLAGS = -Ofast -std=gnu11 -fsigned-char $(CFLAGS)
 UCXXFLAGS = -pthread -Ofast -std=gnu++11 -fsigned-char $(CXXFLAGS)
 PREFIX ?= /usr/local
@@ -29,13 +36,13 @@ deps: zlib libpng mozjpeg
 zlib:
 	cd zlib/; \
 	$(CC) $(UCFLAGS) -c adler32.c crc32.c deflate.c inffast.c inflate.c inftrees.c trees.c zutil.c gzlib.c gzread.c; \
-	ar rcs libz.a adler32.o crc32.o deflate.o inffast.o inflate.o inftrees.o trees.o zutil.o gzlib.o gzread.o
+	$(AR) rcs libz.a adler32.o crc32.o deflate.o inffast.o inflate.o inftrees.o trees.o zutil.o gzlib.o gzread.o
 libpng:
 	cp pngusr.h libpng/pngusr.h
 	make -C libpng/ -f scripts/makefile.linux-opt CC="$(CC)" CFLAGS="$(UCFLAGS) -DPNG_USER_CONFIG -Wno-macro-redefined" libpng.a
 mozjpeg: zlib libpng
 	cd mozjpeg/; \
-	./configure --disable-dependency-tracking --disable-shared --without-turbojpeg --without-java CC="$(CC)" CFLAGS="$(UCFLAGS)" LDFLAGS="" libpng_CFLAGS="-I../libpng" libpng_LIBS="../libpng/libpng.a ../zlib/libz.a -lm"; \
+	./configure --disable-dependency-tracking --disable-shared --without-turbojpeg --without-java $(HOSTFLAG) CC="$(CC)" CFLAGS="$(UCFLAGS)" LDFLAGS="" libpng_CFLAGS="-I../libpng" libpng_LIBS="../libpng/libpng.a ../zlib/libz.a -lm"; \
 	make LDFLAGS=""
 install: all
 	$(MAKEDIR) $(DESTDIR)$(BINDIR)
