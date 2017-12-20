@@ -300,9 +300,12 @@ size_t Zip::Leanify(const ECTOptions& Options, size_t* files) {
     LocalHeader* local_header = reinterpret_cast<LocalHeader*>(p_write);
 
     // if Extra field length is not 0, then skip it and set it to 0
-    if (local_header->extra_field_len) {
+    if (!Options.Strict) {
       p_read += local_header->extra_field_len;
       local_header->extra_field_len = 0;
+    }
+    else{
+        memmove(p_write, p_read, local_header->extra_field_len);
     }
 
     if (local_header->flag & 8) {
@@ -403,22 +406,26 @@ size_t Zip::Leanify(const ECTOptions& Options, size_t* files) {
   // central directory offset
   eocd.cd_offset = p_write - fp_w_base;
   for (CDHeader& cd_header : cd_headers) {
-    cd_header.extra_field_len = cd_header.comment_len = 0;
+    if(!Options.Strict){
+      cd_header.extra_field_len = cd_header.comment_len = 0;
+    }
 
     memcpy(p_write, &cd_header, sizeof(CDHeader));
     p_write += sizeof(CDHeader);
     // Copy the filename from local file header to central directory,
     // the old central directory might have been overwritten already because we sort them.
-    memcpy(p_write, fp_w_base + cd_header.local_header_offset + 30, cd_header.filename_len);
-    p_write += cd_header.filename_len;
+    memcpy(p_write, fp_w_base + cd_header.local_header_offset + 30, cd_header.filename_len + cd_header.extra_field_len + cd_header.comment_len);
+    p_write += cd_header.filename_len + cd_header.extra_field_len + cd_header.comment_len;
   }
 
   // Update end of central directory record
   eocd.num_records = eocd.num_records_total = cd_headers.size();
   eocd.cd_size = p_write - fp_w_base - eocd.cd_offset;
-  eocd.comment_len = 0;
+  if(!Options.Strict){
+    eocd.comment_len = 0;
+  }
 
-  memcpy(p_write, &eocd, sizeof(EOCD));
+  memcpy(p_write, &eocd, sizeof(EOCD) + eocd.comment_len);
 
   size_ = p_write + sizeof(EOCD) - fp_;
   return size_;
