@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <algorithm>
 #ifdef _WIN32
-#include <Windows.h>
+#include <windows.h>
 #ifdef _MSC_VER
 #include <io.h>
 #endif
