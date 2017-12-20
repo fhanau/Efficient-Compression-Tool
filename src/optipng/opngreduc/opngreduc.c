@@ -603,7 +603,7 @@ opng_reduce_palette_bits(png_structp png_ptr, png_infop info_ptr,
    /* Find the smallest possible bit depth. */
    if (num_palette > 16)
       return OPNG_REDUCE_NONE;
-   else if (num_palette > 4)  /* 5 .. 16 entries */
+   if (num_palette > 4)  /* 5 .. 16 entries */
       dest_bit_depth = 4;
    else if (num_palette > 2)  /* 3 or 4 entries */
       dest_bit_depth = 2;

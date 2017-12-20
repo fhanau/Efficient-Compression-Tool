@@ -137,7 +137,7 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
         opng_decode_finish(&context, 1);
         return -1;
     }
-    if (!stats->flags & OPNG_HAS_MULTIPLE_IMAGES)
+    if (!(stats->flags & OPNG_HAS_MULTIPLE_IMAGES))
         image->interlace_type = PNG_INTERLACE_NONE;
     // Keep the loaded image data.
     opng_decode_finish(&context, 0);
@@ -193,7 +193,7 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
         opng_error(Infile,"This file is digitally signed and can't be processed");
         return -1;
     }
-    if (options->nz && !session->flags & OPNG_HAS_SNIPPED_IMAGES && !session->flags & OPNG_HAS_STRIPPED_METADATA){
+    if (options->nz && !(session->flags & OPNG_HAS_SNIPPED_IMAGES) && !(session->flags & OPNG_HAS_STRIPPED_METADATA)){
         return 0;
     }
 
@@ -233,7 +233,6 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
         }
         return 0;
     }
-    else {
         uint64_t best_idat = 0;
         optimal_filter = 0;
         int level = 5;
@@ -267,7 +266,6 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
             opng_write_file(session, fstream, optimal_filter == 5, 1, false);
             fclose(fstream);
         }
-    }
     return optimal_filter;
 }
 

@@ -78,12 +78,10 @@ static unsigned symtox(unsigned lls){
   if (lls <= 279){
     return 0;
   }
-  else if (lls <= 283){
+  if (lls <= 283){
     return 100;
   }
-  else{
-    return 200;
-  }
+  return 200;
 }
 
 /*

@@ -128,27 +128,25 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
         ZopfliGzip(Infile, 0, Mode, multithreading, ZIP);
         return 1;
     }
-    else {
-        if (exists(((std::string)Infile).append(".ungz").c_str())){
-            return 2;
-        }
-        if (exists(((std::string)Infile).append(".ungz.gz").c_str())){
-            return 2;
-        }
-        if(ungz(Infile, ((std::string)Infile).append(".ungz").c_str())){
-            return 2;
-        }
-        ZopfliGzip(((std::string)Infile).append(".ungz").c_str(), 0, Mode, multithreading, ZIP);
-        if (filesize(((std::string)Infile).append(".ungz.gz").c_str()) < filesize(Infile)){
-            unlink(Infile);
-            rename(((std::string)Infile).append(".ungz.gz").c_str(), Infile);
-        }
-        else {
-            unlink(((std::string)Infile).append(".ungz.gz").c_str());
-        }
-        unlink(((std::string)Infile).append(".ungz").c_str());
-        return 0;
+    if (exists(((std::string)Infile).append(".ungz").c_str())){
+        return 2;
     }
+    if (exists(((std::string)Infile).append(".ungz.gz").c_str())){
+        return 2;
+    }
+    if(ungz(Infile, ((std::string)Infile).append(".ungz").c_str())){
+        return 2;
+    }
+    ZopfliGzip(((std::string)Infile).append(".ungz").c_str(), 0, Mode, multithreading, ZIP);
+    if (filesize(((std::string)Infile).append(".ungz.gz").c_str()) < filesize(Infile)){
+        unlink(Infile);
+        rename(((std::string)Infile).append(".ungz.gz").c_str(), Infile);
+    }
+    else {
+        unlink(((std::string)Infile).append(".ungz.gz").c_str());
+    }
+    unlink(((std::string)Infile).append(".ungz").c_str());
+    return 0;
 }
 
 static unsigned char OptimizePNG(const char * Infile, const ECTOptions& Options){
@@ -464,9 +462,7 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
                 printf("can't add file '%s'\n", argv[0]);
                 free(file); error = 1; continue;
             }
-            else{
-                local_bytes += filesize(argv[args[i]]);
-            }
+            local_bytes += filesize(argv[args[i]]);
 
             free(file);
 

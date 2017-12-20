@@ -352,10 +352,8 @@ size_t CalculateTreeSize(const unsigned* ll_lengths,
 
     return result;
   }
-  else {
-    *best = 7;
-    return EncodeTree(ll_lengths, d_lengths, 1, 1, 1, 0, 0, 0, 0, 0);
-  }
+  *best = 7;
+  return EncodeTree(ll_lengths, d_lengths, 1, 1, 1, 0, 0, 0, 0, 0);
 }
 
 /*
@@ -474,8 +472,7 @@ static void AddLZ77Data(const unsigned short* litlens,
 static size_t AbsDiff(size_t x, size_t y) {
   if (x > y)
     return x - y;
-  else
-    return y - x;
+  return y - x;
 }
 /*
  Change the population counts in a way that the consequent Hufmann tree
@@ -763,7 +760,7 @@ static size_t GetAdvancedLengths(const unsigned short* litlens,
       memcpy(d_lengths, d_lengths2, sizeof(unsigned) * 30);
       nix = nextnix;
     }
-   else if (best < next){
+    else if (best < next){
       break;
     }
   }
@@ -875,16 +872,15 @@ double ZopfliCalculateBlockSize(const unsigned short* litlens,
       }
     }
     return result;
-  } else {
-    unsigned ll_lengths[288];
-    unsigned d_lengths[32];
-    unsigned dummy;
-    //TODO: Better for PNG, worse for enwik
-    //result += GetAdvancedLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
-    result += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
-    result += CalculateTreeSize(ll_lengths, d_lengths, hq, &dummy);
-    return result;
   }
+  unsigned ll_lengths[288];
+  unsigned d_lengths[32];
+  unsigned dummy;
+  //TODO: Better for PNG, worse for enwik
+  //result += GetAdvancedLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
+  result += GetDynamicLengths(litlens, dists, lstart, lend, ll_lengths, d_lengths, symbols);
+  result += CalculateTreeSize(ll_lengths, d_lengths, hq, &dummy);
+  return result;
 }
 
 static unsigned char ReplaceBadCodes(unsigned short** litlens,

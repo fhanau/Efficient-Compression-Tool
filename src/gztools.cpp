@@ -64,7 +64,7 @@ int IsGzip(const char * Infile){
         printf("%s: File is encrypted, can't be optimized\n", Infile);
         return 2;
       }
-      else if(buf[3] & 0x1c){ //extra field, file name or comment
+      if(buf[3] & 0x1c){ //extra field, file name or comment
         return 3;
       }
       return 1;

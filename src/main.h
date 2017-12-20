@@ -42,7 +42,7 @@ struct ECTOptions{
   bool keep;
 };
 
-int Optipng(unsigned filter, const char * Infile, bool force_no_palette, unsigned clean_alpha);
+int Optipng(unsigned level, const char * Infile, bool force_no_palette, unsigned clean_alpha);
 int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int filter, unsigned multithreading);
 int mozjpegtran (bool arithmetic, bool progressive, bool strip, const char * Infile, const char * Outfile, size_t* stripped_outsize);
 int ZopfliGzip(const char* filename, const char* outname, unsigned mode, unsigned multithreading, unsigned ZIP);
