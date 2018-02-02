@@ -47,6 +47,7 @@ struct ZopfliPNGOptions {
   //Use per block multithreading
   unsigned multithreading;
 
+  unsigned quiet;
 };
 
 ZopfliPNGOptions::ZopfliPNGOptions()
@@ -382,6 +383,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
   state.encoder.zlibsettings.custom_deflate = CustomPNGDeflate;
   state.encoder.zlibsettings.custom_context = png_options;
   state.encoder.clean_alpha = png_options->lossy_transparent;
+  state.encoder.quiet = png_options->quiet;
 
   ZopfliOptions dummyoptions;
   ZopfliInitOptions(&dummyoptions, png_options->Mode, 0, 0);
@@ -530,10 +532,11 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
   return error;
 }
 
-int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int filter, unsigned multithreading) {
+int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int filter, unsigned multithreading, unsigned quiet) {
   ZopfliPNGOptions png_options;
   png_options.Mode = Mode;
   png_options.multithreading = multithreading;
+  png_options.quiet = quiet;
   unsigned palette_filter = (filter & 0xFF00) >> 8;
   filter &= 0xFF;
   png_options.lossy_transparent = !strict && filter != 6;

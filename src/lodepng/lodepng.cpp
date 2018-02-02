@@ -3636,7 +3636,9 @@ static int signaled = 0;
 static void sig_handler(int signo)
 {
   if (signo == SIGINT){
-    printf("received SIGINT, will stop after this iteration\n");
+    if(signaled == 0) {
+      printf("received SIGINT, will stop after this iteration\n");
+    }
     signaled = 1;
   }
 }
@@ -4167,11 +4169,13 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
   else if(strategy == LFS_GENETIC || strategy == LFS_ALL_CHEAP)
   {
     if (strategy == LFS_GENETIC){
-      printf("warning: You have decided to enable genetic filtering, which may take a very long time.\n"
-             "the current generation and number of bytes is displayed.\n"
-             "you can stop the genetic filtering anytime by pressing ctrl-c\n"
-             "it will automatically stop after 500 generations without progress\n");
-      signaled = 0;
+      if(settings->quiet) {
+        printf("warning: You have decided to enable genetic filtering, which may take a very long time.\n"
+               "the current generation and number of bytes is displayed.\n"
+               "you can stop the genetic filtering anytime by pressing ctrl-c\n"
+               "it will automatically stop after 500 generations without progress\n");
+      }
+      signaled = -settings->quiet;
     }
 
     unsigned char* prevlinebuf = 0;
@@ -4259,7 +4263,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       }
     }
     //ctrl-c signals last iteration
-    for(e = 0; strategy == LFS_GENETIC && e_since_best < 500 && !signaled; ++e)
+    for(e = 0; strategy == LFS_GENETIC && e_since_best < 500 && signaled <= 0; ++e)
     {
       /*resort rankings*/
       for(i = 1; i < population_size; ++i)
@@ -4272,7 +4276,9 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       {
         best_size = size[ranking[0]];
         e_since_best = 0;
-        printf("Generation %d: %d bytes\n", e, best_size);
+        if(settings->quiet) {
+          printf("Generation %d: %d bytes\n", e, best_size);
+        }
       }
       else ++e_since_best;
       /*generate offspring*/
