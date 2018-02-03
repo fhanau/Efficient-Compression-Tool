@@ -4169,7 +4169,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
   else if(strategy == LFS_GENETIC || strategy == LFS_ALL_CHEAP)
   {
     if (strategy == LFS_GENETIC){
-      if(settings->quiet) {
+      if(!settings->quiet) {
         printf("warning: You have decided to enable genetic filtering, which may take a very long time.\n"
                "the current generation and number of bytes is displayed.\n"
                "you can stop the genetic filtering anytime by pressing ctrl-c\n"
@@ -4276,7 +4276,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       {
         best_size = size[ranking[0]];
         e_since_best = 0;
-        if(settings->quiet) {
+        if(!settings->quiet) {
           printf("Generation %d: %d bytes\n", e, best_size);
         }
       }
