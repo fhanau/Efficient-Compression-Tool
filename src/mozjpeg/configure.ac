@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.56])
-AC_INIT([mozjpeg], [3.2])
+AC_INIT([mozjpeg], [3.3.1])
 BUILD=`date +%Y%m%d`
 
 AM_INIT_AUTOMAKE([-Wall foreign dist-bzip2])
@@ -233,9 +233,9 @@ AC_SUBST(MEM_SRCDST_FUNCTIONS)
 AC_DEFINE_UNQUOTED(MOZJPEG_VERSION, [$VERSION], [mozjpeg version])
 
 m4_define(version_triplet,m4_split(AC_PACKAGE_VERSION,[[.]]))
-m4_define(version_major,m4_argn(1,version_triplet))
-m4_define(version_minor,m4_argn(2,version_triplet))
-m4_define(version_revision,m4_argn(3,version_triplet))
+m4_define(version_major,m4_car(m4_shiftn(1,[],version_triplet)))
+m4_define(version_minor,m4_car(m4_shiftn(2,[],version_triplet)))
+m4_define(version_revision,m4_car(m4_shiftn(3,[],version_triplet)))
 VERSION_MAJOR=version_major
 VERSION_MINOR=version_minor
 VERSION_REVISION=version_revision

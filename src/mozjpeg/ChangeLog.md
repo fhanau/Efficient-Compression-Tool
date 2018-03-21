@@ -1,3 +1,165 @@
+1.5.2
+=====
+
+### Significant changes relative to 1.5.1:
+
+1. Fixed a regression introduced by 1.5.1[7] that prevented libjpeg-turbo from
+building with Android NDK platforms prior to android-21 (5.0).
+
+2. Fixed a regression introduced by 1.5.1[1] that prevented the MIPS DSPR2 SIMD
+code in libjpeg-turbo from building.
+
+3. Fixed a regression introduced by 1.5 beta1[11] that prevented the Java
+version of TJBench from outputting any reference images (the `-nowrite` switch
+was accidentally enabled by default.)
+
+4. libjpeg-turbo should now build and run with full AltiVec SIMD acceleration
+on PowerPC-based AmigaOS 4 and OpenBSD systems.
+
+5. Fixed build and runtime errors on Windows that occurred when building
+libjpeg-turbo with libjpeg v7 API/ABI emulation and the in-memory
+source/destination managers.  Due to an oversight, the `jpeg_skip_scanlines()`
+and `jpeg_crop_scanlines()` functions were not being included in jpeg7.dll when
+libjpeg-turbo was built with `-DWITH_JPEG7=1` and `-DWITH_MEMSRCDST=1`.
+
+6. Fixed "Bogus virtual array access" error that occurred when using the
+lossless crop feature in jpegtran or the TurboJPEG API, if libjpeg-turbo was
+built with libjpeg v7 API/ABI emulation.  This was apparently a long-standing
+bug that has existed since the introduction of libjpeg v7/v8 API/ABI emulation
+in libjpeg-turbo v1.1.
+
+7. The lossless transform features in jpegtran and the TurboJPEG API will now
+always attempt to adjust the EXIF image width and height tags if the image size
+changed as a result of the transform.  This behavior has always existed when
+using libjpeg v8 API/ABI emulation.  It was supposed to be available with
+libjpeg v7 API/ABI emulation as well but did not work properly due to a bug.
+Furthermore, there was never any good reason not to enable it with libjpeg v6b
+API/ABI emulation, since the behavior is entirely internal.  Note that
+`-copy all` must be passed to jpegtran in order to transfer the EXIF tags from
+the source image to the destination image.
+
+8. Fixed several memory leaks in the TurboJPEG API library that could occur
+if the library was built with certain compilers and optimization levels
+(known to occur with GCC 4.x and clang with `-O1` and higher but not with
+GCC 5.x or 6.x) and one of the underlying libjpeg API functions threw an error
+after a TurboJPEG API function allocated a local buffer.
+
+9. The libjpeg-turbo memory manager will now honor the `max_memory_to_use`
+structure member in jpeg\_memory\_mgr, which can be set to the maximum amount
+of memory (in bytes) that libjpeg-turbo should use during decompression or
+multi-pass (including progressive) compression.  This limit can also be set
+using the `JPEGMEM` environment variable or using the `-maxmemory` switch in
+cjpeg/djpeg/jpegtran (refer to the respective man pages for more details.)
+This has been a documented feature of libjpeg since v5, but the
+`malloc()`/`free()` implementation of the memory manager (jmemnobs.c) never
+implemented the feature.  Restricting libjpeg-turbo's memory usage is useful
+for two reasons:  it allows testers to more easily work around the 2 GB limit
+in libFuzzer, and it allows developers of security-sensitive applications to
+more easily defend against one of the progressive JPEG exploits (LJT-01-004)
+identified in
+[this report](http://www.libjpeg-turbo.org/pmwiki/uploads/About/TwoIssueswiththeJPEGStandard.pdf).
+
+10. TJBench will now run each benchmark for 1 second prior to starting the
+timer, in order to improve the consistency of the results.  Furthermore, the
+`-warmup` option is now used to specify the amount of warmup time rather than
+the number of warmup iterations.
+
+11. Fixed an error (`short jump is out of range`) that occurred when assembling
+the 32-bit x86 SIMD extensions with NASM versions prior to 2.04.  This was a
+regression introduced by 1.5 beta1[12].
+
+
+1.5.1
+=====
+
+### Significant changes relative to 1.5.0:
+
+1. Previously, the undocumented `JSIMD_FORCE*` environment variables could be
+used to force-enable a particular SIMD instruction set if multiple instruction
+sets were available on a particular platform.  On x86 platforms, where CPU
+feature detection is bulletproof and multiple SIMD instruction sets are
+available, it makes sense for those environment variables to allow forcing the
+use of an instruction set only if that instruction set is available.  However,
+since the ARM implementations of libjpeg-turbo can only use one SIMD
+instruction set, and since their feature detection code is less bulletproof
+(parsing /proc/cpuinfo), it makes sense for the `JSIMD_FORCENEON` environment
+variable to bypass the feature detection code and really force the use of NEON
+instructions.  A new environment variable (`JSIMD_FORCEDSPR2`) was introduced
+in the MIPS implementation for the same reasons, and the existing
+`JSIMD_FORCENONE` environment variable was extended to that implementation.
+These environment variables provide a workaround for those attempting to test
+ARM and MIPS builds of libjpeg-turbo in QEMU, which passes through
+/proc/cpuinfo from the host system.
+
+2. libjpeg-turbo previously assumed that AltiVec instructions were always
+available on PowerPC platforms, which led to "illegal instruction" errors when
+running on PowerPC chips that lack AltiVec support (such as the older 7xx/G3
+and newer e5500 series.)  libjpeg-turbo now examines /proc/cpuinfo on
+Linux/Android systems and enables AltiVec instructions only if the CPU supports
+them.  It also now provides two environment variables, `JSIMD_FORCEALTIVEC` and
+`JSIMD_FORCENONE`, to force-enable and force-disable AltiVec instructions in
+environments where /proc/cpuinfo is an unreliable means of CPU feature
+detection (such as when running in QEMU.)  On OS X, libjpeg-turbo continues to
+assume that AltiVec support is always available, which means that libjpeg-turbo
+cannot be used with G3 Macs unless you set the environment variable
+`JSIMD_FORCENONE` to `1`.
+
+3. Fixed an issue whereby 64-bit ARM (AArch64) builds of libjpeg-turbo would
+crash when built with recent releases of the Clang/LLVM compiler.  This was
+caused by an ABI conformance issue in some of libjpeg-turbo's 64-bit NEON SIMD
+routines.  Those routines were incorrectly using 64-bit instructions to
+transfer a 32-bit JDIMENSION argument, whereas the ABI allows the upper
+(unused) 32 bits of a 32-bit argument's register to be undefined.  The new
+Clang/LLVM optimizer uses load combining to transfer multiple adjacent 32-bit
+structure members into a single 64-bit register, and this exposed the ABI
+conformance issue.
+
+4. Fancy upsampling is now supported when decompressing JPEG images that use
+4:4:0 (h1v2) chroma subsampling.  These images are generated when losslessly
+rotating or transposing JPEG images that use 4:2:2 (h2v1) chroma subsampling.
+The h1v2 fancy upsampling algorithm is not currently SIMD-accelerated.
+
+5. If merged upsampling isn't SIMD-accelerated but YCbCr-to-RGB conversion is,
+then libjpeg-turbo will now disable merged upsampling when decompressing YCbCr
+JPEG images into RGB or extended RGB output images.  This significantly speeds
+up the decompression of 4:2:0 and 4:2:2 JPEGs on ARM platforms if fancy
+upsampling is not used (for example, if the `-nosmooth` option to djpeg is
+specified.)
+
+6. The TurboJPEG API will now decompress 4:2:2 and 4:4:0 JPEG images with
+2x2 luminance sampling factors and 2x1 or 1x2 chrominance sampling factors.
+This is a non-standard way of specifying 2x subsampling (normally 4:2:2 JPEGs
+have 2x1 luminance and 1x1 chrominance sampling factors, and 4:4:0 JPEGs have
+1x2 luminance and 1x1 chrominance sampling factors), but the JPEG specification
+and the libjpeg API both allow it.
+
+7. Fixed an unsigned integer overflow in the libjpeg memory manager, detected
+by the Clang undefined behavior sanitizer, that could be triggered by
+attempting to decompress a specially-crafted malformed JPEG image.  This issue
+affected only 32-bit code and did not pose a security threat, but removing the
+warning makes it easier to detect actual security issues, should they arise in
+the future.
+
+8. Fixed additional negative left shifts and other issues reported by the GCC
+and Clang undefined behavior sanitizers when attempting to decompress
+specially-crafted malformed JPEG images.  None of these issues posed a security
+threat, but removing the warnings makes it easier to detect actual security
+issues, should they arise in the future.
+
+9. Fixed an out-of-bounds array reference, introduced by 1.4.90[2] (partial
+image decompression) and detected by the Clang undefined behavior sanitizer,
+that could be triggered by a specially-crafted malformed JPEG image with more
+than four components.  Because the out-of-bounds reference was still within the
+same structure, it was not known to pose a security threat, but removing the
+warning makes it easier to detect actual security issues, should they arise in
+the future.
+
+10. Fixed another ABI conformance issue in the 64-bit ARM (AArch64) NEON SIMD
+code.  Some of the routines were incorrectly reading and storing data below the
+stack pointer, which caused segfaults in certain applications under specific
+circumstances.
+
+
 1.5.0
 =====
 
