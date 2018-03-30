@@ -561,7 +561,7 @@ int main(int argc, const char * argv[]) {
         if(Options.Reuse){
             Options.Allfilters = 0;
         }
-        if(Options.Zip){
+        if(Options.Zip && files){
             error |= zipHandler(args, argv, files, Options);
         }
         else {
