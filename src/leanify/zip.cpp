@@ -218,17 +218,11 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
     stream = fopen(temp, "rb");
     if(fread(data - size_leanified, 1, new_size, stream) < new_size){
       printf("Error: Read error\n");
-      if (size_leanified){
-        memcpy(data - size_leanified, data, size);
-      }
     }
     else{
       size = new_size;
     }
     fclose(stream);
-  }
-  else if (size_leanified){
-    memcpy(data - size_leanified, data, size);
   }
 
   unlink(temp);
