@@ -4971,64 +4971,50 @@ State::~State()
 }
 
 #ifdef LODEPNG_COMPILE_DECODER
-static unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h, const unsigned char* in,
-                size_t insize, LodePNGColorType colortype, unsigned bitdepth)
+unsigned decode(unsigned char** out, size_t& buffersize, unsigned& w, unsigned& h, const unsigned char* in, size_t insize, LodePNGColorType colortype, unsigned bitdepth)
 {
-  unsigned char* buffer;
-  unsigned error = lodepng_decode_memory(&buffer, &w, &h, in, insize, colortype, bitdepth);
-  if(buffer && !error)
+  unsigned error = lodepng_decode_memory(out, &w, &h, in, insize, colortype, bitdepth);
+  if(*out && !error)
   {
     State state;
     state.info_raw.colortype = colortype;
     state.info_raw.bitdepth = bitdepth;
-    size_t buffersize = lodepng_get_raw_size(w, h, &state.info_raw);
-    out.insert(out.end(), &buffer[0], &buffer[buffersize]);
-    free(buffer);
+    buffersize = lodepng_get_raw_size(w, h, &state.info_raw);
+  }
+  else if(*out) {
+    free(*out);
   }
   return error;
 }
 
-unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h,
-                const std::vector<unsigned char>& in, LodePNGColorType colortype, unsigned bitdepth)
-{
-  return decode(out, w, h, in.empty() ? 0 : &in[0], (unsigned)in.size(), colortype, bitdepth);
-}
-
-static unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h,
+unsigned decode(unsigned char** out, size_t& buffersize, unsigned& w, unsigned& h,
                 State& state,
                 const unsigned char* in, size_t insize)
 {
-  unsigned char* buffer = 0;
-  unsigned error = lodepng_decode(&buffer, &w, &h, &state, in, insize);
-  if(buffer && !error)
+  unsigned error = lodepng_decode(out, &w, &h, &state, in, insize);
+  if(*out && !error)
   {
-    size_t buffersize = lodepng_get_raw_size(w, h, &state.info_raw);
-    out.insert(out.end(), &buffer[0], &buffer[buffersize]);
+    buffersize = lodepng_get_raw_size(w, h, &state.info_raw);
   }
-  free(buffer);
+  else if (*out) {
+    free(*out);
+  }
   return error;
-}
-
-unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h,
-                State& state,
-                const std::vector<unsigned char>& in)
-{
-  return decode(out, w, h, state, in.empty() ? 0 : &in[0], in.size());
 }
 
 #endif //LODEPNG_COMPILE_DISK
 
 #ifdef LODEPNG_COMPILE_ENCODER
 unsigned encode(std::vector<unsigned char>& out,
-                std::vector<unsigned char>& in, unsigned w, unsigned h,
+                unsigned char* in, size_t insize, unsigned w, unsigned h,
                 State& state, LodePNGPaletteSettings p)
 {
   state.note = 0;
-  if(lodepng_get_raw_size(w, h, &state.info_raw) > in.size()) return 84;
+  if(lodepng_get_raw_size(w, h, &state.info_raw) > insize) return 84;
   unsigned char* buffer;
   size_t buffersize;
 
-  unsigned error = lodepng_encode(&buffer, &buffersize, in.empty() ? 0 : &in[0], w, h, &state, p);
+  unsigned error = lodepng_encode(&buffer, &buffersize, in, w, h, &state, p);
   if (error == 96) {
     error = 0;
     state.note = 1;
