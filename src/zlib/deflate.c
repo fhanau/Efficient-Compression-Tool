@@ -876,7 +876,7 @@ IPos cur_match;                             /* current match */
              * However the length of the match is limited to the lookahead, so
              * the output of deflate is not affected by the uninitialized values.
              */
-            typeof(s->window) win = s->window;
+            uint8_t * win = s->window;
             int cont = 1;
             do {
                 match = win + cur_match;
@@ -884,8 +884,8 @@ IPos cur_match;                             /* current match */
                     if ((cur_match = prev[cur_match & wmask]) > limit
                         && --chain_length != 0) {
                         continue;
-                    } else
-                        cont = 0;
+                    }
+                    cont = 0;
                 }
                 break;
             } while (1);
@@ -919,10 +919,9 @@ IPos cur_match;                             /* current match */
 #endif
                     scan += match_byte;
                     break;
-                } else {
-                    scan += sizeof(size_t);
-                    match += sizeof(size_t);
                 }
+                scan += sizeof(size_t);
+                match += sizeof(size_t);
             } while (scan < strend);
 
             if (scan > strend)
