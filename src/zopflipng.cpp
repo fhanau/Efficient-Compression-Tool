@@ -471,8 +471,11 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
         else{state.info_png.color.colortype = LCT_GREY;}
       }
 
-      else{if (has_alpha){state.info_png.color.colortype = LCT_RGBA;}
-      else{state.info_png.color.colortype = LCT_RGB;}
+      else if (has_alpha) {
+        state.info_png.color.colortype = LCT_RGBA;
+      }
+      else{
+        state.info_png.color.colortype = LCT_RGB;
       }
       error = lodepng::encode(out2, image, w, h, state, p);
       if (out2.size() < out->size()){
