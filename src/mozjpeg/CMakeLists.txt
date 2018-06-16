@@ -19,9 +19,8 @@ string(TIMESTAMP BUILD "%Y%m%d")
 
 # This does nothing except when using MinGW.  CMAKE_BUILD_TYPE has no meaning
 # in Visual Studio, and it always defaults to Debug when using NMake.
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
-endif()
+set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Ofast -std=gnu11 -fsigned-char -mno-ms-bitfields")
 
 message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
@@ -39,11 +38,11 @@ option(WITH_ARITH_DEC "Include arithmetic decoding support" TRUE)
 option(WITH_JPEG7 "Emulate libjpeg v7 API/ABI (this makes mozjpeg backward incompatible with libjpeg v6b)" FALSE)
 option(WITH_JPEG8 "Emulate libjpeg v8 API/ABI (this makes mozjpeg backward incompatible with libjpeg v6b)" FALSE)
 option(WITH_MEM_SRCDST "Include in-memory source/destination manager functions when emulating the libjpeg v6b or v7 API/ABI" TRUE)
-option(WITH_TURBOJPEG "Include the TurboJPEG wrapper library and associated test programs" TRUE)
+option(WITH_TURBOJPEG "Include the TurboJPEG wrapper library and associated test programs" FALSE)
 option(WITH_JAVA "Build Java wrapper for the TurboJPEG library" FALSE)
 option(WITH_12BIT "Encode/decode JPEG images with 12-bit samples (implies WITH_SIMD=0 WITH_TURBOJPEG=0 WITH_ARITH_ENC=0 WITH_ARITH_DEC=0)" FALSE)
 option(ENABLE_STATIC "Build static libraries" TRUE)
-option(ENABLE_SHARED "Build shared libraries" TRUE)
+option(ENABLE_SHARED "Build shared libraries" FALSE)
 
 if(WITH_12BIT)
   set(WITH_SIMD FALSE)
