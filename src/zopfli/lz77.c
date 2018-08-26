@@ -440,10 +440,9 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
 
 #define ANDLLS 511LLU + (511LLU << 16) + (511LLU << 32) + (511LLU << 48)
     const unsigned char* ipo = &distc[rstart];
-    size_t cached = *(size_t*)ipo;ipo += 8;
     while (ipo < distc + end)
     {
-      size_t c = cached; cached = *(size_t*)ipo; ipo += 8;
+      size_t c = *(size_t*)ipo; ipo += 8;
       d_count[(unsigned char) c     ]++;
       d_count1[(unsigned char)(c>>8) ]++;
       d_count2[(unsigned char)(c>>16)]++;
@@ -452,7 +451,7 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
       d_count1[(unsigned char)(c>>40) ]++;
       d_count2[(unsigned char)(c>>48)]++;
       d_count3[       (c>>56) ]++;
-      c = cached; cached = *(size_t*)ipo; ipo += 8;
+      c = *(size_t*)ipo; ipo += 8;
       d_count[(unsigned char) c     ]++;
       d_count1[(unsigned char)(c>>8) ]++;
       d_count2[(unsigned char)(c>>16)]++;
@@ -475,25 +474,24 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
     size_t ll_count3[288] = {0};
 
     const unsigned short* ip = &litlens[rstart];
-    cached = (*(size_t*)ip) & ANDLLS;ip += 4;
     while (ip < litlens + end)
     {
-      size_t c = cached; cached = (*(size_t*)ip) & ANDLLS; ip += 4;
+      size_t c = (*(size_t*)ip) & ANDLLS; ip += 4;
       ll_count[(unsigned short) c     ]++;
       ll_count1[(unsigned short)(c>>16) ]++;
       ll_count2[(unsigned short)(c>>32)]++;
       ll_count3[       c>>48 ]++;
-      c = cached; cached = (*(size_t*)ip) & ANDLLS; ip += 4;
+      c = (*(size_t*)ip) & ANDLLS; ip += 4;
       ll_count[(unsigned short) c     ]++;
       ll_count1[(unsigned short)(c>>16) ]++;
       ll_count2[(unsigned short)(c>>32)]++;
       ll_count3[       c>>48 ]++;
-      c = cached; cached = (*(size_t*)ip) & ANDLLS; ip += 4;
+      c = (*(size_t*)ip) & ANDLLS; ip += 4;
       ll_count[(unsigned short) c     ]++;
       ll_count1[(unsigned short)(c>>16) ]++;
       ll_count2[(unsigned short)(c>>32)]++;
       ll_count3[       c>>48 ]++;
-      c = cached; cached = (*(size_t*)ip) & ANDLLS; ip += 4;
+      c = (*(size_t*)ip) & ANDLLS; ip += 4;
       ll_count[(unsigned short) c     ]++;
       ll_count1[(unsigned short)(c>>16) ]++;
       ll_count2[(unsigned short)(c>>32)]++;
