@@ -508,8 +508,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
 
   unsigned short* matches;
   if (!storeincache){
-    unsigned short matchesarr[513];
-    matches = matchesarr;
+    matches = alloca(513 * sizeof(unsigned short));
   }
 
   unsigned notenoughsame = instart + ZOPFLI_MAX_MATCH;

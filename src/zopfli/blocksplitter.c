@@ -120,7 +120,7 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, u
   double vp[NUM];
   double prevstore = -1;
   size_t besti;
-  double best;
+  double best = ZOPFLI_LARGE_FLOAT;
   double lastbest = ZOPFLI_LARGE_FLOAT;
   size_t pos = start;
   size_t ostart = start;
