@@ -443,6 +443,7 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
     while (ipo < distc + end)
     {
       size_t c = *(size_t*)ipo; ipo += 8;
+      size_t c1 = *(size_t*)ipo; ipo += 8;
       d_count[(unsigned char) c     ]++;
       d_count1[(unsigned char)(c>>8) ]++;
       d_count2[(unsigned char)(c>>16)]++;
@@ -451,15 +452,15 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
       d_count1[(unsigned char)(c>>40) ]++;
       d_count2[(unsigned char)(c>>48)]++;
       d_count3[       (c>>56) ]++;
-      c = *(size_t*)ipo; ipo += 8;
-      d_count[(unsigned char) c     ]++;
-      d_count1[(unsigned char)(c>>8) ]++;
-      d_count2[(unsigned char)(c>>16)]++;
-      d_count3[(unsigned char)(c>>24) ]++;
-      d_count[(unsigned char) (c>>32)    ]++;
-      d_count1[(unsigned char)(c>>40) ]++;
-      d_count2[(unsigned char)(c>>48)]++;
-      d_count3[       (c>>56) ]++;
+
+      d_count[(unsigned char) c1     ]++;
+      d_count1[(unsigned char)(c1>>8) ]++;
+      d_count2[(unsigned char)(c1>>16)]++;
+      d_count3[(unsigned char)(c1>>24) ]++;
+      d_count[(unsigned char) (c1>>32)    ]++;
+      d_count1[(unsigned char)(c1>>40) ]++;
+      d_count2[(unsigned char)(c1>>48)]++;
+      d_count3[       (c1>>56) ]++;
     }
 
     for (i = 0; i < 32; i++){
@@ -477,25 +478,30 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
     while (ip < litlens + end)
     {
       size_t c = (*(size_t*)ip) & ANDLLS; ip += 4;
+      size_t c1 = (*(size_t*)ip) & ANDLLS; ip += 4;
+
       ll_count[(unsigned short) c     ]++;
       ll_count1[(unsigned short)(c>>16) ]++;
       ll_count2[(unsigned short)(c>>32)]++;
       ll_count3[       c>>48 ]++;
+
+      ll_count[(unsigned short) c1     ]++;
+      ll_count1[(unsigned short)(c1>>16) ]++;
+      ll_count2[(unsigned short)(c1>>32)]++;
+      ll_count3[       c1>>48 ]++;
+
       c = (*(size_t*)ip) & ANDLLS; ip += 4;
+      c1 = (*(size_t*)ip) & ANDLLS; ip += 4;
+
       ll_count[(unsigned short) c     ]++;
       ll_count1[(unsigned short)(c>>16) ]++;
       ll_count2[(unsigned short)(c>>32)]++;
       ll_count3[       c>>48 ]++;
-      c = (*(size_t*)ip) & ANDLLS; ip += 4;
-      ll_count[(unsigned short) c     ]++;
-      ll_count1[(unsigned short)(c>>16) ]++;
-      ll_count2[(unsigned short)(c>>32)]++;
-      ll_count3[       c>>48 ]++;
-      c = (*(size_t*)ip) & ANDLLS; ip += 4;
-      ll_count[(unsigned short) c     ]++;
-      ll_count1[(unsigned short)(c>>16) ]++;
-      ll_count2[(unsigned short)(c>>32)]++;
-      ll_count3[       c>>48 ]++;
+
+      ll_count[(unsigned short) c1     ]++;
+      ll_count1[(unsigned short)(c1>>16) ]++;
+      ll_count2[(unsigned short)(c1>>32)]++;
+      ll_count3[       c1>>48 ]++;
     }
 
     for (i = 0; i < 288; i++){
