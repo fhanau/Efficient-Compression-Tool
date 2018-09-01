@@ -1189,10 +1189,10 @@ static void DeflateSplittingFirst2(
   BlockData* blockend = data + numblocks;
   std::mutex mtx;
   for (i = 0; i < threads; i++) {
-    multi[i % threads] = std::thread(DeflateDynamicBlock2,options, in, &data, blockend, std::ref(mtx));
+    multi[i] = std::thread(DeflateDynamicBlock2,options, in, &data, blockend, std::ref(mtx));
   }
-  for (size_t j = 0; j < threads; j++){
-    multi[j].join();
+  for(std::thread& t : multi) {
+    t.join();
   }
 
   if (twiceMode & 1){
@@ -1373,6 +1373,7 @@ void ZopfliDeflate(const ZopfliOptions* options, int final,
 #if ZOPFLI_MASTER_BLOCK_SIZE == 0
   ZopfliDeflatePart(options, final, in, 0, insize, bp, out, outsize, &costmodelnotinited);
 #else
+
   size_t i = 0;
   size_t msize = ZOPFLI_MASTER_BLOCK_SIZE;
   unsigned char costmodelnotinited = 1;
