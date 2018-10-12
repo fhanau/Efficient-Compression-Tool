@@ -17,6 +17,10 @@
 #include <id3/tag.h>
 #endif
 
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
 static size_t processedfiles;
 static size_t bytes;
 static long long savings;
@@ -71,6 +75,14 @@ static void Usage() {
             ,__DATE__
 #endif
             );
+}
+
+static void RenameAndReplace(const char * Infile, const char * Outfile){
+#ifdef _WIN32
+    MoveFileExA(Infile, Outfile, MOVEFILE_REPLACE_EXISTING);
+#else
+    rename(Infile, Outfile);
+#endif
 }
 
 static void ECT_ReportSavings(){
@@ -139,8 +151,7 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
     }
     ZopfliGzip(((std::string)Infile).append(".ungz").c_str(), 0, Mode, multithreading, ZIP);
     if (filesize(((std::string)Infile).append(".ungz.gz").c_str()) < filesize(Infile)){
-        unlink(Infile);
-        rename(((std::string)Infile).append(".ungz.gz").c_str(), Infile);
+        RenameAndReplace(((std::string)Infile).append(".ungz.gz").c_str(), Infile);
     }
     else {
         unlink(((std::string)Infile).append(".ungz.gz").c_str());
@@ -220,8 +231,7 @@ static unsigned char OptimizePNG(const char * Infile, const ECTOptions& Options)
             unlink(((std::string)Infile).append(".bak").c_str());
         }
         else {
-            unlink(Infile);
-            rename(((std::string)Infile).append(".bak").c_str(), Infile);
+            RenameAndReplace(((std::string)Infile).append(".bak").c_str(), Infile);
         }
     }
 
