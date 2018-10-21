@@ -1,7 +1,7 @@
 //  main.cpp
 //  Efficient Compression Tool
-//  Created by Felix Hanau on 19.12.14.
-//  Copyright (c) 2014-2016 Felix Hanau.
+//  Created by Felix Hanau on 12/19/14.
+//  Copyright (c) 2014-2018 Felix Hanau.
 
 #include "main.h"
 #include "support.h"
@@ -28,7 +28,7 @@ static long long savings;
 static void Usage() {
     printf (
             "Efficient Compression Tool\n"
-            "(c) 2014-2017 Felix Hanau.\n"
+            "(c) 2014-2018 Felix Hanau.\n"
             "Version 0.8.2"
 #ifdef __DATE__
             " compiled on %s\n"
@@ -254,6 +254,7 @@ static unsigned char OptimizeJPEG(const char * Infile, const ECTOptions& Options
 }
 
 #ifdef MP3_SUPPORTED
+#error MP3 code may corrupt metadata.
 static void OptimizeMP3(const char * Infile, const ECTOptions& Options){
     ID3_Tag orig (Infile);
     size_t start = orig.Size();
