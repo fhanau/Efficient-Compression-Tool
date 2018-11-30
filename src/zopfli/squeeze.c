@@ -32,6 +32,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "squeeze.h"
 #include "match.h"
 #include "../LzFind.h"
+#include "../threadLocal.h"
 
 static void CopyStats(const SymbolStats* source, SymbolStats* dest) {
   memcpy(dest->litlens, source->litlens, 288 * sizeof(dest->litlens[0]));
@@ -124,8 +125,8 @@ static void CleanCache(LZCache* c){
   free(c->cache);
 }
 
-CMatchFinder mf;
-int right;
+thread_local CMatchFinder mf;
+thread_local int right;
 
 #include <stdint.h>
 typedef  uint8_t BYTE;
@@ -867,7 +868,7 @@ static void LZ77OptimalRun(const ZopfliOptions* options, const unsigned char* in
 }
 
 /*TODO: Replace this w/ proper implementation. This performs bad on files w/ changing redundancy */
-static SymbolStats st;
+static thread_local SymbolStats st;
 
 static void ZopfliLZ77Optimal(const ZopfliOptions* options,
                        const unsigned char* in, size_t instart, size_t inend,

@@ -46,6 +46,7 @@ struct ECTOptions{
   bool Recurse;
 #endif
   unsigned DeflateMultithreading;
+  unsigned FileMultithreading;
   bool keep;
 };
 
