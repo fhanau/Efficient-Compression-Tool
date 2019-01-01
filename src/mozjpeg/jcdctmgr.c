@@ -225,7 +225,7 @@ compute_reciprocal (UINT16 divisor, DCTELEM *dtbl)
 #endif
   dtbl[DCTSIZE2 * 3] = (DCTELEM) r - sizeof(DCTELEM)*8; /* shift */
 
-  if(r <= 16) return 0;
+  if (r <= 16) return 0;
   else return 1;
 }
 
@@ -755,16 +755,16 @@ forward_DCT (j_compress_ptr cinfo, jpeg_component_info *compptr,
         if (coef_blocks[bi][i] > maxval)
           coef_blocks[bi][i] = maxval;
   }
-}
   }
+}
 }
 
 
 #ifdef DCT_FLOAT_SUPPORTED
 
-
 METHODDEF(void)
-convsamp_float (JSAMPARRAY sample_data, JDIMENSION start_col, FAST_FLOAT *workspace)
+convsamp_float(JSAMPARRAY sample_data, JDIMENSION start_col,
+               FAST_FLOAT *workspace)
 {
   register FAST_FLOAT *workspaceptr;
   register JSAMPROW elemptr;
@@ -795,7 +795,8 @@ convsamp_float (JSAMPARRAY sample_data, JDIMENSION start_col, FAST_FLOAT *worksp
 
 
 METHODDEF(void)
-quantize_float (JCOEFPTR coef_block, FAST_FLOAT *divisors, FAST_FLOAT *workspace)
+quantize_float(JCOEFPTR coef_block, FAST_FLOAT *divisors,
+               FAST_FLOAT *workspace)
 {
   register FAST_FLOAT temp;
   register int i;

@@ -41,7 +41,9 @@
 
 
 static const char *progname;    /* program name for error messages */
+static char *icc_filename;      /* for -icc switch */
 static char *outfilename;       /* for -outfile switch */
+static boolean prefer_smallest;  /* use smallest of input or result file (if no image-changing options supplied) */
 static JCOPY_OPTION copyoption; /* -copy switch */
 static jpeg_transform_info transformoption; /* image transformation options */
 boolean memsrc = FALSE;  /* for -memsrc switch */
@@ -88,6 +90,7 @@ usage (void)
 #ifdef C_ARITH_CODING_SUPPORTED
   fprintf(stderr, "  -arithmetic    Use arithmetic coding\n");
 #endif
+  fprintf(stderr, "  -icc FILE      Embed ICC profile contained in FILE\n");
   fprintf(stderr, "  -restart N     Set restart interval in rows, or in blocks with B\n");
   fprintf(stderr, "  -maxmemory N   Maximum memory to use (in kbytes)\n");
   fprintf(stderr, "  -outfile name  Specify name for output file\n");
@@ -147,6 +150,7 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
 #else
   simple_progressive = FALSE;
 #endif
+  icc_filename = NULL;
   outfilename = NULL;
   copyoption = JCOPYOPT_DEFAULT;
   transformoption.transform = JXFORM_NONE;
@@ -156,6 +160,7 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
   transformoption.crop = FALSE;
   transformoption.slow_hflip = FALSE;
   cinfo->err->trace_level = 0;
+  prefer_smallest = TRUE;
 
   /* Scan command line options, adjust parameters */
 
@@ -178,6 +183,7 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
 
       /* No table optimization required for AC */
       cinfo->optimize_coding = FALSE;
+      prefer_smallest = FALSE;
 #else
       fprintf(stderr, "%s: sorry, arithmetic coding not supported\n",
               progname);
@@ -207,6 +213,7 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
                 progname, argv[argn]);
         exit(EXIT_FAILURE);
       }
+      prefer_smallest = FALSE;
 #else
       select_transform(JXFORM_NONE);    /* force an error */
 #endif
@@ -242,6 +249,8 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
       else
         usage();
 
+      prefer_smallest = FALSE;
+
     } else if (keymatch(arg, "fastcrush", 4)) {
       jpeg_c_set_bool_param(cinfo, JBOOLEAN_OPTIMIZE_SCANS, FALSE);
       
@@ -249,9 +258,16 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
       /* Force to grayscale. */
 #if TRANSFORMS_SUPPORTED
       transformoption.force_grayscale = TRUE;
+      prefer_smallest = FALSE;
 #else
       select_transform(JXFORM_NONE);    /* force an error */
 #endif
+
+    } else if (keymatch(arg, "icc", 1)) {
+      /* Set ICC filename. */
+      if (++argn >= argc)       /* advance to next argument */
+        usage();
+      icc_filename = argv[argn];
 
     } else if (keymatch(arg, "maxmemory", 3)) {
       /* Maximum memory in Kb (or Mb with 'm'). */
@@ -291,6 +307,7 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
       /* Select simple progressive mode. */
 #ifdef C_PROGRESSIVE_SUPPORTED
       simple_progressive = TRUE;
+      prefer_smallest = FALSE;
       /* We must postpone execution until num_components is known. */
 #else
       fprintf(stderr, "%s: sorry, progressive output was not compiled\n",
@@ -320,6 +337,7 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
     } else if (keymatch(arg, "revert", 3)) {
       /* revert to old JPEG default */
       jpeg_c_set_int_param(cinfo, JINT_COMPRESS_PROFILE, JCP_FASTEST);
+      prefer_smallest = FALSE;
       
     } else if (keymatch(arg, "rotate", 2)) {
       /* Rotate 90, 180, or 270 degrees (measured clockwise). */
@@ -334,11 +352,14 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
       else
         usage();
 
+      prefer_smallest = FALSE;
+
     } else if (keymatch(arg, "scans", 1)) {
       /* Set scan script. */
 #ifdef C_MULTISCAN_FILES_SUPPORTED
       if (++argn >= argc)       /* advance to next argument */
         usage();
+      prefer_smallest = FALSE;
       scansarg = argv[argn];
       /* We must postpone reading the file in case -progressive appears. */
 #else
@@ -350,14 +371,17 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
     } else if (keymatch(arg, "transpose", 1)) {
       /* Transpose (across UL-to-LR axis). */
       select_transform(JXFORM_TRANSPOSE);
+      prefer_smallest = FALSE;
 
     } else if (keymatch(arg, "transverse", 6)) {
       /* Transverse transpose (across UR-to-LL axis). */
       select_transform(JXFORM_TRANSVERSE);
+      prefer_smallest = FALSE;
 
     } else if (keymatch(arg, "trim", 3)) {
       /* Trim off any partial edge MCUs that the transform can't handle. */
       transformoption.trim = TRUE;
+      prefer_smallest = FALSE;
 
     } else {
       usage();                  /* bogus switch */
@@ -378,6 +402,7 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
       if (! read_scan_script(cinfo, scansarg))
         usage();
 #endif
+
   }
 
   return argn;                  /* return index of next arg (file name) */
@@ -408,6 +433,9 @@ main (int argc, char **argv)
   unsigned long insize = 0;
   unsigned char *outbuffer = NULL;
   unsigned long outsize = 0;
+  FILE *icc_file;
+  JOCTET *icc_profile = NULL;
+  long icc_len = 0;
 
   /* On Mac, fetch a command line. */
 #ifdef USE_CCOMMAND
@@ -464,12 +492,42 @@ main (int argc, char **argv)
   /* Open the input file. */
   if (file_index < argc) {
     if ((fp = fopen(argv[file_index], READ_BINARY)) == NULL) {
-      fprintf(stderr, "%s: can't open %s for reading\n", progname, argv[file_index]);
+      fprintf(stderr, "%s: can't open %s for reading\n", progname,
+              argv[file_index]);
       exit(EXIT_FAILURE);
     }
   } else {
     /* default input file is stdin */
     fp = read_stdin();
+  }
+
+  if (icc_filename != NULL) {
+    if ((icc_file = fopen(icc_filename, READ_BINARY)) == NULL) {
+      fprintf(stderr, "%s: can't open %s\n", progname, icc_filename);
+      exit(EXIT_FAILURE);
+    }
+    if (fseek(icc_file, 0, SEEK_END) < 0 ||
+        (icc_len = ftell(icc_file)) < 1 ||
+        fseek(icc_file, 0, SEEK_SET) < 0) {
+      fprintf(stderr, "%s: can't determine size of %s\n", progname,
+              icc_filename);
+      exit(EXIT_FAILURE);
+    }
+    if ((icc_profile = (JOCTET *)malloc(icc_len)) == NULL) {
+      fprintf(stderr, "%s: can't allocate memory for ICC profile\n", progname);
+      fclose(icc_file);
+      exit(EXIT_FAILURE);
+    }
+    if (fread(icc_profile, icc_len, 1, icc_file) < 1) {
+      fprintf(stderr, "%s: can't read ICC profile from %s\n", progname,
+              icc_filename);
+      free(icc_profile);
+      fclose(icc_file);
+      exit(EXIT_FAILURE);
+    }
+    fclose(icc_file);
+    if (copyoption == JCOPYOPT_ALL)
+      copyoption = JCOPYOPT_ALL_EXCEPT_ICC;
   }
 
 #ifdef PROGRESS_REPORT
@@ -553,7 +611,8 @@ main (int argc, char **argv)
   /* Open the output file. */
   if (outfilename != NULL) {
     if ((fp = fopen(outfilename, WRITE_BINARY)) == NULL) {
-      fprintf(stderr, "%s: can't open %s for writing\n", progname, outfilename);
+      fprintf(stderr, "%s: can't open %s for writing\n", progname,
+              outfilename);
       exit(EXIT_FAILURE);
     }
   } else {
@@ -580,16 +639,19 @@ main (int argc, char **argv)
   /* Copy to the output file any extra markers that we want to preserve */
   jcopy_markers_execute(&srcinfo, &dstinfo, copyoption);
 
+  if (icc_profile != NULL)
+    jpeg_write_icc_profile(&dstinfo, icc_profile, (unsigned int)icc_len);
+
   /* Execute image transformation, if any */
 #if TRANSFORMS_SUPPORTED
-  jtransform_execute_transformation(&srcinfo, &dstinfo,
-                                    src_coef_arrays,
+  jtransform_execute_transformation(&srcinfo, &dstinfo, src_coef_arrays,
                                     &transformoption);
 #endif
 
   /* Finish compression and release memory */
   jpeg_finish_compress(&dstinfo);
-  
+
+#if JPEG_LIB_VERSION >= 80 || defined(MEM_SRCDST_SUPPORTED)
   if (jpeg_c_int_param_supported(&dstinfo, JINT_COMPRESS_PROFILE) &&
       jpeg_c_get_int_param(&dstinfo, JINT_COMPRESS_PROFILE)
         == JCP_MAX_COMPRESSION) {
@@ -597,7 +659,7 @@ main (int argc, char **argv)
     
     unsigned char *buffer = outbuffer;
     unsigned long size = outsize;
-    if (insize < size) {
+    if (prefer_smallest && insize < size) {
       size = insize;
       buffer = inbuffer;
     }
@@ -611,6 +673,7 @@ main (int argc, char **argv)
         fprintf(stderr, "%s: can't write to stdout\n", progname);
     }
   }
+#endif
     
   jpeg_destroy_compress(&dstinfo);
   (void) jpeg_finish_decompress(&srcinfo);
@@ -627,7 +690,11 @@ main (int argc, char **argv)
   free(inbuffer);
   free(outbuffer);
 
+  if (icc_profile != NULL)
+    free(icc_profile);
+
   /* All done. */
-  exit(jsrcerr.num_warnings + jdsterr.num_warnings ?EXIT_WARNING:EXIT_SUCCESS);
+  exit(jsrcerr.num_warnings + jdsterr.num_warnings ?
+       EXIT_WARNING : EXIT_SUCCESS);
   return 0;                     /* suppress no-return-value warnings */
 }
