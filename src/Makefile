@@ -21,7 +21,7 @@ all: deps bin
 bin: deps
 	$(CC) -c $(UCFLAGS) optipng/codec.c optipng/image.c zopfli//util.c zopfli/squeeze.c zopfli/lz77.c \
 	zopfli/blocksplitter.c optipng/opngreduc/opngreduc.c LzFind.c miniz/miniz.c
-	$(CXX) $(UCXXFLAGS) main.cpp $(OBJECTS) $(CXXSRC) mozjpeg/.libs/libjpeg.a libpng/libpng.a zlib/libz.a -o ../ect $(LDFLAGS)
+	$(CXX) $(UCXXFLAGS) main.cpp $(OBJECTS) $(CXXSRC) mozjpeg/libjpeg.a libpng/libpng.a zlib/libz.a -o ../ect $(LDFLAGS)
 clean:
 	rm -f *.o zlib/*.o zlib/*.a libpng/*.o libpng/*.a libpng/pngusr.h libpng/pnglibconf.h
 	make -C mozjpeg clean
@@ -35,8 +35,9 @@ libpng:
 	make -C libpng/ -f scripts/makefile.linux-opt CC="$(CC)" CFLAGS="$(UCFLAGS) -DPNG_USER_CONFIG -Wno-macro-redefined" libpng.a
 mozjpeg:
 	cd mozjpeg/; \
-	./configure --disable-dependency-tracking --disable-shared --without-turbojpeg --without-java CC="$(CC)" CFLAGS="$(UCFLAGS)" LDFLAGS=""; \
-	make LDFLAGS=""
+	export CC="$(CC)"; \
+	cmake .; \
+	make
 install: all
 	$(MAKEDIR) $(DESTDIR)$(BINDIR)
 	$(INSTALL) ../ect $(DESTDIR)$(BINDIR)
