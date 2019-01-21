@@ -1,7 +1,7 @@
 //  main.cpp
 //  Efficient Compression Tool
 //  Created by Felix Hanau on 12/19/14.
-//  Copyright (c) 2014-2018 Felix Hanau.
+//  Copyright (c) 2014-2019 Felix Hanau.
 
 #include "main.h"
 #include "support.h"
@@ -28,7 +28,7 @@ static long long savings;
 static void Usage() {
     printf (
             "Efficient Compression Tool\n"
-            "(c) 2014-2018 Felix Hanau.\n"
+            "(c) 2014-2019 Felix Hanau.\n"
             "Version 0.8.2"
 #ifdef __DATE__
             " compiled on %s\n"
