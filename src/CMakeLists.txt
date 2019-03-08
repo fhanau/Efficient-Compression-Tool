@@ -34,6 +34,9 @@ foreach(var CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO CMAKE_CXX_FLAGS_R
 	endif()
 endforeach()
 
+# Enable ZLIB_CONST for everything
+add_definitions(-DZLIB_CONST)
+
 add_subdirectory(leanify EXCLUDE_FROM_ALL)
 add_subdirectory(lodepng EXCLUDE_FROM_ALL)
 add_subdirectory(miniz EXCLUDE_FROM_ALL)
