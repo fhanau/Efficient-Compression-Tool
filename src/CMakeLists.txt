@@ -37,6 +37,10 @@ endforeach()
 # Enable ZLIB_CONST for everything
 add_definitions(-DZLIB_CONST)
 
+option(ECT_MULTITHREADING "Enable multithreaded processing support" ON)
+option(ECT_MP3_SUPPORT "Enable MP3 support (not currently working)" OFF)
+option(ECT_FOLDER_SUPPORT "Enable folder support (requires Boost)" OFF)
+
 add_subdirectory(leanify EXCLUDE_FROM_ALL)
 add_subdirectory(lodepng EXCLUDE_FROM_ALL)
 add_subdirectory(miniz EXCLUDE_FROM_ALL)
@@ -61,16 +65,12 @@ target_include_directories(ect
 	PRIVATE
 		${CMAKE_CURRENT_BINARY_DIR}/mozjpeg)
 
-option(ECT_MULTITHREADING "Enable multithreaded processing support" ON)
-option(ECT_MP3_SUPPORT "Enable MP3 support (not currently working)" OFF)
-option(ECT_FOLDER_SUPPORT "Enable folder support (requires Boost)" OFF)
-
 if(NOT ECT_MULTITHREADING)
 	target_compile_definitions(ect
 		PRIVATE
 			NOMULTI=1)
 else()
-	find_package(Threads)
+	find_package(Threads REQUIRED)
 	target_link_libraries(ect
 		Threads::Threads)
 endif()
