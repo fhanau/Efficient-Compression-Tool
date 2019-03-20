@@ -24,6 +24,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <float.h>
 
 #include "blocksplitter.h"
 #include "deflate.h"
@@ -216,6 +217,8 @@ static int LZ4HC_InsertAndFindBestMatch3 (LZ3HC_Data_Structure* hc4,   /* Index 
   return num;
 }
 
+#define COSTS_SIZE 1024
+#define COSTS_MASK (COSTS_SIZE - 1)
 static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inend,
                            SymbolStats* costcontext, unsigned* length_array, LZCache* c) {
   size_t i;
@@ -275,11 +278,10 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
     }
 
   size_t blocksize = inend - instart;
-
-  float* costs = (float*)malloc(sizeof(float) * (blocksize + 1));
+  float* costs = (float*)malloc(sizeof(float) * COSTS_SIZE);
   if (!costs) exit(1); /* Allocation failed. */
   costs[0] = 0;  /* Because it's the start. */
-  memset(costs + 1, 127, sizeof(float) * blocksize);
+  memset(costs + 1, 127, sizeof(float) * COSTS_MASK);
 
   unsigned notenoughsame = instart + ZOPFLI_MAX_MATCH;
   for (i = instart; i < inend; i++) {
@@ -300,8 +302,9 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
          the cost corresponding to that length. Doing this, we skip
          ZOPFLI_MAX_MATCH values to avoid calling ZopfliFindLongestMatch. */
         for (unsigned k = 0; k < match; k++) {
-          costs[j + ZOPFLI_MAX_MATCH] = costs[j] + symbolcost;
+          costs[(j + ZOPFLI_MAX_MATCH) & COSTS_MASK] = costs[j & COSTS_MASK] + symbolcost;
           length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (1 << 9);
+          costs[j & COSTS_MASK] = FLT_MAX;
           j++;
         }
 
@@ -328,19 +331,19 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
       if (*(mend - 2) == ZOPFLI_MAX_MATCH && numPairs == 2){
 
         unsigned dist = matches[1];
-        costs[j + ZOPFLI_MAX_MATCH] = costs[j] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
+        costs[(j + ZOPFLI_MAX_MATCH) & COSTS_MASK] = costs[j & COSTS_MASK] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (dist << 9);
 
       }
 #if 0 //More speed, less compression.
       else if (*(mend - 2) == ZOPFLI_MAX_MATCH){
         unsigned dist = matches[numPairs - 1];
-        costs[j + ZOPFLI_MAX_MATCH] = costs[j] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
+        costs[(j + ZOPFLI_MAX_MATCH) & COSTS_MASK] = costs[j & COSTS_MASK] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (dist << 9);
       }
 #endif
       else{
-        float price = costs[j];
+        float price = costs[j & COSTS_MASK];
         unsigned short* mp = matches;
 
         unsigned curr = ZOPFLI_MIN_MATCH;
@@ -351,8 +354,8 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
           dist <<=9;
           for (; curr <= len; curr++) {
             float x = price2 + litlentable[curr];
-            if (x < costs[j + curr]){
-              costs[j + curr] = x;
+            if (x < costs[(j + curr) & COSTS_MASK]){
+              costs[(j + curr) & COSTS_MASK] = x;
               length_array[j + curr] = curr + dist;
             }
           }
@@ -361,11 +364,12 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
     }
 
     /* Literal. */
-    float newCost = costs[j] + literals[in[i]];
-    if (newCost < costs[j + 1]) {
-      costs[j + 1] = newCost;
+    float newCost = costs[j & COSTS_MASK] + literals[in[i]];
+    if (newCost < costs[(j + 1) & COSTS_MASK]) {
+      costs[(j + 1) & COSTS_MASK] = newCost;
       length_array[j + 1] = 1 + (in[i] << 24);
     }
+    costs[j & COSTS_MASK] = FLT_MAX;
   }
 
   c->pointer = 0;
@@ -480,10 +484,10 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
 
   size_t blocksize = inend - instart;
 
-  float* costs = (float*)malloc(sizeof(float) * (blocksize + 1));
+  float* costs = (float*)malloc(sizeof(float) * COSTS_SIZE);
   if (!costs) exit(1); /* Allocation failed. */
   costs[0] = 0;  /* Because it's the start. */
-  memset(costs + 1, 127, sizeof(float) * blocksize);
+  memset(costs + 1, 127, sizeof(float) * COSTS_MASK);
 
   size_t windowstart = instart > ZOPFLI_WINDOW_SIZE ? instart - ZOPFLI_WINDOW_SIZE : 0;
 
@@ -531,8 +535,9 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
          the cost corresponding to that length. Doing this, we skip
          ZOPFLI_MAX_MATCH values to avoid calling ZopfliFindLongestMatch. */
         for (unsigned k = 0; k < match; k++) {
-          costs[j + ZOPFLI_MAX_MATCH] = costs[j] + symbolcost;
+          costs[(j + ZOPFLI_MAX_MATCH) & COSTS_MASK] = costs[j & COSTS_MASK] + symbolcost;
           length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (1 << 9);
+          costs[(j + 259) & COSTS_MASK] = FLT_MAX;
           j++;
         }
 
@@ -579,18 +584,18 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
       //It would be really nice to get this faster, but that seems impossible. Using AVX1 is slower.
       if (*(mend - 2) == ZOPFLI_MAX_MATCH && numPairs == 2){
         unsigned dist = matches[1];
-        costs[j + ZOPFLI_MAX_MATCH] = costs[j] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
+        costs[(j + ZOPFLI_MAX_MATCH) & COSTS_MASK] = costs[j & COSTS_MASK] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (dist << 9);
       }
 #if 0 //More speed, less compression.
       else if (*(mend - 2) == ZOPFLI_MAX_MATCH){
         unsigned dist = matches[numPairs - 1];
-        costs[j + ZOPFLI_MAX_MATCH] = costs[j] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
+        costs[(j + ZOPFLI_MAX_MATCH) & COSTS_MASK] = costs[j & COSTS_MASK] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (dist << 9);
       }
 #endif
       else{
-        float price = costs[j];
+        float price = costs[j & COSTS_MASK];
         unsigned short* mp = matches;
 
         unsigned curr = ZOPFLI_MIN_MATCH;
@@ -599,10 +604,39 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
           unsigned dist = *mp++;
           float price2 = price + disttable[dist];
           dist <<=9;
+          if(costs[(j + len) & COSTS_MASK] < 1000000000.0){
+            /*
+            int prev_dist = length_array[j + len] >> 9;
+            float prev_dist_cost = disttable[prev_dist];
+            int diff = (length_array[j + len] & 511) - len;
+            float new_expenses = costs[j & COSTS_MASK] - costs[(j - diff) & COSTS_MASK];
+            if(diff == 1 && literals[in[i - 1]] > max savings through ){
+              curr = len + 1;
+              continue;
+            }
+
+            //Still missing savings from litlen difference, up to 19;
+            float poss_savings = disttable[dist >> 9] - prev_dist_cost;*/
+
+            //TODO: Find a way to predict maximum length overhead as this assumes zero, some table/matrix?
+            float old_costs = costs[(j + len) & COSTS_MASK];
+            float new_costs = price2 + litlentable[curr];
+            //Up to 19 total difference with len codes
+            if(new_costs > old_costs + 1.0){
+              curr = len + 1;
+              continue;
+            }
+
+            /*if(new_expenses - poss_savings > 19.0){
+              curr = len + 1;
+              continue;
+            }*/
+          }
+
           for (; curr <= len; curr++) {
             float x = price2 + litlentable[curr];
-            if (x < costs[j + curr]){
-              costs[j + curr] = x;
+            if (x < costs[(j + curr) & COSTS_MASK]){
+              costs[(j + curr) & COSTS_MASK] = x;
               length_array[j + curr] = curr + dist;
             }
           }
@@ -611,9 +645,9 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
     }
 
     /* Literal. */
-    float newCost = costs[j] + literals[in[i]];
-    if (newCost < costs[j + 1]) {
-      costs[j + 1] = newCost;
+    float newCost = costs[j & COSTS_MASK] + literals[in[i]];
+    if (newCost < costs[(j + 1) & COSTS_MASK]) {
+      costs[(j + 1) & COSTS_MASK] = newCost;
       length_array[j + 1] = 1 + (in[i] << 24);
     }
 
@@ -621,6 +655,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
       CopyMF(&p, &mf);
       right = 1;
     }
+    costs[(j + 259) & COSTS_MASK] = FLT_MAX;
   }
 
   MatchFinder_Free(&p);
