@@ -321,7 +321,7 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
     }
 
     unsigned short* matches = c->cache + c->pointer;
-    int numPairs = *matches;
+    unsigned short numPairs = *matches;
     matches++;
     c->pointer += numPairs + 1;
 
@@ -565,7 +565,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
       }
     }
 
-    int numPairs;
+    unsigned short numPairs;
     if (!storeincache){
       numPairs = Bt3Zip_MatchFinder_GetMatches(&p, matches);
     }
@@ -757,7 +757,7 @@ static void GetBestLengthsultra2(const unsigned char* in, size_t instart, size_t
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
 
-    int numPairs = LZ4HC_InsertAndFindBestMatch3(&h3, &in[i], &in[inend] > &in[i] + ZOPFLI_MAX_MATCH ? &in[i] + ZOPFLI_MAX_MATCH : &in[inend], matches);
+    unsigned short numPairs = LZ4HC_InsertAndFindBestMatch3(&h3, &in[i], &in[inend] > &in[i] + ZOPFLI_MAX_MATCH ? &in[i] + ZOPFLI_MAX_MATCH : &in[inend], matches);
     if (numPairs){
       const unsigned * mend = matches + numPairs;
 
