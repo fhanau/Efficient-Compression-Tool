@@ -1013,7 +1013,32 @@ static void AddLZ77Block(int btype, int final,
         }
       }
     }
+    size_t staticsize = ZopfliCalculateBlockSize(litlens, dists, 0, lend, 1, 0, 0);
+    //Change to incorporate advanced
+    if(staticsize < outpred){
+      btype = 2;
+      outpred = staticsize;
+      size_t i;
+      for (i = 0; i < 144; i++) ll_lengths[i] = 8;
+      for (i = 144; i < 256; i++) ll_lengths[i] = 9;
+      for (i = 256; i < 280; i++) ll_lengths[i] = 7;
+      for (i = 280; i < 288; i++) ll_lengths[i] = 8;
+      for (i = 0; i < 32; i++) d_lengths[i] = 5;
+    }
   }
+
+
+  /*unsigned ll_lengthx[288];
+  unsigned d_lengthx[32];
+  size_t i;
+  for (i = 0; i < 144; i++) ll_lengthx[i] = 8;
+  for (i = 144; i < 256; i++) ll_lengthx[i] = 9;
+  for (i = 256; i < 280; i++) ll_lengthx[i] = 7;
+  for (i = 280; i < 288; i++) ll_lengthx[i] = 8;
+  for (i = 0; i < 32; i++) d_lengthx[i] = 5;
+
+  size_t outpred2 = ZopfliCalculateBlockSize(litlens, dists, 0, lend, 1, 0, 0);
+  if(outpred2 < outpred)*/
   outpred += *outsize * 8 + *bp -((*bp != 0) * 8);
   (*out) = (unsigned char*)realloc(*out, outpred / 8 + 1 + 8);
   if (!(*out)){
@@ -1075,7 +1100,8 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
 
   /* For small block, encoding with fixed tree can be smaller. For large block,
   don't bother doing this expensive test, dynamic tree will be better.*/
-  if (blocksize > options->skipdynamic && store.size < options->trystatic){
+  if (blocksize > options->skipdynamic && store.size < options->trystatic && (options->numiterations > 20 || blocksize < 10000)){
+  //if (fixed < dyn * 1.06 + 10){
     ZopfliLZ77Store fixedstore;
     ZopfliInitLZ77Store(&fixedstore);
     ZopfliLZ77OptimalFixed(options, in, instart, inend, &fixedstore, 0);
@@ -1097,6 +1123,13 @@ static void DeflateDynamicBlock(const ZopfliOptions* options, int final,
     twiceStore->size = store.size;
   }
   else{
+    //You can get that almost free in AddLZ77Block
+    /*double dyncost = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 2, options->searchext, store.symbols);
+    double fixedcost = ZopfliCalculateBlockSize(store.litlens, store.dists, 0, store.size, 1, options->searchext, store.symbols);
+    btype = 1 + (dyncost < fixedcost);*/
+
+    //Redo in mode9?
+
     AddLZ77Block(btype, final,
                  store.litlens, store.dists, store.size,
                  blocksize, bp, out, outsize, options->searchext, in, instart, options->replaceCodes, options->advanced);
@@ -1144,7 +1177,7 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
     
     /* For small block, encoding with fixed tree can be smaller. For large block,
      don't bother doing this expensive test, dynamic tree will be better.*/
-    if (blocksize > options->skipdynamic && store->store.size < options->trystatic){
+    if (blocksize > options->skipdynamic && store->store.size < options->trystatic && (options->numiterations > 20 || blocksize < 10000)){
       double dyncost, fixedcost;
       ZopfliLZ77Store fixedstore;
       ZopfliInitLZ77Store(&fixedstore);
