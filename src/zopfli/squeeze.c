@@ -514,7 +514,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
   if (!storeincache){
     matches = alloca(513 * sizeof(unsigned short));
   }
-
+  unsigned farthest = 0;
   unsigned notenoughsame = instart + ZOPFLI_MAX_MATCH;
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
@@ -538,6 +538,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
           costs[(j + ZOPFLI_MAX_MATCH) & COSTS_MASK] = costs[j & COSTS_MASK] + symbolcost;
           length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (1 << 9);
           costs[(j + 259) & COSTS_MASK] = FLT_MAX;
+          farthest = j + ZOPFLI_MAX_MATCH;
           j++;
         }
 
@@ -587,13 +588,63 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
         costs[(j + ZOPFLI_MAX_MATCH) & COSTS_MASK] = costs[j & COSTS_MASK] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (dist << 9);
       }
-#if 0 //More speed, less compression.
-      else if (*(mend - 2) == ZOPFLI_MAX_MATCH){
+//#if 0 //More speed, less compression.
+      else if (*(mend - 2) == ZOPFLI_MAX_MATCH && numPairs > 2 && (costs[(j + matches[numPairs - 4]) & COSTS_MASK] < 1000000000.0)){
         unsigned dist = matches[numPairs - 1];
         costs[(j + ZOPFLI_MAX_MATCH) & COSTS_MASK] = costs[j & COSTS_MASK] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (dist << 9);
-      }
+        #if 0
+
+          unsigned curr = numPairs > 2 ? 3 : matches[numPairs - 4] + 1;//farthest + 1 - j;
+          //while
+          /*if(curr < 3){
+            curr = 3;
+          }*/
+          //printf("%u\n", curr);
+          //if(numPairs > )
+          unsigned len = matches[numPairs - 2];
+          unsigned dist = matches[numPairs - 1];
+          float price2 = costs[j & COSTS_MASK] + disttable[dist];
+          dist <<=9;
+          if(costs[(j + len) & COSTS_MASK] < 1000000000.0 && 0){
+            /*
+            int prev_dist = length_array[j + len] >> 9;
+            float prev_dist_cost = disttable[prev_dist];
+            int diff = (length_array[j + len] & 511) - len;
+            float new_expenses = costs[j & COSTS_MASK] - costs[(j - diff) & COSTS_MASK];
+            if(diff == 1 && literals[in[i - 1]] > max savings through ){
+              curr = len + 1;
+              continue;
+            }
+
+            //Still missing savings from litlen difference, up to 19;
+            float poss_savings = disttable[dist >> 9] - prev_dist_cost;*/
+
+            //TODO: Find a way to predict maximum length overhead as this assumes zero, some table/matrix?
+            float old_costs = costs[(j + len) & COSTS_MASK];
+            float new_costs = price2 + litlentable[curr];
+            //Up to 19 total difference with len codes
+            if(new_costs > old_costs + 2.0){
+              curr = len + 1;
+              continue;
+            }
+
+            /*if(new_expenses - poss_savings > 19.0){
+              curr = len + 1;
+              continue;
+            }*/
+          }
+
+
+          for (; curr <= len; curr++) {
+            float newCost = price2 + litlentable[curr];
+            if (newCost < costs[(j + curr) & COSTS_MASK]){
+              costs[(j + curr) & COSTS_MASK] = newCost;
+              length_array[j + curr] = curr + dist;
+            }
+          }
 #endif
+      }
       else{
         float price = costs[j & COSTS_MASK];
         unsigned short* mp = matches;
@@ -622,7 +673,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
             float old_costs = costs[(j + len) & COSTS_MASK];
             float new_costs = price2 + litlentable[curr];
             //Up to 19 total difference with len codes
-            if(new_costs > old_costs + 1.0){
+            if(new_costs > old_costs + 2.0){
               curr = len + 1;
               continue;
             }
@@ -632,11 +683,14 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
               continue;
             }*/
           }
+          else {
+            farthest = j + len;
+          }
 
           for (; curr <= len; curr++) {
-            float x = price2 + litlentable[curr];
-            if (x < costs[(j + curr) & COSTS_MASK]){
-              costs[(j + curr) & COSTS_MASK] = x;
+            float newCost = price2 + litlentable[curr];
+            if (newCost < costs[(j + curr) & COSTS_MASK]){
+              costs[(j + curr) & COSTS_MASK] = newCost;
               length_array[j + curr] = curr + dist;
             }
           }
