@@ -15,18 +15,10 @@
 
 #include "../zlib/zlib.h"
 
-#include "cexcept/cexcept.h"
 #include "codec.h"
 #include "image.h"
 #include "trans.h"
 #include "opngcore.h"
-
-/*
- * User exception setup.
- * See cexcept.h for more info
- */
-define_exception_type(const char *);
-static struct exception_context the_exception_context[1];
 
 /*
  * The chunk signatures recognized and handled by this codec.
@@ -120,7 +112,7 @@ static void opng_read_error(png_structp png_ptr, png_const_charp message)
 {
     struct opng_codec_context * context = (struct opng_codec_context *)png_get_io_ptr(png_ptr);
     context->stats->flags |= OPNG_HAS_ERRORS;
-    Throw message;
+    throw message;
 }
 
 /*
@@ -129,7 +121,7 @@ static void opng_read_error(png_structp png_ptr, png_const_charp message)
 static void opng_write_error(png_structp png_ptr, png_const_charp message)
 {
     (void)png_ptr;
-    Throw message;
+    throw message;
 }
 
 /*
@@ -486,7 +478,6 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
     }
 
     opng_init_image(context->image);
-    const char * volatile err_msg;  /* volatile is required by cexcept */
     struct opng_encoding_stats * stats = context->stats;
     opng_init_stats(stats);
     context->stream = stream;
@@ -495,7 +486,7 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
         png_set_palette_to_rgb(context->libpng_ptr);
     }
 
-    Try
+    try
     {
         png_set_keep_unknown_chunks(context->libpng_ptr, PNG_HANDLE_CHUNK_ALWAYS, 0, 0);
         png_set_read_fn(context->libpng_ptr, context, opng_read_data);
@@ -504,7 +495,7 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
         }
         png_read_png(context->libpng_ptr, context->info_ptr, 0, 0);
     }
-    Catch (err_msg)
+    catch (const char* err_msg)
     {
         if (opng_validate_image(context->libpng_ptr, context->info_ptr))
         {
@@ -528,9 +519,7 @@ int opng_decode_image(struct opng_codec_context *context, FILE *stream, const ch
  */
 int opng_decode_reduce_image(struct opng_codec_context *context, int reductions)
 {
-    const char * volatile err_msg;  /* volatile is required by cexcept */
-
-    Try
+    try
     {
         png_uint_32 result = opng_reduce_image(context->libpng_ptr, context->info_ptr, (png_uint_32)reductions);
         if (result != OPNG_REDUCE_NONE)
@@ -540,7 +529,7 @@ int opng_decode_reduce_image(struct opng_codec_context *context, int reductions)
         }
         return (int)result;
     }
-    Catch (err_msg)
+    catch (const char* err_msg)
     {
         opng_error(context->fname, err_msg);
         return -1;
@@ -577,8 +566,6 @@ void opng_decode_finish(struct opng_codec_context *context, int free_data)
  */
 int opng_encode_image(struct opng_codec_context *context, int filtered, FILE *stream, const char *fname, int level)
 {
-    const char * volatile err_msg;  /* volatile is required by cexcept */
-
     context->libpng_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, 0, opng_write_error, opng_write_warning);
     context->info_ptr = png_create_info_struct(context->libpng_ptr);
     if (!context->libpng_ptr || !context->info_ptr)
@@ -593,7 +580,7 @@ int opng_encode_image(struct opng_codec_context *context, int filtered, FILE *st
     context->stream = stream;
     context->fname = fname;
 
-    Try
+    try
     {
 
         png_set_filter(context->libpng_ptr, PNG_FILTER_TYPE_BASE, filtered ? PNG_ALL_FILTERS : PNG_FILTER_NONE);
@@ -613,7 +600,7 @@ int opng_encode_image(struct opng_codec_context *context, int filtered, FILE *st
         png_set_write_fn(context->libpng_ptr, context, opng_write_data, 0);
         png_write_png(context->libpng_ptr, context->info_ptr, 0, 0);
     }
-    Catch (err_msg)
+    catch (const char* err_msg)
     {
         stats->idat_size = INT64_MAX;
         opng_error(fname, err_msg);
@@ -634,7 +621,6 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
     const png_uint_32 buf_size_incr = 4096;
     png_uint_32 length;
     png_byte chunk_hdr[8];
-    const char * volatile err_msg;
     int volatile result = 0;
 
     context->libpng_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, 0, opng_write_error, opng_write_warning);
@@ -650,7 +636,7 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
     context->fname = Outfile;
     png_set_write_fn(context->libpng_ptr, context, opng_write_data, 0);
 
-    Try
+    try
     {
         buf = 0;
         png_uint_32 buf_size = 0;
@@ -697,7 +683,7 @@ int opng_copy_png(struct opng_codec_context *context, FILE *in_stream, const cha
             png_write_chunk(context->libpng_ptr, chunk_hdr + 4, buf, length);
         } while (memcmp(chunk_hdr + 4, opng_sig_IEND, 4) != 0);
     }
-    Catch (err_msg)
+    catch (const char* err_msg)
     {
         opng_error(Outfile, err_msg);
         result = -1;
