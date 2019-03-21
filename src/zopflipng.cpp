@@ -70,7 +70,7 @@ static unsigned CustomPNGDeflate(unsigned char** out, size_t* outsize, const uns
 
 // Returns 32-bit integer value for RGBA color.
 static unsigned ColorIndex(const unsigned char* color) {
-  return color[0] + (color[1] << 8) + (color[2] << 16) + (color[3] << 24);
+  return *(unsigned*)color;//color[0] + (color[1] << 8) + (color[2] << 16) + (color[3] << 24);
 }
 
 // Counts amount of colors in the image, up to 257. If transparent_counts_as_one
@@ -81,7 +81,7 @@ static void CountColors(std::unordered_set<unsigned>* unique, const unsigned cha
   unique->reserve(512);
   unsigned prev = ~*(unsigned*)(image);
   for (size_t i = 0; i < w * h; i++) {
-    unsigned index = ColorIndex(&image[i * 4]);
+    unsigned index = *(unsigned*)(&image[i * 4]);
     if (transparent_counts_as_one && image[i * 4 + 3] == 0) index = 0;
     if(prev!=index) {
       unique->insert(index);

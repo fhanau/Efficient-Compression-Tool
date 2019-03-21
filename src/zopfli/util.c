@@ -200,14 +200,14 @@ unsigned ZopfliGetLengthSymbol(unsigned l) {
 
 static const ZopfliOptionsMin opt[8] =
 {
-  { 1, 0, 0, 2000,    0, 180,  800}, /* 2 */
-  { 1, 1, 0, 2000,    0, 180,  512}, /* 3 */
+  { 1, 0, 0, 2000,    0, 180,  800}, /* 2 *///Swap may help, even be efficient
+  { 1, 1, 0, 2000,    3000, 80,  512}, /* 3 *///800 better for enwik
   { 2, 1, 0, 2000,    0, 180,  512}, /* 4 */
   { 3, 1, 1, 2000,    0, 180,  200}, /* 5 */
   { 8, 1, 1, 1300,  800,  80,  200}, /* 6 */
-  {13, 1, 1, 1000, 1800,  80,  200}, /* 7 */
+  {13, 1, 1, 1000,  900,  80,  200}, /* 7 */
   {60, 1, 2,  800, 2000,  80,  120}, /* 8 */
-  {60, 2, 3,  800, 3000,  80,  100}  /* 9 */
+  {60, 2, 3,  800, 3000,  50,  100}  /* 9 */
 };
 
 void ZopfliInitOptions(ZopfliOptions* options, unsigned _mode, unsigned multithreading, unsigned isPNG) {
@@ -216,6 +216,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned _mode, unsigned multithr
   if (mode < 2){
     mode = 2;
   }
+  //TODO: better multithreading is possible by giving each thread chain of blocks, gets both costmodelreuse + mfinexport most of the time
 
   ZopfliOptionsMin min = opt[mode - 2];
 
@@ -234,7 +235,7 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned _mode, unsigned multithr
   options->replaceCodes = 1000 * (mode > 2) + 1;
   options->multithreading = multithreading;
   options->isPNG = isPNG;
-  options->reuse_costmodel = (!isPNG || mode > 6) && multithreading < 2;
+  options->reuse_costmodel = 0;///*0;//*/(!isPNG || mode > 6) && multithreading < 2;//relevant for thread safety
   options->useCache = 1;
   options->ultra = (mode >= 5) + (options->numiterations > 60) + (options->numiterations > 90);
   options->entropysplit = mode < 3;
