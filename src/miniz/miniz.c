@@ -825,7 +825,7 @@ mz_bool mz_zip_writer_add_mem_ex(mz_zip_archive *pZip, const char *pArchive_name
     return MZ_FALSE;
 
 #ifndef MINIZ_NO_TIME
-    mz_zip_get_file_modified_time(location, &dos_time, &dos_date);
+  mz_zip_get_file_modified_time(location, &dos_time, &dos_date);
 #endif // #ifndef MINIZ_NO_TIME
 
   archive_name_size = strlen(pArchive_name);

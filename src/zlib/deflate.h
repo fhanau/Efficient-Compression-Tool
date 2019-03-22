@@ -74,7 +74,7 @@ typedef struct ct_data_s {
 #define Dad  dl.dad
 #define Len  dl.len
 
-typedef struct static_tree_desc_s  static_tree_desc;
+typedef const struct static_tree_desc_s static_tree_desc;
 
 typedef struct tree_desc_s {
     ct_data *dyn_tree;           /* the dynamic tree */

@@ -553,7 +553,7 @@ static unsigned lodepng_chunk_check_crc(const unsigned char* chunk)
   /*the CRC is taken of the data and the 4 chunk type letters, not the length*/
   unsigned checksum = lodepng_crc32(&chunk[4], length + 4);
   if(CRC != checksum) return 1;
-  else return 0;
+  return 0;
 }
 
 static void lodepng_chunk_generate_crc(unsigned char* chunk)
@@ -730,7 +730,7 @@ static unsigned lodepng_palette_add(LodePNGColorMode* info,
     /*room for 256 colors with 4 bytes each*/
     data = (unsigned char*)lodepng_realloc(info->palette, 1024);
     if(!data) return 83; /*alloc fail*/
-    else info->palette = data;
+    info->palette = data;
   }
   info->palette[4 * info->palettesize] = r;
   info->palette[4 * info->palettesize + 1] = g;
@@ -1103,7 +1103,7 @@ static int color_tree_get(ColorTree* tree, unsigned char r, unsigned char g, uns
   {
     unsigned i = x & 15;
     if(!tree->children[i]) return -1;
-    else tree = tree->children[i];
+    tree = tree->children[i];
     x>>=4;
   }
   return tree ? tree->index : -1;
@@ -1660,7 +1660,7 @@ static unsigned getValueRequiredBits(unsigned char value)
 /*profile must already have been inited with mode.
 It's ok to set some parameters of profile to done already.*/
 unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
-                                   const unsigned char* in, unsigned w, unsigned h,
+                                   const unsigned char* image, unsigned w, unsigned h,
                                    const LodePNGColorMode* mode)
 {
   size_t i;
@@ -1681,7 +1681,7 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
     unsigned short r, g, b, a;
     for(i = 0; i != numpixels; ++i)
     {
-      getPixelColorRGBA16(&r, &g, &b, &a, in, i, mode);
+      getPixelColorRGBA16(&r, &g, &b, &a, image, i, mode);
       if((r & 255) != ((r >> 8) & 255) || (g & 255) != ((g >> 8) & 255) ||
          (b & 255) != ((b >> 8) & 255) || (a & 255) != ((a >> 8) & 255)) /*first and second byte differ*/
       {
@@ -1699,7 +1699,7 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
 
     for(i = 0; i != numpixels; ++i)
     {
-      getPixelColorRGBA16(&r, &g, &b, &a, in, i, mode);
+      getPixelColorRGBA16(&r, &g, &b, &a, image, i, mode);
 
       if(!colored_done && (r != g || r != b))
       {
@@ -1741,15 +1741,15 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
 
     if (mode->colortype == LCT_RGBA && mode->bitdepth == 8){
 
-      unsigned match = (*(unsigned*)in) + 1;
+      unsigned match = (*(unsigned*)image) + 1;
 
       for(i = 0; i != numpixels; ++i)
       {
         unsigned char r = 0, g = 0, b = 0, a = 0;
-        r = in[i * 4];
-        g = in[i * 4 + 1];
-        b = in[i * 4 + 2];
-        a = in[i * 4 + 3];
+        r = image[i * 4];
+        g = image[i * 4 + 1];
+        b = image[i * 4 + 2];
+        a = image[i * 4 + 3];
 
         if(!bits_done && profile->bits < 8)
         {
@@ -1793,7 +1793,7 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
 
         if(!numcolors_done)
         {
-          unsigned m = *(unsigned*)(in + 4 * i);
+          unsigned m = *(unsigned*)(image + 4 * i);
           if (m != match){
             match = m;
             if(!color_tree_has(&tree, r, g, b, a))
@@ -1823,7 +1823,7 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
     for(i = 0; i != numpixels; ++i)
     {
       unsigned char r = 0, g = 0, b = 0, a = 0;
-      getPixelColorRGBA8(&r, &g, &b, &a, in, i, mode);
+      getPixelColorRGBA8(&r, &g, &b, &a, image, i, mode);
 
       if(!bits_done && profile->bits < 8)
       {
@@ -1896,7 +1896,7 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
   }
 
   unsigned char r = 0, g = 0, b = 0, a = 0;
-  getPixelColorRGBA8(&r, &g, &b, &a, in, 0, mode);
+  getPixelColorRGBA8(&r, &g, &b, &a, image, 0, mode);
   profile->white = profile->numcolors == 1 && profile->colored == 0 && r == 255 && w > 20 && h > 20 && ((w>225 && h > 225) || w*h > 75000 || (w> 250 && w*h > 40000));
 
   return 0;
@@ -2269,8 +2269,8 @@ static unsigned char paethPredictor(short a, short b, short c)
   short pc = abs(a + b - c - c);
 
   if(pc < pa && pc < pb) return (unsigned char)c;
-  else if(pb < pa) return (unsigned char)b;
-  else return (unsigned char)a;
+  if(pb < pa) return (unsigned char)b;
+  return (unsigned char)a;
 }
 
 /*shared values used by multiple Adam7 related functions*/
@@ -3632,12 +3632,15 @@ static double randomDecimal(uint64_t* s) {
 }
 
 #include <signal.h>
-static int signaled = 0;
+#include <atomic>
+static std::atomic<int> signaled(0);
 static void sig_handler(int signo)
 {
   if (signo == SIGINT){
-    printf("received SIGINT, will stop after this iteration\n");
-    signaled = 1;
+    if(signaled.load() == 0) {
+      printf("received SIGINT, will stop after this iteration\n");
+    }
+    signaled.store(1);
   }
 }
 
@@ -4167,11 +4170,13 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
   else if(strategy == LFS_GENETIC || strategy == LFS_ALL_CHEAP)
   {
     if (strategy == LFS_GENETIC){
-      printf("warning: You have decided to enable genetic filtering, which may take a very long time.\n"
-             "the current generation and number of bytes is displayed.\n"
-             "you can stop the genetic filtering anytime by pressing ctrl-c\n"
-             "it will automatically stop after 500 generations without progress\n");
-      signaled = 0;
+      if(!settings->quiet) {
+        printf("warning: You have decided to enable genetic filtering, which may take a very long time.\n"
+               "the current generation and number of bytes is displayed.\n"
+               "you can stop the genetic filtering anytime by pressing ctrl-c\n"
+               "it will automatically stop after 500 generations without progress\n");
+      }
+      signaled.store(-settings->quiet);
     }
 
     unsigned char* prevlinebuf = 0;
@@ -4259,7 +4264,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       }
     }
     //ctrl-c signals last iteration
-    for(e = 0; strategy == LFS_GENETIC && e_since_best < 500 && !signaled; ++e)
+    for(e = 0; strategy == LFS_GENETIC && e_since_best < 500 && signaled.load() <= 0; ++e)
     {
       /*resort rankings*/
       for(i = 1; i < population_size; ++i)
@@ -4272,7 +4277,9 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
       {
         best_size = size[ranking[0]];
         e_since_best = 0;
-        printf("Generation %d: %d bytes\n", e, best_size);
+        if(!settings->quiet) {
+          printf("Generation %d: %d bytes\n", e, best_size);
+        }
       }
       else ++e_since_best;
       /*generate offspring*/
@@ -4965,64 +4972,50 @@ State::~State()
 }
 
 #ifdef LODEPNG_COMPILE_DECODER
-static unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h, const unsigned char* in,
-                size_t insize, LodePNGColorType colortype, unsigned bitdepth)
+unsigned decode(unsigned char** out, size_t& buffersize, unsigned& w, unsigned& h, const unsigned char* in, size_t insize, LodePNGColorType colortype, unsigned bitdepth)
 {
-  unsigned char* buffer;
-  unsigned error = lodepng_decode_memory(&buffer, &w, &h, in, insize, colortype, bitdepth);
-  if(buffer && !error)
+  unsigned error = lodepng_decode_memory(out, &w, &h, in, insize, colortype, bitdepth);
+  if(*out && !error)
   {
     State state;
     state.info_raw.colortype = colortype;
     state.info_raw.bitdepth = bitdepth;
-    size_t buffersize = lodepng_get_raw_size(w, h, &state.info_raw);
-    out.insert(out.end(), &buffer[0], &buffer[buffersize]);
-    free(buffer);
+    buffersize = lodepng_get_raw_size(w, h, &state.info_raw);
+  }
+  else if(*out) {
+    free(*out);
   }
   return error;
 }
 
-unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h,
-                const std::vector<unsigned char>& in, LodePNGColorType colortype, unsigned bitdepth)
-{
-  return decode(out, w, h, in.empty() ? 0 : &in[0], (unsigned)in.size(), colortype, bitdepth);
-}
-
-static unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h,
+unsigned decode(unsigned char** out, size_t& buffersize, unsigned& w, unsigned& h,
                 State& state,
                 const unsigned char* in, size_t insize)
 {
-  unsigned char* buffer = 0;
-  unsigned error = lodepng_decode(&buffer, &w, &h, &state, in, insize);
-  if(buffer && !error)
+  unsigned error = lodepng_decode(out, &w, &h, &state, in, insize);
+  if(*out && !error)
   {
-    size_t buffersize = lodepng_get_raw_size(w, h, &state.info_raw);
-    out.insert(out.end(), &buffer[0], &buffer[buffersize]);
+    buffersize = lodepng_get_raw_size(w, h, &state.info_raw);
   }
-  free(buffer);
+  else if (*out) {
+    free(*out);
+  }
   return error;
-}
-
-unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h,
-                State& state,
-                const std::vector<unsigned char>& in)
-{
-  return decode(out, w, h, state, in.empty() ? 0 : &in[0], in.size());
 }
 
 #endif //LODEPNG_COMPILE_DISK
 
 #ifdef LODEPNG_COMPILE_ENCODER
 unsigned encode(std::vector<unsigned char>& out,
-                std::vector<unsigned char>& in, unsigned w, unsigned h,
+                unsigned char* in, size_t insize, unsigned w, unsigned h,
                 State& state, LodePNGPaletteSettings p)
 {
   state.note = 0;
-  if(lodepng_get_raw_size(w, h, &state.info_raw) > in.size()) return 84;
+  if(lodepng_get_raw_size(w, h, &state.info_raw) > insize) return 84;
   unsigned char* buffer;
   size_t buffersize;
 
-  unsigned error = lodepng_encode(&buffer, &buffersize, in.empty() ? 0 : &in[0], w, h, &state, p);
+  unsigned error = lodepng_encode(&buffer, &buffersize, in, w, h, &state, p);
   if (error == 96) {
     error = 0;
     state.note = 1;

@@ -48,10 +48,9 @@ unsigned ZopfliGetDistExtraBitsValue(unsigned dist) {
 #ifdef __GNUC__
   if (dist < 5) {
     return 0;
-  } else {
-    int l = 31 ^ __builtin_clz(dist - 1); /* log2(dist - 1) */
-    return (dist - (1 + (1 << l))) & ((1 << (l - 1)) - 1);
   }
+  int l = 31 ^ __builtin_clz(dist - 1); /* log2(dist - 1) */
+  return (dist - (1 + (1 << l))) & ((1 << (l - 1)) - 1);
 #else
   if (dist < 5) return 0;
   else if (dist < 9) return (dist - 5) & 1;
@@ -74,11 +73,10 @@ int ZopfliGetDistSymbol(int dist) {
 #ifdef __GNUC__
   if (dist < 5) {
     return dist - 1;
-  } else {
-    int l = (31 ^ __builtin_clz(dist - 1)); /* log2(dist - 1) */
-    int r = ((dist - 1) >> (l - 1)) & 1;
-    return l * 2 + r;
   }
+  int l = (31 ^ __builtin_clz(dist - 1)); /* log2(dist - 1) */
+  int r = ((dist - 1) >> (l - 1)) & 1;
+  return l * 2 + r;
 #else
   if (dist < 193) {
     if (dist < 13) {  /* dist 0..13. */

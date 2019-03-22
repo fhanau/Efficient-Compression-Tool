@@ -44,7 +44,7 @@ static void ZopfliZipCompress(const ZopfliOptions* options,
 
   unsigned long crcvalue = crc32(0, in, insize);
   unsigned long i;
-  std::string x = name.substr(name.find_last_of("/") + 1);
+  std::string x = name.substr(name.find_last_of('/') + 1);
   const char* infilename = x.c_str();
   unsigned char bp = 0;
   size_t max = x.size();

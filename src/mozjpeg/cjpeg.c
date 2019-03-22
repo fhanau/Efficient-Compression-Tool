@@ -5,7 +5,7 @@
  * Copyright (C) 1991-1998, Thomas G. Lane.
  * Modified 2003-2011 by Guido Vollbeding.
  * libjpeg-turbo Modifications:
- * Copyright (C) 2010, 2013-2014, D. R. Commander.
+ * Copyright (C) 2010, 2013-2014, 2017, D. R. Commander.
  * mozjpeg Modifications:
  * Copyright (C) 2014, Mozilla Corporation.
  * For conditions of distribution and use, see the accompanying README file.
@@ -32,6 +32,11 @@
 #include "jversion.h"           /* for version message */
 #include "jconfigint.h"
 
+#ifndef HAVE_STDLIB_H           /* <stdlib.h> should declare malloc(),free() */
+extern void *malloc(size_t size);
+extern void free(void *ptr);
+#endif
+
 #ifdef USE_CCOMMAND             /* command-line reader for Macintosh */
 #ifdef __MWERKS__
 #include <SIOUX.h>              /* Metrowerks needs this */
@@ -45,7 +50,7 @@
 
 /* Create the add-on message string table. */
 
-#define JMESSAGE(code,string)   string ,
+#define JMESSAGE(code, string)  string,
 
 static const char * const cdjpeg_message_table[] = {
 #include "cderror.h"
@@ -81,9 +86,10 @@ static const char * const cdjpeg_message_table[] = {
 
 static boolean is_targa;        /* records user -targa switch */
 static boolean is_jpeg;
+static boolean copy_markers;
 
 LOCAL(cjpeg_source_ptr)
-select_file_type (j_compress_ptr cinfo, FILE *infile)
+select_file_type(j_compress_ptr cinfo, FILE *infile)
 {
   int c;
 
@@ -103,7 +109,7 @@ select_file_type (j_compress_ptr cinfo, FILE *infile)
   switch (c) {
 #ifdef BMP_SUPPORTED
   case 'B':
-    return jinit_read_bmp(cinfo);
+    return jinit_read_bmp(cinfo, TRUE);
 #endif
 #ifdef GIF_SUPPORTED
   case 'G':
@@ -115,6 +121,7 @@ select_file_type (j_compress_ptr cinfo, FILE *infile)
 #endif
 #ifdef PNG_SUPPORTED
   case 0x89:
+    copy_markers = TRUE;
     return jinit_read_png(cinfo);
 #endif
 #ifdef RLE_SUPPORTED
@@ -127,6 +134,7 @@ select_file_type (j_compress_ptr cinfo, FILE *infile)
 #endif
   case 0xff:
     is_jpeg = TRUE;
+    copy_markers = TRUE;
     return jinit_read_jpeg(cinfo);
   default:
     ERREXIT(cinfo, JERR_UNKNOWN_FORMAT);
@@ -147,12 +155,13 @@ select_file_type (j_compress_ptr cinfo, FILE *infile)
 
 
 static const char *progname;    /* program name for error messages */
+static char *icc_filename;      /* for -icc switch */
 static char *outfilename;       /* for -outfile switch */
 boolean memdst;                 /* for -memdst switch */
 
 
 LOCAL(void)
-usage (void)
+usage(void)
 /* complain about bad command line */
 {
   fprintf(stderr, "usage: %s [switches] ", progname);
@@ -193,6 +202,7 @@ usage (void)
   fprintf(stderr, "  -tune-ms-ssim  Tune trellis optimization for MS-SSIM\n");
   fprintf(stderr, "Switches for advanced users:\n");
   fprintf(stderr, "  -noovershoot   Disable black-on-white deringing via overshoot\n");
+  fprintf(stderr, "  -nojfif        Do not write JFIF. Reduce size in 18 bytes but break standar. No know problems in web use.\n");
 #ifdef C_ARITH_CODING_SUPPORTED
   fprintf(stderr, "  -arithmetic    Use arithmetic coding\n");
 #endif
@@ -216,6 +226,7 @@ usage (void)
   fprintf(stderr, "                 - 3 ImageMagick table by N. Robidoux\n");
   fprintf(stderr, "                 - 4 Custom, tuned for PSNR-HVS\n");
   fprintf(stderr, "                 - 5 Table from paper by Klein, Silverstein and Carney\n");
+  fprintf(stderr, "  -icc FILE      Embed ICC profile contained in FILE\n");
   fprintf(stderr, "  -restart N     Set restart interval in rows, or in blocks with B\n");
 #ifdef INPUT_SMOOTHING_SUPPORTED
   fprintf(stderr, "  -smooth N      Smooth dithered input (N=1..100 is strength)\n");
@@ -228,18 +239,18 @@ usage (void)
   fprintf(stderr, "  -verbose  or  -debug   Emit debug output\n");
   fprintf(stderr, "  -version       Print version information and exit\n");
   fprintf(stderr, "Switches for wizards:\n");
-  fprintf(stderr, "  -qtables file  Use quantization tables given in file\n");
+  fprintf(stderr, "  -qtables FILE  Use quantization tables given in FILE\n");
   fprintf(stderr, "  -qslots N[,...]    Set component quantization tables\n");
   fprintf(stderr, "  -sample HxV[,...]  Set component sampling factors\n");
 #ifdef C_MULTISCAN_FILES_SUPPORTED
-  fprintf(stderr, "  -scans file    Create multi-scan JPEG per script file\n");
+  fprintf(stderr, "  -scans FILE    Create multi-scan JPEG per script FILE\n");
 #endif
   exit(EXIT_FAILURE);
 }
 
 
 LOCAL(int)
-parse_switches (j_compress_ptr cinfo, int argc, char **argv,
+parse_switches(j_compress_ptr cinfo, int argc, char **argv,
                 int last_file_arg_seen, boolean for_real)
 /* Parse optional switches.
  * Returns argv[] index of first file-name argument (== argc if none).
@@ -269,6 +280,7 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
   simple_progressive = FALSE;
 #endif
   is_targa = FALSE;
+  icc_filename = NULL;
   outfilename = NULL;
   memdst = FALSE;
   cinfo->err->trace_level = 0;
@@ -330,7 +342,7 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
       /* On first -d, print version identification */
       static boolean printed_version = FALSE;
 
-      if (! printed_version) {
+      if (!printed_version) {
         fprintf(stderr, "%s version %s (build %s)\n",
                 PACKAGE_NAME, VERSION, BUILD);
         fprintf(stderr, "%s\n\n", JCOPYRIGHT);
@@ -367,6 +379,12 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
         usage();
       jpeg_c_set_float_param(cinfo, JFLOAT_LAMBDA_LOG_SCALE2,
                              atof(argv[argn]));
+
+    } else if (keymatch(arg, "icc", 1)) {
+      /* Set ICC filename. */
+      if (++argn >= argc)       /* advance to next argument */
+        usage();
+      icc_filename = argv[argn];
 
     } else if (keymatch(arg, "maxmemory", 3)) {
       /* Maximum memory in Kb (or Mb with 'm'). */
@@ -480,10 +498,10 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
       if (lval < 0 || lval > 65535L)
         usage();
       if (ch == 'b' || ch == 'B') {
-        cinfo->restart_interval = (unsigned int) lval;
+        cinfo->restart_interval = (unsigned int)lval;
         cinfo->restart_in_rows = 0; /* else prior '-restart n' overrides me */
       } else {
-        cinfo->restart_in_rows = (int) lval;
+        cinfo->restart_in_rows = (int)lval;
         /* restart_interval will be computed during startup */
       }
 
@@ -580,6 +598,9 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
 
     } else if (keymatch(arg, "noovershoot", 11)) {
       jpeg_c_set_bool_param(cinfo, JBOOLEAN_OVERSHOOT_DERINGING, FALSE);
+
+	} else if (keymatch(arg, "nojfif", 6)) {
+      cinfo->write_JFIF_header = 0;
     } else {
       fprintf(stderr, "%s: unknown option '%s'\n", progname, arg);
       usage();                  /* bogus switch */
@@ -605,7 +626,7 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
       }
 
     if (qslotsarg != NULL)      /* process -qslots if it was present */
-      if (! set_quant_slots(cinfo, qslotsarg))
+      if (!set_quant_slots(cinfo, qslotsarg))
         usage();
 
     /* set_quality_ratings sets default subsampling, so the explicit
@@ -623,7 +644,7 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
 
 #ifdef C_MULTISCAN_FILES_SUPPORTED
     if (scansarg != NULL)       /* process -scans if it was present */
-      if (! read_scan_script(cinfo, scansarg))
+      if (!read_scan_script(cinfo, scansarg))
         usage();
 #endif
   }
@@ -637,7 +658,7 @@ parse_switches (j_compress_ptr cinfo, int argc, char **argv,
  */
 
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
   struct jpeg_compress_struct cinfo;
   struct jpeg_error_mgr jerr;
@@ -647,6 +668,9 @@ main (int argc, char **argv)
   int file_index;
   cjpeg_source_ptr src_mgr;
   FILE *input_file;
+  FILE *icc_file;
+  JOCTET *icc_profile = NULL;
+  long icc_len = 0;
   FILE *output_file = NULL;
   unsigned char *outbuffer = NULL;
   unsigned long outsize = 0;
@@ -690,14 +714,14 @@ main (int argc, char **argv)
   if (!memdst) {
     /* Must have either -outfile switch or explicit output file name */
     if (outfilename == NULL) {
-      if (file_index != argc-2) {
+      if (file_index != argc - 2) {
         fprintf(stderr, "%s: must name one input and one output file\n",
                 progname);
         usage();
       }
-      outfilename = argv[file_index+1];
+      outfilename = argv[file_index + 1];
     } else {
-      if (file_index != argc-1) {
+      if (file_index != argc - 1) {
         fprintf(stderr, "%s: must name one input and one output file\n",
                 progname);
         usage();
@@ -706,7 +730,7 @@ main (int argc, char **argv)
   }
 #else
   /* Unix style: expect zero or one file name */
-  if (file_index < argc-1) {
+  if (file_index < argc - 1) {
     fprintf(stderr, "%s: only one input file\n", progname);
     usage();
   }
@@ -734,8 +758,35 @@ main (int argc, char **argv)
     output_file = write_stdout();
   }
 
+  if (icc_filename != NULL) {
+    if ((icc_file = fopen(icc_filename, READ_BINARY)) == NULL) {
+      fprintf(stderr, "%s: can't open %s\n", progname, icc_filename);
+      exit(EXIT_FAILURE);
+    }
+    if (fseek(icc_file, 0, SEEK_END) < 0 ||
+        (icc_len = ftell(icc_file)) < 1 ||
+        fseek(icc_file, 0, SEEK_SET) < 0) {
+      fprintf(stderr, "%s: can't determine size of %s\n", progname,
+              icc_filename);
+      exit(EXIT_FAILURE);
+    }
+    if ((icc_profile = (JOCTET *)malloc(icc_len)) == NULL) {
+      fprintf(stderr, "%s: can't allocate memory for ICC profile\n", progname);
+      fclose(icc_file);
+      exit(EXIT_FAILURE);
+    }
+    if (fread(icc_profile, icc_len, 1, icc_file) < 1) {
+      fprintf(stderr, "%s: can't read ICC profile from %s\n", progname,
+              icc_filename);
+      free(icc_profile);
+      fclose(icc_file);
+      exit(EXIT_FAILURE);
+    }
+    fclose(icc_file);
+  }
+
 #ifdef PROGRESS_REPORT
-  start_progress_monitor((j_common_ptr) &cinfo, &progress);
+  start_progress_monitor((j_common_ptr)&cinfo, &progress);
 #endif
 
   /* Figure out the input file format, and set up to read it. */
@@ -766,7 +817,7 @@ main (int argc, char **argv)
   jpeg_start_compress(&cinfo, TRUE);
 
   /* Copy metadata */
-  if (is_jpeg) {
+  if (copy_markers) {
     jpeg_saved_marker_ptr marker;
     
     /* In the current implementation, we don't actually need to examine the
@@ -797,6 +848,8 @@ main (int argc, char **argv)
                         marker->data_length);
     }
   }
+  if (icc_profile != NULL)
+    jpeg_write_icc_profile(&cinfo, icc_profile, (unsigned int)icc_len);
   
   /* Process data */
   while (cinfo.next_scanline < cinfo.image_height) {
@@ -821,7 +874,7 @@ main (int argc, char **argv)
     fclose(output_file);
 
 #ifdef PROGRESS_REPORT
-  end_progress_monitor((j_common_ptr) &cinfo);
+  end_progress_monitor((j_common_ptr)&cinfo);
 #endif
 
   if (memdst) {
@@ -829,6 +882,9 @@ main (int argc, char **argv)
     if (outbuffer != NULL)
       free(outbuffer);
   }
+
+  if (icc_profile != NULL)
+    free(icc_profile);
 
   /* All done. */
   exit(jerr.num_warnings ? EXIT_WARNING : EXIT_SUCCESS);

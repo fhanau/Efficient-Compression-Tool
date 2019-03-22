@@ -158,11 +158,11 @@ bool GetCDHeaders(const uint8_t* fp, size_t size, const EOCD& eocd, size_t zip_o
 uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_leanified, string filename, const ECTOptions& Options){
   bool isZIP = size > sizeof(Zip::header_magic) && memcmp(data, Zip::header_magic, sizeof(Zip::header_magic)) == 0;
 
-  int dotpos = filename.find_last_of(".");
+  int dotpos = filename.find_last_of('.');
   if(dotpos == filename.npos){
     return size;
   }
-  string extension = filename.substr(filename.find_last_of("."));
+  string extension = filename.substr(filename.find_last_of('.'));
   if(!(extension == ".PNG" || extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".JPEG" || extension == ".JPG" || isZIP)){
     return size;
   }
@@ -218,17 +218,11 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
     stream = fopen(temp, "rb");
     if(fread(data - size_leanified, 1, new_size, stream) < new_size){
       printf("Error: Read error\n");
-      if (size_leanified){
-        memcpy(data - size_leanified, data, size);
-      }
     }
     else{
       size = new_size;
     }
     fclose(stream);
-  }
-  else if (size_leanified){
-    memcpy(data - size_leanified, data, size);
   }
 
   unlink(temp);

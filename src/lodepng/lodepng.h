@@ -113,8 +113,8 @@ namespace lodepng
 #ifdef LODEPNG_COMPILE_DECODER
 /*Same as lodepng_decode_memory, but decodes to an std::vector. The colortype
 is the format to output the pixels to. Default is RGBA 8-bit per channel.*/
-unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h,
-                const std::vector<unsigned char>& in,
+unsigned decode(unsigned char** out, size_t& buffersize, unsigned& w, unsigned& h,
+                const unsigned char* in,size_t insize,
                 LodePNGColorType colortype = LCT_RGBA, unsigned bitdepth = 8);
 #endif //LODEPNG_COMPILE_DECODER
 
@@ -452,8 +452,10 @@ typedef struct LodePNGEncoderSettings
   unsigned text_compression;
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
 
-    /* filter_style for LFS_BRUTE_FORCE*/
-    unsigned short filter_style;
+  /* filter_style for LFS_BRUTE_FORCE*/
+  unsigned short filter_style;
+
+  unsigned quiet;
 } LodePNGEncoderSettings;
 
 void lodepng_encoder_settings_init(LodePNGEncoderSettings* settings);
@@ -580,14 +582,14 @@ class State : public LodePNGState
 
 #ifdef LODEPNG_COMPILE_DECODER
 //Same as other lodepng::decode, but using a State for more settings and information.
-unsigned decode(std::vector<unsigned char>& out, unsigned& w, unsigned& h,
+unsigned decode(unsigned char** out, size_t& buffersize, unsigned& w, unsigned& h,
                 State& state,
-                const std::vector<unsigned char>& in);
+                const unsigned char* in, size_t insize);
 #endif /*LODEPNG_COMPILE_DECODER*/
 
 #ifdef LODEPNG_COMPILE_ENCODER
 unsigned encode(std::vector<unsigned char>& out,
-                std::vector<unsigned char>& in, unsigned w, unsigned h,
+                unsigned char* in, size_t insize, unsigned w, unsigned h,
                 State& state, LodePNGPaletteSettings p);
 #endif /*LODEPNG_COMPILE_ENCODER*/
 

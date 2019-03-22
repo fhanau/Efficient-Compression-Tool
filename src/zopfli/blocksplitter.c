@@ -120,7 +120,7 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, u
   double vp[NUM];
   double prevstore = -1;
   size_t besti;
-  double best;
+  double best = ZOPFLI_LARGE_FLOAT;
   double lastbest = ZOPFLI_LARGE_FLOAT;
   size_t pos = start;
   size_t ostart = start;
@@ -275,12 +275,10 @@ static unsigned symtox(unsigned lls){
   if (lls <= 279){
     return 0;
   }
-  else if (lls <= 283){
+  if (lls <= 283){
     return 100;
   }
-  else{
-    return 200;
-  }
+  return 200;
 }
 
 void ZopfliBlockSplit(const ZopfliOptions* options,

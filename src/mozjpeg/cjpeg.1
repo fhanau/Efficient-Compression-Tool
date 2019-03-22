@@ -1,4 +1,4 @@
-.TH CJPEG 1 "17 February 2016"
+.TH CJPEG 1 "18 March 2017"
 .SH NAME
 cjpeg \- compress an image file to a JPEG file
 .SH SYNOPSIS
@@ -46,7 +46,7 @@ compressing a grayscale BMP file, because
 .B cjpeg
 isn't bright enough to notice whether a BMP file uses only shades of gray.
 By saying
-.BR \-grayscale ,
+.BR \-grayscale,
 you'll get a smaller JPEG file that takes less time to process.
 .TP
 .B \-rgb
@@ -187,6 +187,9 @@ method may also give different results on different machines due to varying
 roundoff behavior, whereas the integer methods should give the same results on
 all machines.
 .TP
+.BI \-icc " file"
+Embed ICC color management profile contained in the specified file.
+.TP
 .BI \-restart " N"
 Emit a JPEG restart marker every N MCU rows, or every N MCU blocks if "B" is
 attached to the number.
@@ -202,7 +205,7 @@ Set limit for amount of memory to use in processing large images.  Value is
 in thousands of bytes, or millions of bytes if "M" is attached to the
 number.  For example,
 .B \-max 4m
-selects 4000000 bytes.  If more space is needed, temporary files will be used.
+selects 4000000 bytes.  If more space is needed, an error will occur.
 .TP
 .BI \-outfile " name"
 Send output image to the named file, not to standard output.

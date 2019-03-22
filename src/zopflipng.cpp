@@ -21,7 +21,7 @@
 
 #include <cstdio>
 #include <cassert>
-#include <set>
+#include <unordered_set>
 #include <vector>
 #include <string>
 
@@ -47,6 +47,7 @@ struct ZopfliPNGOptions {
   //Use per block multithreading
   unsigned multithreading;
 
+  unsigned quiet;
 };
 
 ZopfliPNGOptions::ZopfliPNGOptions()
@@ -75,22 +76,25 @@ static unsigned ColorIndex(const unsigned char* color) {
 // Counts amount of colors in the image, up to 257. If transparent_counts_as_one
 // is enabled, any color with alpha channel 0 is treated as a single color with
 // index 0.
-static void CountColors(std::set<unsigned>* unique, const unsigned char* image, unsigned w, unsigned h, bool transparent_counts_as_one) {
+static void CountColors(std::unordered_set<unsigned>* unique, const unsigned char* image, unsigned w, unsigned h, bool transparent_counts_as_one) {
   unique->clear();
+  unique->reserve(512);
+  unsigned prev = ~*(unsigned*)(image);
   for (size_t i = 0; i < w * h; i++) {
     unsigned index = ColorIndex(&image[i * 4]);
     if (transparent_counts_as_one && image[i * 4 + 3] == 0) index = 0;
-    unique->insert(index);
-    if (i>256){
-      if (unique->size() > 256) break;
+    if(prev!=index) {
+      unique->insert(index);
     }
+    prev = index;
+    if (unique->size() > 256) break;
   }
 }
 
 // Remove RGB information from pixels with alpha=0
 static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* image,
                                      unsigned w, unsigned h, int filter) {
-  std::set<unsigned> count;  // Color count, up to 257.
+  std::unordered_set<unsigned> count;  // Color count, up to 257.
 
   // If true, means palette is possible so avoid using different RGB values for
   // the transparent color.
@@ -373,12 +377,13 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
 
 // Tries to optimize given a single PNG filter strategy.
 // Returns 0 if ok, other value for error
-static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsigned h, bool bit16, const lodepng::State& inputstate,
+static unsigned TryOptimize(unsigned char* image, size_t imagesize, unsigned w, unsigned h, bool bit16, const lodepng::State& inputstate,
                             const ZopfliPNGOptions* png_options, std::vector<unsigned char>* out, int best_filter, std::vector<unsigned char> filters, unsigned palette_filter) {
   lodepng::State state;
   state.encoder.zlibsettings.custom_deflate = CustomPNGDeflate;
   state.encoder.zlibsettings.custom_context = png_options;
   state.encoder.clean_alpha = png_options->lossy_transparent;
+  state.encoder.quiet = png_options->quiet;
 
   ZopfliOptions dummyoptions;
   ZopfliInitOptions(&dummyoptions, png_options->Mode, 0, 0);
@@ -399,7 +404,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
   LodePNGPaletteSettings p;
   p.order = LPOS_NONE;
   state.div = png_options->Mode == 2 ? 6 : png_options->Mode < 8 ? 3 : 2;
-  unsigned error = lodepng::encode(*out, image, w, h, state, p);
+  unsigned error = lodepng::encode(*out, image, imagesize, w, h, state, p);
   // For very small output, also try without palette, it may be smaller thanks
   // to no palette storage overhead.
 
@@ -422,7 +427,7 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
 
             lodepng_color_mode_cleanup(&state.out_mode);
             p._first += ((tries + 1) == palette_filter) << 1;
-            lodepng::encode(out2, image, w, h, state, p);
+            lodepng::encode(out2, image, imagesize, w, h, state, p);
             p._first = 0;
 
             if (out2.size() < out->size() && !state.note){
@@ -466,10 +471,13 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
         else{state.info_png.color.colortype = LCT_GREY;}
       }
 
-      else{if (has_alpha){state.info_png.color.colortype = LCT_RGBA;}
-      else{state.info_png.color.colortype = LCT_RGB;}
+      else if (has_alpha) {
+        state.info_png.color.colortype = LCT_RGBA;
       }
-      error = lodepng::encode(out2, image, w, h, state, p);
+      else{
+        state.info_png.color.colortype = LCT_RGB;
+      }
+      error = lodepng::encode(out2, image, imagesize, w, h, state, p);
       if (out2.size() < out->size()){
         out->swap(out2);
       }
@@ -488,11 +496,12 @@ static unsigned TryOptimize(std::vector<unsigned char>& image, unsigned w, unsig
 
 static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter,
                                   std::vector<unsigned char> filters, unsigned palette_filter) {
-  std::vector<unsigned char> image;
+  unsigned char* image = 0;
+  size_t imagesize = 0;
   unsigned w, h;
   lodepng::State inputstate;
 
-  unsigned error = lodepng::decode(image, w, h, inputstate, origpng);
+  unsigned error = lodepng::decode(&image, imagesize, w, h, inputstate, &origpng[0], origpng.size());
 
   if (error) {
     printf("Decoding error %i: %s\n", error, lodepng_error_text(error));
@@ -503,18 +512,21 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
   bool bit16 = false;  // Using 16-bit per channel raw image
   if (inputstate.info_png.color.bitdepth == 16 && !png_options.lossy_8bit) {
     // Decode as 16-bit
-    image.clear();
-    error = lodepng::decode(image, w, h, origpng, LCT_RGBA, 16);
+    free(image);
+    image = 0;
+    error = lodepng::decode(&image, imagesize, w, h, &origpng[0], origpng.size(), LCT_RGBA, 16);
     bit16 = true;
   }
   if (!error) {
     // If lossy_transparent, remove RGB information from pixels with alpha=0
     if (png_options.lossy_transparent && !bit16) {
-      LossyOptimizeTransparent(&inputstate, &image[0], w, h, best_filter < 5 ? best_filter : 1);
+      LossyOptimizeTransparent(&inputstate, image, w, h, best_filter < 5 ? best_filter : 1);
     }
   }
   std::vector<unsigned char> temp;
-  error = TryOptimize(image, w, h, bit16, inputstate, &png_options, &temp, best_filter, filters, palette_filter);
+  error = TryOptimize(image, imagesize, w, h, bit16, inputstate, &png_options, &temp, best_filter, filters, palette_filter);
+  free(image);
+  image = 0;
   if (!error) {
     (*resultpng).swap(temp);  // Store best result so far in the output.
   }
@@ -527,10 +539,11 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
   return error;
 }
 
-int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int filter, unsigned multithreading) {
+int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int filter, unsigned multithreading, unsigned quiet) {
   ZopfliPNGOptions png_options;
   png_options.Mode = Mode;
   png_options.multithreading = multithreading;
+  png_options.quiet = quiet;
   unsigned palette_filter = (filter & 0xFF00) >> 8;
   filter &= 0xFF;
   png_options.lossy_transparent = !strict && filter != 6;

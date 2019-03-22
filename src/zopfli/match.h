@@ -33,10 +33,8 @@ static inline const unsigned char* GetMatch(const unsigned char* scan,
         scan += __builtin_ctzll(xor) / 8;
         break;
       }
-      else {
-        scan += 8;
-        match += 8;
-      }
+      scan += 8;
+      match += 8;
     } while (scan < end);
   }
   else {
