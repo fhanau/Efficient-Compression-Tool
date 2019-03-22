@@ -20,13 +20,14 @@
 #include "image.h"
 #include "trans.h"
 #include "opngcore.h"
+#include "../threadLocal.h"
 
 /*
  * User exception setup.
  * See cexcept.h for more info
  */
 define_exception_type(const char *);
-static struct exception_context the_exception_context[1];
+static thread_local struct exception_context the_exception_context[1];
 
 /*
  * The chunk signatures recognized and handled by this codec.
