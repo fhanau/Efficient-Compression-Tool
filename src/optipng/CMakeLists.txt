@@ -3,11 +3,10 @@ project(optipng LANGUAGES C CXX)
 
 add_library(optipng
 	optipng.cpp
-	codec.c
+	codec.cpp
 	image.c
 	opngreduc/opngreduc.c
 
-	cexcept/cexcept.h
 	codec.h
 	image.h
 	opngcore.h

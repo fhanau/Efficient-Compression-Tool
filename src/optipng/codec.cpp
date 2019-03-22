@@ -19,7 +19,6 @@
 #include "image.h"
 #include "trans.h"
 #include "opngcore.h"
-#include "../threadLocal.h"
 
 /*
  * The chunk signatures recognized and handled by this codec.
