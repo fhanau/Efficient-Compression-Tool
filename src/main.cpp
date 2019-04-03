@@ -48,31 +48,32 @@ static void Usage() {
 #endif
             "...\n"
             "Options:\n"
-            " -1 to -9       Set compression level (Default: 3)\n"
-            " -strip         Strip metadata\n"
-            " -progressive   Use progressive encoding for JPEGs\n"
-            " -autorotate    Automatically rotate JPEGs according to exif orientation\n"
+            " -1 to -9          Set compression level (Default: 3)\n"
+            " -strip            Strip metadata\n"
+            " -progressive      Use progressive encoding for JPEGs\n"
+            " -autorotate       Automatically rotate JPEGs, when perfectly transformable\n"
+            " -autorotate=force Automatically rotate JPEGs, dropping non-transformable edge blocks\n"
 #ifdef BOOST_SUPPORTED
-            " -recurse       Recursively search directories\n"
+            " -recurse          Recursively search directories\n"
 #endif
-            " -zip           Compress file(s) with  ZIP algorithm\n"
-            " -gzip          Compress file with GZIP algorithm\n"
-            " -quiet         Print only error messages\n"
-            " -help          Print this help\n"
-            " -keep          Keep modification time\n"
+            " -zip              Compress file(s) with  ZIP algorithm\n"
+            " -gzip             Compress file with GZIP algorithm\n"
+            " -quiet            Print only error messages\n"
+            " -help             Print this help\n"
+            " -keep             Keep modification time\n"
             "Advanced Options:\n"
-            " --disable-png  Disable PNG optimization\n"
-            " --disable-jpg  Disable JPEG optimization\n"
-            " --strict       Enable strict losslessness\n"
-            " --reuse        Keep PNG filter and colortype\n"
-            " --allfilters   Try all PNG filter modes\n"
-            " --allfilters-b Try all PNG filter modes, including brute force strategies\n"
-            " --pal_sort=i   Try i different PNG palette filtering strategies (up to 120)\n"
+            " --disable-png     Disable PNG optimization\n"
+            " --disable-jpg     Disable JPEG optimization\n"
+            " --strict          Enable strict losslessness\n"
+            " --reuse           Keep PNG filter and colortype\n"
+            " --allfilters      Try all PNG filter modes\n"
+            " --allfilters-b    Try all PNG filter modes, including brute force strategies\n"
+            " --pal_sort=i      Try i different PNG palette filtering strategies (up to 120)\n"
 #ifndef NOMULTI
-            " --mt-deflate   Use per block multithreading in Deflate\n"
-            " --mt-deflate=i Use per block multithreading in Deflate with i threads\n"
-            " --mt-file      Use per file multithreading\n"
-            " --mt-file=i    Use per file multithreading with i threads\n"
+            " --mt-deflate      Use per block multithreading in Deflate\n"
+            " --mt-deflate=i    Use per block multithreading in Deflate with i threads\n"
+            " --mt-file         Use per file multithreading\n"
+            " --mt-file=i       Use per file multithreading with i threads\n"
 #endif
             //" --arithmetic   Use arithmetic encoding for JPEGs, incompatible with most software\n"
 #ifdef __DATE__
@@ -547,7 +548,8 @@ int main(int argc, const char * argv[]) {
             }
             else if (strncmp(argv[i], "-strip", strlen) == 0){Options.strip = true;}
             else if (strncmp(argv[i], "-progressive", strlen) == 0) {Options.Progressive = true;}
-            else if (strncmp(argv[i], "-autorotate", strlen) == 0) {Options.Autorotate = 1;}
+            else if (strncmp(argv[i], "-autorotate", strlen) == 0) {Options.Autorotate = 2;} //Transform only if 'perfect'
+            else if (strncmp(argv[i], "-autorotate=force", strlen) == 0) {Options.Autorotate = 1;} //Always transform
             else if (argv[i][0] == '-' && isdigit(argv[i][1])) {
                 int l = atoi(argv[i] + 1);
                 if (!l) {
@@ -599,9 +601,8 @@ int main(int argc, const char * argv[]) {
             else if (strcmp(argv[i], "--arithmetic") == 0) {Options.Arithmetic = true;}
             else {printf("Unknown flag: %s\n", argv[i]); return 0;}
         }
-        if(Options.Autorotate == 1) {
+        if(Options.Autorotate > 0) {
             if (!Options.strip) {printf("Flag -autorotate requires -strip\n"); return 0;}
-            if (Options.Strict) Options.Autorotate = 2;
         }
         if(Options.Reuse){
             Options.Allfilters = 0;

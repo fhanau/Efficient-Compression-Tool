@@ -235,7 +235,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, unsigned autorot
       transformoption.force_grayscale = FALSE;
       transformoption.crop = FALSE;
       transformoption.slow_hflip = FALSE;
-      /* Do not transform if --strict is given and transformation is not perfect */
+      /* If perfect requested but not possible, show warning and do not transform */
       if (!jtransform_request_workspace(&srcinfo, &transformoption)) {
         fprintf(stderr, "ECT: transformation is not perfect %s\n", Infile);
         transformoption.transform = JXFORM_NONE;
