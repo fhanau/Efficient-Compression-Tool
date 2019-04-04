@@ -12,7 +12,7 @@ ifeq ($(OS),Windows_NT)
 	CXXFLAGS += -mno-ms-bitfields
 	CMAKE += -G "MSYS Makefiles"
 endif
-OBJECTS = blocksplitter.o codec.o image.o lz77.o opngreduc.o squeeze.o util.o LzFind.o miniz.o
+OBJECTS = blocksplitter.o image.o lz77.o opngreduc.o squeeze.o util.o LzFind.o miniz.o
 CXXSRC = support.cpp zopflipng.cpp zopfli/deflate.cpp zopfli/zopfli_gzip.cpp zopfli/katajainen.cpp \
 lodepng/lodepng.cpp lodepng/lodepng_util.cpp optipng/codec.cpp optipng/optipng.cpp jpegtran.cpp gztools.cpp \
 leanify/zip.cpp leanify/leanify.cpp
