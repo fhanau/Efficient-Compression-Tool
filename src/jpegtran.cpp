@@ -167,6 +167,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, unsigned autorot
   unsigned char *outbuffer = 0;
   unsigned long outsize = 0;
   size_t extrasize = 0;
+  unsigned char copy_exif = 0;
   /* Initialize the JPEG decompression object with default error handling. */
   srcinfo.err = jpeg_std_error(&jsrcerr);
   srcinfo.err->output_message = output_message;
@@ -237,8 +238,9 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, unsigned autorot
       transformoption.slow_hflip = FALSE;
       /* If perfect requested but not possible, show warning and do not transform */
       if (!jtransform_request_workspace(&srcinfo, &transformoption)) {
-        fprintf(stderr, "ECT: transformation is not perfect %s\n", Infile);
+        fprintf(stderr, "ECT: %s can't be transformed perfectly\n", Infile);
         transformoption.transform = JXFORM_NONE;
+        copy_exif = 1;
       }
     }
   }
@@ -274,7 +276,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, unsigned autorot
   jpeg_write_coefficients(&dstinfo, dst_coef_arrays);
 
   /* Copy to the output file any extra markers that we want to preserve */
-  if (!strip) {
+  if (!strip || copy_exif) {
     extrasize = jcopy_markers_execute_s(&srcinfo, &dstinfo);
   }
 
