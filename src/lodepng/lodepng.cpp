@@ -4279,6 +4279,7 @@ static unsigned filter(unsigned char* out, unsigned char* in, unsigned w, unsign
         e_since_best = 0;
         if(!settings->quiet) {
           printf("Generation %d: %d bytes\n", e, best_size);
+          fflush(stdout);
         }
       }
       else ++e_since_best;
