@@ -52,6 +52,7 @@ add_subdirectory(lodepng EXCLUDE_FROM_ALL)
 add_subdirectory(miniz EXCLUDE_FROM_ALL)
 add_subdirectory(zlib EXCLUDE_FROM_ALL)
 add_subdirectory(zopfli EXCLUDE_FROM_ALL)
+file(COPY ${CMAKE_SOURCE_DIR}/pngusr.h DESTINATION ${CMAKE_SOURCE_DIR}/libpng/)
 add_subdirectory(optipng EXCLUDE_FROM_ALL)
 # Mozjpeg changes the install prefix if it thinks the current is defaulted
 set(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT FALSE)
