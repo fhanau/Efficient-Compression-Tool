@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
-project(ect VERSION 0.8.2 LANGUAGES CXX C)
+project(ect VERSION 0.8.3 LANGUAGES CXX C)
 
 include(GNUInstallDirs)
 set (CMAKE_CXX_STANDARD 11)
@@ -30,8 +30,11 @@ add_executable(ect
 add_executable(ect::ect ALIAS ect)
 
 if(MINGW)
-	add_compile_options(-mno-ms-bitfields)
+	add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-mno-ms-bitfields>)
+	add_compile_options($<$<COMPILE_LANGUAGE:C>:-mno-ms-bitfields>)
 endif()
+
+
 
 # Use -Ofast in release builds
 foreach(var CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELWITHDEBINFO)
