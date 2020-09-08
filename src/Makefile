@@ -3,6 +3,7 @@ CXX = g++
 UCFLAGS = -Ofast -std=gnu11 -fsigned-char $(CFLAGS)
 UCXXFLAGS = -pthread -Ofast -std=gnu++11 -fsigned-char $(CXXFLAGS)
 PREFIX ?= /usr/local
+BINPREFIX ?= ..
 BINDIR ?= $(PREFIX)/bin
 INSTALL ?= install
 MAKEDIR ?= install -d
@@ -23,7 +24,7 @@ all: deps bin
 bin: deps
 	$(CC) -c $(UCFLAGS) optipng/image.c zopfli//util.c zopfli/squeeze.c zopfli/lz77.c \
 	zopfli/blocksplitter.c optipng/opngreduc/opngreduc.c LzFind.c miniz/miniz.c
-	$(CXX) $(UCXXFLAGS) main.cpp $(OBJECTS) $(CXXSRC) mozjpeg/libjpeg.a libpng/libpng.a libz.a -o ../ect $(LDFLAGS)
+	$(CXX) $(UCXXFLAGS) main.cpp $(OBJECTS) $(CXXSRC) mozjpeg/libjpeg.a libpng/libpng.a libz.a -o ${BINPREFIX}/ect $(LDFLAGS)
 clean:
 	rm -f *.o *.a zlib/*.o libpng/*.o libpng/*.a libpng/pngusr.h libpng/pnglibconf.h
 	make -C mozjpeg clean
