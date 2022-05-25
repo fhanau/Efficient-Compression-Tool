@@ -1,3 +1,6 @@
 [submodule "src/libpng"]
 	path = src/libpng
 	url = https://github.com/glennrp/libpng.git
+[submodule "src/mozjpeg"]
+	path = src/mozjpeg
+	url = https://github.com/fhanau/mozjpeg.git

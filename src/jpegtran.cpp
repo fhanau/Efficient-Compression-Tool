@@ -302,7 +302,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, unsigned autorot
     }
 
     /* Write new file. */
-    if (JFWRITE(fp, outbuffer, outsize) < outsize) {
+    if (fwrite(outbuffer, 1, outsize, fp) < outsize) {
       fprintf(stderr, "ECT: can't write to %s\n", Outfile);
     }
     fclose(fp);
