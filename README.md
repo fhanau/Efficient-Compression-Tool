@@ -29,7 +29,7 @@ File: enwik8, 100,000,000 bytes, compressed into gzip format
 
 ## Building
 
-### From the terminal
+### Command line
 ECT is built with `cmake`
 ```bash
 mkdir build
@@ -40,7 +40,7 @@ make
 
 In addition, you can add the following arguments to the cmake call to turn various features on and off:
 - `-DECT_MULTITHREADING=OFF`: Turn off multithreading support
-- `-DECT_FOLDER_SUPPORT=ON`: Turn on the ability to recursively search folders (requires Boost filesystem)
+- `-DECT_FOLDER_SUPPORT=ON`: Turn on the ability to recursively search folders (requires [boost::filesystem](https://www.boostcpp.org/))
 
 ### With Xcode
 You can use cmake to generate an Xcode project.  Just add `-G Xcode` to the end of the cmake command:
@@ -50,10 +50,10 @@ cd build
 cmake ../src -G Xcode
 make
 ```
-You will run into a slight issue, which is that Xcode doesn't know how to compile some of the asm files that are a part of the mozjpeg project.  To fix this, locate your copy of `nasm` (`/usr/local/bin/nasm` in the example) navigate to the Build Rules of the `simd` target, and add a custom rule to process source files matching `*.asm` with the following script:
+You will run into a slight issue in that Xcode doesn't know how to compile some of the asm files within mozjpeg project.  To fix this, locate your copy of `nasm` (`/usr/local/bin/nasm` in the example) navigate to the Build Rules of the `simd` target, and add a custom rule to process source files matching `*.asm` with the following script:
 ```sh
 /usr/local/bin/nasm "-I${PROJECT_DIR}/mozjpeg" -DMACHO -D__x86_64__ "-I${PROJECT_DIR}/mozjpeg/simd/nasm/" "-I${PROJECT_DIR}/mozjpeg/simd/x86_64/" -f macho64 -o "${BUILT_PRODUCTS_DIR}/x86_64/${INPUT_FILE_BASE}.o" "${INPUT_FILE_PATH}"
 ```
-And with `$(BUILT_PRODUCTS_DIR)/x86_64/${INPUT_FILE_BASE}.o` as the Output files
+and set `$(BUILT_PRODUCTS_DIR)/x86_64/${INPUT_FILE_BASE}.o` as the output files.
 
-Assuming you're just using Xcode for development and don't need maximum speed, you can also just disable the asm files by adding `-DWITH_SIMD=OFF` to the cmake call.
+If you are using Xcode for development and do not need maximum speed, you can also disable the asm files by adding `-DWITH_SIMD=OFF` to the cmake.
