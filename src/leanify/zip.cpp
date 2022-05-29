@@ -6,9 +6,9 @@
 #include <fcntl.h>
 #include <algorithm>
 #ifdef _WIN32
-#define NOMINMAX
 #include <Windows.h>
 #ifdef _MSC_VER
+#define NOMINMAX
 #include <io.h>
 #endif
 #else
