@@ -8,8 +8,13 @@
 
 #include "support.h"
 #include <sys/stat.h>
+#ifdef _MSC_VER
+#include <io.h>
+#define access _access
+#define W_OK 2
+#endif
 #include <time.h>
-#include <utime.h>
+#include <sys/utime.h>
 #include <stdio.h>
 
 long long filesize (const char * Infile) {

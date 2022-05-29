@@ -1,6 +1,6 @@
-#include <unistd.h>
 #include <fcntl.h>
 #ifndef _WIN32
+#include <unistd.h>
 #include <sys/mman.h>
 #endif
 

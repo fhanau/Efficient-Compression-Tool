@@ -310,7 +310,12 @@ void ZLIB_INTERNAL _tr_stored_block(deflate_state *s, char *buf,
 extern const uint8_t ZLIB_INTERNAL _length_code[];
 extern const uint8_t ZLIB_INTERNAL _dist_code[];
 
+#ifndef _MSC_VER
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
+#else
+#define likely(x)      x
+#define unlikely(x)    x
+#endif
 
 #endif /* DEFLATE_H */

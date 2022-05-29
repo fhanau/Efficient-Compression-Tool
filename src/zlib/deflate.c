@@ -48,6 +48,11 @@
  */
 
 #include "deflate.h"
+#ifdef _MSC_VER
+#define ALWAYS_INLINE __forceinline
+#else
+#define ALWAYS_INLINE __attribute__((alsways_inline))
+#endif
 
 typedef enum {
     need_more,      /* block not completed, need more input or more output */
@@ -125,7 +130,7 @@ x86_compute_hash(deflate_state *s, const unsigned char *str) {
  *    previous key instead of complete recalculation each time.
  */
 #ifndef UPDATE_HASH
-    __attribute__ ((always_inline)) inline static unsigned
+    ALWAYS_INLINE inline static unsigned
     _update_hash(deflate_state *s, unsigned h, const unsigned char *str)  {
         return (((h << s->hash_shift) ^ *(str)) & (s->hash_mask));
     }
@@ -151,7 +156,7 @@ x86_compute_hash(deflate_state *s, const unsigned char *str) {
     match_head = s->prev[(str) & s->w_mask] = s->head[s->ins_h], \
     s->head[s->ins_h] = (Pos)(str))
 
-__attribute__ ((always_inline)) inline static void
+ALWAYS_INLINE inline static void
 bulk_insert_str(deflate_state *s, Pos startpos, unsigned count) {
     unsigned idx;
     for (idx = 0; idx < count; idx++) {
@@ -1163,7 +1168,7 @@ deflate_state *s;
            */
           {
             int i;
-            typeof(p) q = p - n;
+            Pos *q = p - n;
             for (i = 0; i < n; i++) {
               Pos m = *q;
               Pos t = wsize;
@@ -1182,7 +1187,7 @@ deflate_state *s;
           p = &s->prev[n];
           {
             int i;
-            typeof(p) q = p - n;
+            Pos *q = p - n;
             for (i = 0; i < n; i++) {
               Pos m = *q;
               Pos t = wsize;
