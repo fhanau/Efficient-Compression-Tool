@@ -24,6 +24,10 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#if _MSC_VER
+#include <malloc.h>
+#define alloca _alloca
+#endif
 
 #include "blocksplitter.h"
 #include "deflate.h"

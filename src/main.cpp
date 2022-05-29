@@ -6,7 +6,6 @@
 #include "main.h"
 #include "support.h"
 #include "miniz/miniz.h"
-#include <unistd.h>
 #include <limits.h>
 #include <atomic>
 
@@ -20,6 +19,8 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#else
+#include <unistd.h>
 #endif
 
 static std::atomic<size_t> processedfiles;
