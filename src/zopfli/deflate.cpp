@@ -109,6 +109,8 @@ require at least two distance codes. To support these decoders too (but
 potentially at the cost of a few bytes), add dummy code lengths of 1.
 References to this bug can be found in the changelog of
 Zlib 1.2.2 and here: http://www.jonof.id.au/forum/index.php?topic=515.0.
+Note that this change has a minimal detrimental effect on the compression
+ratio, amounting to 6 bytes across a 6MB PNG test set of 600 files.
 
 d_lengths: the 32 lengths of the distance codes.
 */
