@@ -17,7 +17,9 @@
 
 /* Modified by Felix Hanau. */
 
-#include "mozjpeg/transupp.c"
+#include "mozjpeg/jinclude.h"
+#include "mozjpeg/jpeglib.h"
+#include "mozjpeg/transupp.h"           /* Support routines for jpegtran */
 #include "main.h"
 #include "support.h"
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
-project(ect VERSION 0.9 LANGUAGES CXX C)
+project(ect VERSION 0.9.1 LANGUAGES CXX C)
 
 include(GNUInstallDirs)
 set (CMAKE_CXX_STANDARD 11)
@@ -25,7 +25,8 @@ add_executable(ect
 	LzFind.h
 	main.h
 	pngusr.h
-	support.h)
+	support.h
+	mozjpeg/transupp.c)
 
 add_executable(ect::ect ALIAS ect)
 
