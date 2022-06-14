@@ -40,11 +40,7 @@
 #define MAX_BITS 15
 /* All codes must not exceed MAX_BITS bits */
 
-#if defined(__x86_64__) || defined(_M_X64)
 #define Buf_size 64
-#else
-#define Buf_size 16
-#endif
 /* size of bit buffer in bi_buf */
 
 #define INIT_STATE    42
@@ -208,7 +204,7 @@ typedef struct internal_state {
     /* Depth of each subtree used as tie breaker for trees of equal frequency
      */
 
-    uint8_t *l_buf;          /* buffer for literals or lengths */
+    uint8_t *sym_buf;        /* buffer for distances and literals/lengths */
 
     uint32_t  lit_bufsize;
     /* Size of match buffer for literals/lengths.  There are 4 reasons for
@@ -230,13 +226,8 @@ typedef struct internal_state {
      *   - I can't count above 4
      */
 
-    uint32_t last_lit;      /* running index in l_buf */
-
-    uint16_t *d_buf;
-    /* Buffer for distances. To simplify the code, d_buf and l_buf have
-     * the same number of elements. To use different lengths, an extra flag
-     * array would be necessary.
-     */
+    uInt sym_next;      /* running index in sym_buf */
+    uInt sym_end;       /* symbol table full when sym_next reaches this */
 
     uint64_t opt_len;        /* bit length of current block with optimal trees */
     uint64_t static_len;     /* bit length of current block with static trees */
@@ -273,7 +264,7 @@ typedef struct internal_state {
 
 #define put_short(s, w) { \
     s->pending += 2; \
-    *(unsigned short*)(&s->pending_buf[s->pending - 2]) = (w) ; \
+    *(ush*)(&s->pending_buf[s->pending - 2]) = (w) ; \
 }
 
 #define MIN_LOOKAHEAD (MAX_MATCH+MIN_MATCH+1)
@@ -293,11 +284,11 @@ typedef struct internal_state {
         /* in trees.c */
 void ZLIB_INTERNAL _tr_init(deflate_state *s);
 int  ZLIB_INTERNAL _tr_tally(deflate_state *s, uint32_t dist, unsigned lc);
-void ZLIB_INTERNAL _tr_flush_block(deflate_state *s, char* buf,
+void ZLIB_INTERNAL _tr_flush_block(deflate_state *s, uint8_t* buf,
                         uint64_t stored_len, int last, uLong* put);
 void ZLIB_INTERNAL _tr_flush_bits(deflate_state *s);
 void ZLIB_INTERNAL _tr_align(deflate_state *s);
-void ZLIB_INTERNAL _tr_stored_block(deflate_state *s, char *buf,
+void ZLIB_INTERNAL _tr_stored_block(deflate_state *s, uint8_t *buf,
                         uint64_t stored_len, int last);
 
 #define d_code(dist) \
@@ -310,12 +301,23 @@ void ZLIB_INTERNAL _tr_stored_block(deflate_state *s, char *buf,
 extern const uint8_t ZLIB_INTERNAL _length_code[];
 extern const uint8_t ZLIB_INTERNAL _dist_code[];
 
-#ifndef _MSC_VER
+#ifdef _MSC_VER
+
+/* MSC doesn't have __builtin_expect.  Just ignore likely/unlikely and
+   hope the compiler optimizes for the best.
+*/
+#define likely(x)       (x)
+#define unlikely(x)     (x)
+
+int __inline __builtin_ctzll(unsigned long long mask)
+{
+    unsigned long long index ;
+
+    return _BitScanForward64(&index, mask) == 0 ? 64 : ((int)index) ;
+}
+#else
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
-#else
-#define likely(x)      x
-#define unlikely(x)    x
 #endif
 
 #endif /* DEFLATE_H */

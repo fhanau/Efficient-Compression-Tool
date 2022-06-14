@@ -1,5 +1,5 @@
 /* inftrees.c -- generate Huffman trees for efficient decoding
- * Copyright (C) 1995-2013 Mark Adler
+ * Copyright (C) 1995-2022 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -45,7 +45,7 @@ unsigned short *work;
     code *next;             /* next available space in table */
     const unsigned short *base;     /* base value table to use */
     const unsigned short *extra;    /* extra bits table to use */
-    int end;                    /* use base and extra for symbol > end */
+    unsigned match;             /* use base and extra for symbol >= match */
     unsigned short count[MAXBITS+1];    /* number of codes of each length */
     unsigned short offs[MAXBITS+1];     /* offsets in table for each length */
     static const unsigned short lbase[31] = { /* Length codes 257..285 base */
@@ -172,19 +172,17 @@ unsigned short *work;
     switch (type) {
     case CODES:
         base = extra = work;    /* dummy value--not used */
-        end = 19;
+        match = 20;
         break;
     case LENS:
         base = lbase;
-        base -= 257;
         extra = lext;
-        extra -= 257;
-        end = 256;
+        match = 257;
         break;
-    default:            /* DISTS */
+    default:    /* DISTS */
         base = dbase;
         extra = dext;
-        end = -1;
+        match = 0;
     }
 
     /* initialize state for loop */
@@ -207,13 +205,13 @@ unsigned short *work;
     for (;;) {
         /* create table entry */
         here.bits = (unsigned char)(len - drop);
-        if ((int)(work[sym]) < end) {
+        if (work[sym] + 1U < match) {
             here.op = (unsigned char)0;
             here.val = work[sym];
         }
-        else if ((int)(work[sym]) > end) {
-            here.op = (unsigned char)(extra[work[sym]]);
-            here.val = base[work[sym]];
+        else if (work[sym] >= match) {
+            here.op = (unsigned char)(extra[work[sym] - match]);
+            here.val = base[work[sym] - match];
         }
         else {
             here.op = (unsigned char)(32 + 64);         /* end of block */

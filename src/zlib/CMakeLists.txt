@@ -8,6 +8,7 @@ add_library(zlib
 	gzlib.c
 	gzread.c
 	inffast.c
+	inffast_chunk.c
 	inflate.c
 	inftrees.c
 	trees.c

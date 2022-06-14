@@ -32,6 +32,7 @@
 #define ZLIB_H
 
 #include "zconf.h"
+#include <stdint.h> //uint64_t
 
 #ifdef __cplusplus
 extern "C" {
@@ -581,12 +582,14 @@ ZEXTERN int ZEXPORT deflateInit2 OF((z_streamp strm,
 ZEXTERN int ZEXPORT deflateCopy OF((z_streamp dest, z_streamp source, unsigned char alloc));
 /*
  Sets the destination stream as a complete copy of the source stream.
+
  This function can be useful when several compression strategies will be
  tried, for example when there are several ways of pre-processing the input
  data with a filter.  The streams that will be discarded should then be freed
  by calling deflateEnd.  Note that deflateCopy duplicates the internal
  compression state which can be quite large, so this strategy is slow and can
  consume lots of memory.
+
  deflateCopy returns Z_OK if success, Z_MEM_ERROR if there was not
  enough memory, Z_STREAM_ERROR if the source stream state was inconsistent
  (such as zalloc being Z_NULL).  msg is left unchanged in both source and
@@ -621,8 +624,8 @@ ZEXTERN int ZEXPORT deflateTune OF((z_streamp strm,
    returns Z_OK on success, or Z_STREAM_ERROR for an invalid deflate stream.
  */
 
-ZEXTERN uLong ZEXPORT deflateBound OF((z_streamp strm,
-                                       uLong sourceLen));
+ZEXTERN uint64_t ZEXPORT deflateBound OF((z_streamp strm,
+                                       uint64_t sourceLen));
 /*
      deflateBound() returns an upper bound on the compressed size after
    deflation of sourceLen bytes.  It must be called after deflateInit() or
@@ -967,6 +970,9 @@ struct gzFile_s {
    ZEXTERN uLong ZEXPORT crc32_combine OF((uLong, uLong, z_off_t));
 
 #endif /* !Z_SOLO */
+
+/* undocumented functions */
+ ZEXTERN int ZEXPORT inflateValidate OF((z_streamp, int));
 
 #ifdef __cplusplus
 }

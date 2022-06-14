@@ -15,6 +15,8 @@
  end is the last possible byte, beyond which to stop looking.
  safe_end is a few (8) bytes before end, for comparing multiple bytes at once.
  */
+#include <stdint.h>
+
 #ifdef __GNUC__
 __attribute__ ((always_inline, hot))
 #endif
@@ -22,32 +24,19 @@ static inline const unsigned char* GetMatch(const unsigned char* scan,
                                             const unsigned char* match,
                                             const unsigned char* end
                                             , const unsigned char* safe_end) {
-#if defined(__GNUC__)
+#ifdef __GNUC__
   /* Optimized Function based on cloudflare's zlib fork.*/
-  if (sizeof(size_t) == 8) {
-    do {
-      size_t sv = *(size_t*)(void*)scan;
-      size_t mv = *(size_t*)(void*)match;
-      size_t xor = sv ^ mv;
-      if (xor) {
-        scan += __builtin_ctzll(xor) / 8;
-        break;
-      }
-      scan += 8;
-      match += 8;
-    } while (scan < end);
-  }
-  else {
-    while (scan < safe_end
-           && *((unsigned*)scan) == *((unsigned*)match)) {
-      scan += 4;
-      match += 4;
+  do {
+    uint64_t sv = *(uint64_t*)(void*)scan;
+    uint64_t mv = *(uint64_t*)(void*)match;
+    uint64_t xor = sv ^ mv;
+    if (xor) {
+      scan += __builtin_ctzll(xor) / 8;
+      break;
     }
-    /* The remaining few bytes. */
-    while (scan != end && *scan == *match) {
-      scan++; match++;
-    }
-  }
+    scan += 8;
+    match += 8;
+  } while (scan < end);
 
   if (unlikely(scan > end))
     scan = end;

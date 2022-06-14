@@ -474,7 +474,7 @@ static unsigned long crc32_big (unsigned long,
 #define DO1 crc = crc_table[0][((int)crc ^ (*buf++)) & 0xff] ^ (crc >> 8)
 #define DO8 DO1; DO1; DO1; DO1; DO1; DO1; DO1; DO1
 
-static unsigned long crc32_generic(unsigned long crc, const unsigned char *buf, unsigned len)
+static unsigned long crc32_generic(unsigned long crc, const unsigned char *buf, uInt len)
 {
   if (!buf) return 0UL;
 
@@ -500,10 +500,10 @@ static unsigned long crc32_generic(unsigned long crc, const unsigned char *buf, 
   return crc ^ 0xffffffffUL;
 }
 
-unsigned long crc32(crc, buf, len)
-unsigned long crc;
-const unsigned char *buf;
-unsigned len;
+uLong crc32(crc, buf, len)
+uLong crc;
+const Bytef *buf;
+uInt len;
 {
 #if defined(__GNUC__) && defined(__PCLMUL__)
   if(!crc && len){
@@ -550,7 +550,7 @@ static unsigned long crc32_little(unsigned long crc, const unsigned char *buf, u
   return (unsigned long)c;
 }
 
-#define DOBIG4 c ^= *++buf4; \
+#define DOBIG4 c ^= *buf4++; \
 c = crc_table[4][c & 0xff] ^ crc_table[5][(c >> 8) & 0xff] ^ \
 crc_table[6][(c >> 16) & 0xff] ^ crc_table[7][c >> 24]
 #define DOBIG32 DOBIG4; DOBIG4; DOBIG4; DOBIG4; DOBIG4; DOBIG4; DOBIG4; DOBIG4
@@ -571,7 +571,6 @@ unsigned len;
   }
 
   buf4 = (const unsigned *)(const void *)buf;
-  buf4--;
   while (len >= 32) {
     DOBIG32;
     len -= 32;
@@ -580,7 +579,6 @@ unsigned len;
     DOBIG4;
     len -= 4;
   }
-  buf4++;
   buf = (const unsigned char *)buf4;
 
   if (len) do {

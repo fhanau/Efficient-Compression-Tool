@@ -5,6 +5,7 @@
 
 #ifndef ZCONF_H
 #define ZCONF_H
+#include <stdint.h>
 
 #ifdef _WINDOWS
 #  define WINDOWS
@@ -46,11 +47,6 @@
 #  define z_const const
 #else
 #  define z_const
-#endif
-
-/* Some Mac compilers merge all .h files incorrectly: */
-#if defined(__MWERKS__)||defined(applec)||defined(THINK_C)||defined(__SC__)
-#  define NO_DUMMY_DECL
 #endif
 
 /* Maximum value for memLevel in deflateInit2 */
@@ -135,10 +131,10 @@
 #endif
 
 #if !defined(__MACTYPES__)
-typedef unsigned char  Byte;  /* 8 bits */
+typedef uint8_t Byte;  /* 8 bits */
 #endif
-typedef unsigned int   uInt;  /* 16 bits or more */
-typedef unsigned long  uLong; /* 32 bits or more */
+typedef uint32_t uInt;  /* 32 bits */
+typedef uint64_t uLong; /* 64 bits */
 
 #ifdef SMALL_MEDIUM
    /* Borland C/C++ and some old MSC versions ignore FAR inside typedef */
