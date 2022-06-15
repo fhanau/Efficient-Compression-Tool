@@ -13,18 +13,7 @@
    the crc code when it is not needed.  For shared libraries, gzip decoding
    should be left enabled. */
 #ifndef NO_GZIP
-#define GUNZIP
-#endif
-
-/* Enable SIMD on supported architectures */
-#ifdef __GNUC__
-#ifdef __aarch64__
-#define INFLATE_CHUNK_SIMD_NEON
-#define INFLATE_CHUNK_READ_64LE
-#elif defined __x86_64
-#define INFLATE_CHUNK_SIMD_SSE2
-#define INFLATE_CHUNK_READ_64LE
-#endif
+#  define GUNZIP
 #endif
 
 /* Possible inflate modes between inflate() calls */

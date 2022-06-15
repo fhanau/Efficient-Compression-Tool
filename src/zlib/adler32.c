@@ -17,40 +17,26 @@
 #define DO8(buf,i)  DO4(buf,i); DO4(buf,i+4);
 #define DO16(buf)   DO8(buf,0); DO8(buf,8);
 
-/* use NO_DIVIDE if your processor does not do division in hardware --
-   try it both ways to see which is faster */
-#ifdef NO_DIVIDE
-/* note that this assumes BASE is 65521, where 65536 % 65521 == 15
-   (thank you to John Reiser for pointing this out) */
-#define CHOP(a) \
-    do { \
-        unsigned long tmp = a >> 16; \
-        a &= 0xffffUL; \
-        a += (tmp << 4) - tmp; \
-    } while (0)
-#define MOD28(a) \
-    do { \
-        CHOP(a); \
-        if (a >= BASE) a -= BASE; \
-    } while (0)
-#define MOD(a) \
-    do { \
-        CHOP(a); \
-        MOD28(a); \
-    } while (0)
-#else
 #define MOD(a) a %= BASE
 #define MOD28(a) a %= BASE
+
+#if defined(ADLER32_SIMD_NEON) || defined (ADLER32_SIMD_SSSE3)
+#include "adler32_simd.h"
 #endif
 
 /* ========================================================================= */
 uLong adler32(adler, buf, len)
     uLong adler;
-    const Byte *buf;
-    unsigned len;
+    const Bytef *buf;
+    uInt len;
 {
     unsigned long sum2;
     unsigned n;
+
+#if defined(ADLER32_SIMD_NEON) || defined(ADLER32_SIMD_SSSE3)
+    if (buf && len >= 64)
+        return adler32_simd_(adler, buf, len);
+#endif
 
     /* split Adler-32 into component sums */
     sum2 = (adler >> 16) & 0xffff;

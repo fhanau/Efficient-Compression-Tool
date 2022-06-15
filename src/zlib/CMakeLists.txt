@@ -3,6 +3,7 @@ project(zlib LANGUAGES C)
 
 add_library(zlib
 	adler32.c
+	adler32_simd.c
 	crc32.c
 	deflate.c
 	gzlib.c
@@ -14,10 +15,13 @@ add_library(zlib
 	trees.c
 	zutil.c
 
+	adler32_simd.h
+	chunkcopy.h
 	crc32.h
 	deflate.h
 	gzguts.h
 	inffast.h
+	inffast_chunk.h
 	inffixed.h
 	inflate.h
 	inftrees.h
