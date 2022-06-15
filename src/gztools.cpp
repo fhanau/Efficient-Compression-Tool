@@ -25,10 +25,10 @@ int ungz(const char * Infile, const char * Outfile){
     if (!stream){
         return 1;
     }
-    char buf [8192];
+    char buf [65536];
     int bytes;
     do {
-        bytes = gzread(r, &buf, 8192);
+        bytes = gzread(r, buf, sizeof(buf));
       if(bytes){
         fwrite(buf, 1, bytes, stream);
       }

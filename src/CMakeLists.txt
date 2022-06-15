@@ -96,6 +96,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clan
     add_definitions(-DADLER32_SIMD_SSSE3)
     add_definitions(-DINFLATE_CHUNK_SIMD_SSE2)
     add_definitions(-DINFLATE_CHUNK_READ_64LE)
+    add_definitions(-DHAS_PCLMUL)
   elseif(CPU_TYPE STREQUAL arm64)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a+crc")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a+crcc")
