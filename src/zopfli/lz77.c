@@ -122,8 +122,8 @@ typedef uint32_t U32;
 
 #define MAXD (1<<DICTIONARY_LOGSIZE)
 #define MAXD3 (1<<DICTIONARY_LOGSIZE3)
-#define MAX_DISTANCE MAXD - 1
-#define MAX_DISTANCE3 MAXD3 - 1
+#define MAX_DISTANCE (MAXD - 1)
+#define MAX_DISTANCE3 (MAXD3 - 1)
 #define HASH_LOG (DICTIONARY_LOGSIZE + 1)
 #define HASHTABLESIZE (1 << HASH_LOG)
 #define HASH_LOG3 DICTIONARY_LOGSIZE3
@@ -438,7 +438,7 @@ void ZopfliLZ77Counts(const unsigned short* litlens, const unsigned short* dists
       ll_count[litlens[i] & 511]++;
     }
 
-#define ANDLLS 511LLU + (511LLU << 16) + (511LLU << 32) + (511LLU << 48)
+#define ANDLLS (511LLU + (511LLU << 16) + (511LLU << 32) + (511LLU << 48))
     const unsigned char* ipo = &distc[rstart];
     while (ipo < distc + end)
     {

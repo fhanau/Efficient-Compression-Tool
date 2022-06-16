@@ -110,6 +110,8 @@ static const config configuration_table[10] = {
 #define RANK(f) (((f) << 1) - ((f) > 4 ? 9 : 0))
 
 #if defined __aarch64__ || defined __SSE4_2__
+#define CRC_HASH
+
 //Any 64-bit ARM CPU has crc32c support as both are supported since ARMv8-A.
 #ifdef __aarch64__
 
@@ -150,7 +152,7 @@ platform_compute_hash(deflate_state *s, const unsigned char *str) {
     _update_hash(deflate_state *s, unsigned h, const unsigned char *str)  {
         return (((h << s->hash_shift) ^ *(str)) & (s->hash_mask));
     }
-    #define UPDATE_HASH(s,h,str) (h = _update_hash(s, h, str), h)
+    #define UPDATE_HASH(s,h,str) (h = _update_hash(s, h, str))
 #endif
 
 #ifndef INIT_HASH
@@ -1014,8 +1016,7 @@ IPos cur_match;                             /* current match */
 static void fill_window(s)
 deflate_state *s;
 {
-    register uint32_t n, m;
-    register Pos *p;
+    register uint32_t n;
     uint32_t more;    /* Amount of free space at the end of the window. */
     uint32_t wsize = s->w_size;
 
@@ -1030,7 +1031,7 @@ deflate_state *s;
 
         if (s->strstart >= wsize+MAX_DIST(s)) {
 
-            int i;
+            unsigned i;
             zmemcpy(s->window, s->window+wsize, (unsigned)wsize);
             s->match_start -= wsize;
             s->strstart    -= wsize;
@@ -1077,7 +1078,8 @@ deflate_state *s;
                 q++;
             }
 #else
-          p = &s->head[n];
+          register uint32_t m;
+          register Pos *p = &s->head[n];
 
           /* As of I make this change, gcc (4.8.*) isn't able to vectorize
            * this hot loop using saturated-subtraction on x86-64 architecture.
@@ -1106,7 +1108,7 @@ deflate_state *s;
           n = wsize;
           p = &s->prev[n];
           {
-            int i;
+            unsigned i;
             Pos *q = p - n;
             for (i = 0; i < n; i++) {
               Pos m = *q;
@@ -1143,7 +1145,9 @@ deflate_state *s;
         if (s->lookahead + s->insert >= MIN_MATCH) {
             uint32_t str = s->strstart - s->insert;
             uint32_t ins_h = s->window[str];
+#ifndef CRC_HASH
             INIT_HASH(s, ins_h, &s->window[str]);
+#endif
             while (s->insert) {
                 UPDATE_HASH(s, ins_h, &s->window[str + 2]);
                 s->prev[str & s->w_mask] = s->head[ins_h];
@@ -1290,7 +1294,9 @@ static block_state deflate_fast(s, flush, put)
             } else {
                 s->strstart += s->match_length;
                 s->match_length = 0;
+#ifndef CRC_HASH
                 INIT_HASH(s, s->ins_h, &s->window[s->strstart]);
+#endif
                 /* If lookahead < MIN_MATCH, ins_h is garbage, but it does not
                  * matter since it will be recomputed at next deflate call.
                  */

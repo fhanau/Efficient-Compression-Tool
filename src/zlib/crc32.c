@@ -9,8 +9,9 @@
  * factor of two increase in speed on a Power PC G4 (PPC7455) using gcc -O3.
  */
 
+#include "crc32_simd.h"
+
 #ifdef HAS_PCLMUL
- #include "crc32_simd.h"
  #ifndef _MSC_VER
   #include <cpuid.h>
  #endif

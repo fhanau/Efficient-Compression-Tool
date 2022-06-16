@@ -411,7 +411,7 @@ static unsigned TryOptimize(unsigned char* image, size_t imagesize, unsigned w, 
   if (!error && state.out_mode.colortype == LCT_PALETTE && palette_filter && state.out_mode.palettesize > 1) {
     p._first = 1;
     std::vector<unsigned char> out2;
-    int tries = 0;
+    unsigned tries = 0;
     for (int k4 = 0; k4 < 4; k4++){
       p.order = (LodePNGPaletteOrderStrategy)k4;
       for (int k3 = 0; k3 < 5; k3++){

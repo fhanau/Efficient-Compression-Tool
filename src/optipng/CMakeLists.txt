@@ -23,6 +23,9 @@ if(NOT WIN32)
 endif()
 add_compile_definitions(PNG_USER_CONFIG)
 
+#silence libpng warnings
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-null-pointer-subtraction")
+
 add_subdirectory(../libpng libpng EXCLUDE_FROM_ALL)
 target_link_libraries(optipng
 	png_static)

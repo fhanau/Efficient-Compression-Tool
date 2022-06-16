@@ -108,7 +108,7 @@ static void ExtractBitLengths(Node* chain, Node* leaves, unsigned* bitlengths) {
 
   unsigned ptr = 15;
   unsigned value = 1;
-  unsigned val = counts[15];
+  int val = counts[15];
   while (ptr >= end) {
 
     for (; val > counts[ptr - 1]; val--) {

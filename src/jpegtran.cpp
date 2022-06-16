@@ -200,7 +200,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, unsigned autorot
     exit(1);
   }
 
-  if (fread(inbuffer, 1, insize, fp) < insize) {
+  if (fread(inbuffer, 1, insize, fp) < (size_t)insize) {
     fprintf(stderr, "ECT: can't read from %s\n", Infile);
   }
   fclose(fp);

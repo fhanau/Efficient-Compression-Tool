@@ -199,7 +199,7 @@ static void LoadFile(const char* filename,
   }
   if (*outsize) {
     size_t testsize = fread(*out, 1, *outsize, file);
-    if (testsize != *outsize) {
+    if ((long long)testsize != *outsize) {
       /* It could be a directory */
       free(*out);
       *out = 0;

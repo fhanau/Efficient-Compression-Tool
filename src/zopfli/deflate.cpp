@@ -587,7 +587,7 @@ void OptimizeHuffmanCountsForRle(int length, size_t* counts) {
   // Let's not spoil any of the existing good rle codes.
   // Mark any seq of 0's that is longer as 5 as a good_for_rle.
   // Mark any seq of non-0's that is longer as 7 as a good_for_rle.
-  int symbol = counts[0];
+  size_t symbol = counts[0];
   int stride = 0;
   for (i = 0; i < length + 1; ++i) {
     if (i == length || counts[i] != symbol) {
@@ -1198,7 +1198,7 @@ static void DeflateSplittingFirst2(
   }
 
   if (twiceMode & 1){
-    int j = 0;
+    unsigned j = 0;
 
     for(;;){
       ZopfliInitLZ77Store(twiceStore);
@@ -1258,7 +1258,7 @@ static void ZopfliDeflateMulti(const ZopfliOptions* options, int final,
     }
   }
 
-  for (int it = 0; it <= options->twice; it++) {
+  for (unsigned it = 0; it <= options->twice; it++) {
     size_t i = 0;
     size_t npoints = 0;
     size_t* splitpoints = 0;
@@ -1322,7 +1322,7 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
   }
   if (twiceMode & 1){
     ZopfliInitLZ77Store(twiceStore);
-    for(int i = 0; i < npoints + 1; i++){
+    for(size_t i = 0; i < npoints + 1; i++){
       twiceStore->litlens = (unsigned short*)realloc(twiceStore->litlens, sizeof(unsigned short) * (twiceStore->size + stores->size));
       twiceStore->dists = (unsigned short*)realloc(twiceStore->dists, sizeof(unsigned short) * (twiceStore->size + stores->size));
       memcpy(twiceStore->litlens + twiceStore->size, stores->litlens, stores->size * sizeof(unsigned short));
@@ -1394,7 +1394,7 @@ void ZopfliDeflate(const ZopfliOptions* options, int final,
     else{
       unsigned char cache = costmodelnotinited;
       ZopfliDeflatePart(options, final2, in, i, i + size, bp, out, outsize, &costmodelnotinited, 1, &lf);
-      for (int it = 0; it < options->twice; it++) {
+      for (unsigned it = 0; it < options->twice; it++) {
         costmodelnotinited = cache;
         ZopfliDeflatePart(options, final2, in, i, i + size, bp, out, outsize, &costmodelnotinited, 2 + (it != options->twice - 1), &lf);
       }
