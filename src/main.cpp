@@ -146,27 +146,22 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
             printf("%s: Compressed file already exists\n", Infile);
             return 2;
         }
-        ZopfliGzip(Infile, 0, Mode, multithreading, ZIP);
+        ZopfliGzip(Infile, 0, Mode, multithreading, ZIP, 0);
         return 1;
     }
-    if (exists(((std::string)Infile).append(".ungz").c_str())){
-        return 2;
-    }
-    if (exists(((std::string)Infile).append(".ungz.gz").c_str())){
-        return 2;
-    }
-    if(ungz(Infile, ((std::string)Infile).append(".ungz").c_str())){
-        return 2;
-    }
-    ZopfliGzip(((std::string)Infile).append(".ungz").c_str(), 0, Mode, multithreading, ZIP);
-    if (filesize(((std::string)Infile).append(".ungz.gz").c_str()) < filesize(Infile)){
-        RenameAndReplace(((std::string)Infile).append(".ungz.gz").c_str(), Infile);
-    }
     else {
-        unlink(((std::string)Infile).append(".ungz.gz").c_str());
+      if (exists(((std::string)Infile).append(".tmp").c_str())){
+        return 2;
+      }
+      ZopfliGzip(Infile, 0, Mode, multithreading, ZIP, 1);
+      if (filesize(((std::string)Infile).append(".tmp").c_str()) < filesize(Infile)){
+          RenameAndReplace(((std::string)Infile).append(".tmp").c_str(), Infile);
+      }
+      else {
+          unlink(((std::string)Infile).append(".tmp").c_str());
+      }
+      return 0;
     }
-    unlink(((std::string)Infile).append(".ungz").c_str());
-    return 0;
 }
 
 static unsigned char OptimizePNG(const char * Infile, const ECTOptions& Options){
@@ -644,7 +639,7 @@ int main(int argc, const char * argv[]) {
             if (Options.FileMultithreading) {
                 std::vector<std::thread> threads;
                 std::atomic<size_t> pos(0);
-                for (int i = 0; i < Options.FileMultithreading; i++) {
+                for (unsigned i = 0; i < Options.FileMultithreading; i++) {
                     threads.emplace_back(multithreadFileLoop, fileList, &pos, Options, &error);
                 }
                 for (auto &thread : threads) {
