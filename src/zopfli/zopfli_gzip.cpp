@@ -153,8 +153,30 @@ static void ZopfliGzipCompress(const ZopfliOptions* options,
   (*out)[*outsize] = 2; (*outsize)++;  /* XFL, 2 indicates best compression. */
   (*out)[*outsize] = 3; (*outsize)++;  /* OS follows Unix conventions. */
 
-  ZopfliDeflate(options, 1, in, insize, &bp, out, outsize);
-  (*out) = (unsigned char*)realloc(*out, *outsize + 8);
+  //Use zlib-based compression
+  if (options->numiterations == -1) {
+    z_stream stream;
+    stream.zalloc = 0;
+    stream.zfree = 0;
+    stream.opaque = 0;
+
+    int err = deflateInit2(&stream, 9, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY);
+    if (err != Z_OK) exit(EXIT_FAILURE);
+
+    stream.next_in = (z_const unsigned char *)in;
+    stream.avail_in = insize;
+    stream.avail_out = deflateBound(&stream, insize);
+    (*out) = (unsigned char*)realloc(*out, (*outsize) + deflateBound(&stream, insize) + 8);
+    stream.next_out = &((*out)[*outsize]);
+
+    deflate(&stream, Z_FINISH);
+    deflateEnd(&stream);
+    (*outsize) += stream.total_out;
+  }
+  else {
+    ZopfliDeflate(options, 1, in, insize, &bp, out, outsize);
+    (*out) = (unsigned char*)realloc(*out, *outsize + 8);
+  }
 
   /* CRC */
   *(unsigned*)(&(*out)[*outsize]) = crcvalue; (*outsize) += 4;

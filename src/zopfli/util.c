@@ -214,7 +214,9 @@ void ZopfliInitOptions(ZopfliOptions* options, unsigned _mode, unsigned multithr
   options->twice = (_mode - (_mode % 10000)) / 10000;
   unsigned mode = _mode % 10000 > 9 ? 9 : _mode % 10000;
   if (mode < 2){
-    mode = 2;
+    //mode 1 means zlib is used instead, use negative iterations to indicate this.
+    options->numiterations = -1;
+    return;
   }
 
   ZopfliOptionsMin min = opt[mode - 2];
