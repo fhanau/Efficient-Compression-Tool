@@ -242,7 +242,7 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
             level = 51;
         }
         else if (options->optim_level > 3){
-          level = options->optim_level > 8 ? 9 : options->optim_level > 6 ? 7 : 6;
+          level = options->optim_level > 8 ? 9 : options->optim_level > 4 ? 7 : 6;
         }
         else if (options->optim_level == 3){
             level = 5;

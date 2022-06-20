@@ -13,6 +13,7 @@ Lodepng (https://github.com/lvandeve/lodepng/) is Copyright (c) 2005-2014 Lode V
 Leanify is Copyright (c) 2014 JayXon and licensed under The MIT License.
 FSE(https://github.com/Cyan4973/FiniteStateEntropy) is (C) 2013, Yann Collet 
 LZ4(https://github.com/Cyan4973/lz4) is (C) 2011-2015, Yann Collet 
+fast_zlib(https://github.com/gildor2/fast_zlib) (C) Konstantin Nosov
 
 Leanify, Zlib, Mozjpeg, Libpng, Optipng, Opngreduc, Zopfli, Zopflipng, Brotli and Lodepng have been modified and are NOT the original versions.
 
