@@ -118,7 +118,7 @@ typedef uint16_t U16;
 typedef uint32_t U32;
 
 #define DICTIONARY_LOGSIZE 15
-#define DICTIONARY_LOGSIZE3 11 //better use 9 for PNG
+#define DICTIONARY_LOGSIZE3 10
 
 #define MAXD (1<<DICTIONARY_LOGSIZE)
 #define MAXD3 (1<<DICTIONARY_LOGSIZE3)
@@ -205,6 +205,7 @@ static void LZ4HC_Insert3 (LZ3HC_Data_Structure* hc4, const BYTE* ip)
   const U32 target = (U32)(ip - base);
   U32 idx = hc4->nextToUpdate;
 
+  if (target - idx > MAX_DISTANCE3) {idx = target - MAX_DISTANCE3;}
   while(idx < target)
   {
     U32 h = LZ4HC_hashPtr3(base+idx);
@@ -220,35 +221,42 @@ static void LZ4HC_Insert3 (LZ3HC_Data_Structure* hc4, const BYTE* ip)
 
 static int LZ4HC_InsertAndFindBestMatch(LZ4HC_Data_Structure* hc4,   /* Index table will be updated */
                                                const BYTE* ip, const BYTE* const iLimit,
-                                               const BYTE** matchpos)
+                                               const BYTE** matchpos, size_t ml)
 {
   U16* const chainTable = hc4->chainTable;
   U32* const HashTable = hc4->hashTable;
   const BYTE* const base = hc4->base;
+  const BYTE* base2 = base + ml - 3;
   const U32 lowLimit = (2 * MAXD > (U32)(ip-base)) ? MAXD : (U32)(ip - base) - (MAXD - 1);
   const BYTE* match;
   int nbAttempts = 650; //PNG 650//ENWIK 600/700
-  size_t ml=3;
 
   /* HC4 match finder */
   LZ4HC_Insert(hc4, ip);
   U32 matchIndex = HashTable[LZ4HC_hashPtr(ip)];
+  if(HashTable[LZ4HC_hashPtr(ip + ml - 3)] < (lowLimit + ml - 3)) {return ml;}
+  U32 start = *(unsigned*)ip;
+  U32 end = *(unsigned*)(ip + ml - 3);
 
   while ((matchIndex>=lowLimit) && nbAttempts)
   {
-    nbAttempts--;
     match = base + matchIndex;
-    if (*(unsigned*)(match+ml - 3) == *(unsigned*)(ip+ml - 3))
+    if (*(unsigned*)(base2 + matchIndex) == end && *(unsigned*)(base + matchIndex) == start)
     {
-      size_t mlt = GetMatch(ip, match, iLimit, iLimit - 8) - ip;
+      size_t mlt = GetMatch(ip + 2, base + matchIndex + 2, iLimit, iLimit - 8) - ip;
 
       if (mlt > ml) { ml = mlt; *matchpos = match;
         if (ml == ZOPFLI_MAX_MATCH){
           return ZOPFLI_MAX_MATCH;
         }
+        end = *(unsigned*)(ip + ml - 3);
+        base2 = base + ml - 3;
+
+        if(HashTable[LZ4HC_hashPtr(ip + ml - 3)] < (lowLimit + ml - 3)) {return ml;}
       }
     }
     matchIndex -= chainTable[matchIndex & MAX_DISTANCE];
+    nbAttempts--;
   }
 
   return (int)ml;
@@ -332,9 +340,8 @@ void ZopfliLZ77Lazy(const ZopfliOptions* options, const unsigned char* in,
 
 
   for (i = instart; i < inend; i++) {
-
     const BYTE* matchpos;
-    int y = LZ4HC_InsertAndFindBestMatch(&mmc, &in[i], &in[inend] > &in[i] + ZOPFLI_MAX_MATCH ? &in[i] + ZOPFLI_MAX_MATCH : &in[inend], &matchpos);
+    int y = LZ4HC_InsertAndFindBestMatch(&mmc, &in[i], &in[inend] > &in[i] + ZOPFLI_MAX_MATCH ? &in[i] + ZOPFLI_MAX_MATCH : &in[inend], &matchpos, match_available ? prev_length : 3);
 
     if (y >= 4 && i + 4 <= inend){
       dist = &in[i] - matchpos;
@@ -347,15 +354,12 @@ void ZopfliLZ77Lazy(const ZopfliOptions* options, const unsigned char* in,
       dist = &in[i] - matchpos;
       }
       else{
-        leng = 0;
+        ZopfliStoreLitLenDist(in[i], 0, store);
+        continue;
       }
-
     }
 
     lengthscore = leng;
-    if (lengthscore == 3 && dist > 1024){
-      --lengthscore;
-    }
     if (lengthscore == 4 && dist > 2048){
       --lengthscore;
     }
@@ -363,17 +367,32 @@ void ZopfliLZ77Lazy(const ZopfliOptions* options, const unsigned char* in,
       --lengthscore;
     }
 
+    if (leng == ZOPFLI_MAX_MATCH) {
+      if (match_available) {
+        ZopfliStoreLitLenDist(in[i - 1], 0, store);
+        match_available = 0;
+      }
+      unsigned lls = ZopfliGetLengthSymbol(leng);
+      ZopfliStoreLitLenDist(lls + ((leng - symtox(lls)) << 9), ZopfliGetDistSymbol(dist) + 1, store);
+      i += (leng - 1);
+      if (dist == 1) {
+        i++;
+        while (i + ZOPFLI_MAX_MATCH <= inend && memcmp(&in[i], &in[i - 1], ZOPFLI_MAX_MATCH) == 0) {
+          ZopfliStoreLitLenDist(lls + ((leng - symtox(lls)) << 9), ZopfliGetDistSymbol(dist) + 1, store);
+          i += leng;
+        }
+        i--;
+      }
+      continue;
+    }
     if (match_available) {
       match_available = 0;
       if (lengthscore > prev_length + 1) {
         ZopfliStoreLitLenDist(in[i - 1], 0, store);
-
-        if (lengthscore >= ZOPFLI_MIN_MATCH) {
-          match_available = 1;
-          prev_length = leng;
-          prev_match = dist;
-          continue;
-        }
+        match_available = 1;
+        prev_length = leng;
+        prev_match = dist;
+        continue;
       } else {
         /* Add previous to output. */
         leng = prev_length;
@@ -396,18 +415,12 @@ void ZopfliLZ77Lazy(const ZopfliOptions* options, const unsigned char* in,
       continue;
     }
 
-    /* Add to output. */
-    if (lengthscore >= ZOPFLI_MIN_MATCH) {
+    /* Add match to output. */
 #ifndef NDEBUG
-        ZopfliVerifyLenDist(in, inend, i, dist, leng);
+    ZopfliVerifyLenDist(in, inend, i, dist, leng);
 #endif
-      unsigned lls = ZopfliGetLengthSymbol(leng);
-      ZopfliStoreLitLenDist(lls + ((leng - symtox(lls)) << 9), ZopfliGetDistSymbol(dist) + 1, store);
-
-    } else {
-      leng = 1;
-      ZopfliStoreLitLenDist(in[i], 0, store);
-    }
+    unsigned lls = ZopfliGetLengthSymbol(leng);
+    ZopfliStoreLitLenDist(lls + ((leng - symtox(lls)) << 9), ZopfliGetDistSymbol(dist) + 1, store);
     i += leng - 1;
   }
 }
