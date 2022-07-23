@@ -263,12 +263,8 @@ static int LZ4HC_InsertAndFindBestMatch(LZ4HC_Data_Structure* hc4,   /* Index ta
 }
 
 static int LZ4HC_InsertAndFindBestMatch3 (LZ3HC_Data_Structure* hc4,   /* Index table will be updated */
-                                         const BYTE* ip, const BYTE* const iLimit,
-                                         const BYTE** matchpos)
+                                         const BYTE* ip, const BYTE** matchpos)
 {
-  if (iLimit - ip < 3){
-    return 0;
-  }
   U16* const chainTable = hc4->chainTable;
   U32* const HashTable = hc4->hashTable;
   const BYTE* const base = hc4->base;
@@ -321,7 +317,6 @@ size_t ZopfliLZ77LazyLauncher(const unsigned char* in,
 void ZopfliLZ77Lazy(const ZopfliOptions* options, const unsigned char* in,
                       size_t instart, size_t inend,
                       ZopfliLZ77Store* store) {
-
   LZ4HC_Data_Structure mmc;
   LZ3HC_Data_Structure h3;
   size_t i = 0;
@@ -348,10 +343,10 @@ void ZopfliLZ77Lazy(const ZopfliOptions* options, const unsigned char* in,
       leng = y;
     }
     else if (!match_available){
-      y = LZ4HC_InsertAndFindBestMatch3(&h3, &in[i], &in[inend], &matchpos);
-      if (y == 3){
-      leng = 3;
-      dist = &in[i] - matchpos;
+      y = LZ4HC_InsertAndFindBestMatch3(&h3, &in[i], &matchpos);
+      if (y == 3 && i + 3 <= inend){
+        leng = 3;
+        dist = &in[i] - matchpos;
       }
       else{
         ZopfliStoreLitLenDist(in[i], 0, store);
@@ -408,7 +403,7 @@ void ZopfliLZ77Lazy(const ZopfliOptions* options, const unsigned char* in,
         continue;
       }
     }
-    else if (lengthscore >= ZOPFLI_MIN_MATCH && leng < options->greed) {
+    else if (leng < options->greed) {
       match_available = 1;
       prev_length = leng;
       prev_match = dist;

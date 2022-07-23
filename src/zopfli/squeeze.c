@@ -286,19 +286,15 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
   costs[0] = 0;  /* Because it's the start. */
   memset(costs + 1, 127, sizeof(float) * blocksize);
 
-  unsigned notenoughsame = instart + ZOPFLI_MAX_MATCH;
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
 
-    if (i < inend - ZOPFLI_MAX_MATCH - 1 && i > notenoughsame && *(long*)&in[i - 200] == *(long*)&in[i - 8]){
-      unsigned same = GetMatch(&in[i + 1], &in[i], &in[inend], &in[inend] - 8) - &in[i];
+    if (((i - instart) & 7) == 7) {
       /* If we're in a long repetition of the same character and have more than
        ZOPFLI_MAX_MATCH characters before and after our position. */
-      unsigned same2 = GetMatch(&in[i + 1 - ZOPFLI_MAX_MATCH], &in[i - ZOPFLI_MAX_MATCH], &in[i + 1], &in[i] - 7) - &in[i - ZOPFLI_MAX_MATCH];
-      if (same > ZOPFLI_MAX_MATCH
-          && same2
-          > ZOPFLI_MAX_MATCH) {
-        unsigned match = same - ZOPFLI_MAX_MATCH;
+      const unsigned char* match_end = GetMatch(&in[i], &in[i - 1], &in[inend], &in[inend] - 8);
+      if (match_end > &in[i] + ZOPFLI_MAX_MATCH) {
+        unsigned match = match_end - &in[i] - ZOPFLI_MAX_MATCH;
 
         float symbolcost = costcontext->ll_symbols[285] + costcontext->d_symbols[0];
         /* Set the length to reach each one to ZOPFLI_MAX_MATCH, and the cost to
@@ -310,15 +306,7 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
           j++;
         }
 
-        notenoughsame = i + same + ZOPFLI_MAX_MATCH - 1;
-
         i += match;
-      }
-      else if (same <= ZOPFLI_MAX_MATCH){
-        notenoughsame = i + same + ZOPFLI_MAX_MATCH - 1;
-      }
-      else{
-        notenoughsame = i + ZOPFLI_MAX_MATCH - same2 < i + same2 - 1 ? i + ZOPFLI_MAX_MATCH - same2 : i + same2 - 1;
       }
     }
 
@@ -516,20 +504,16 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
     matches = alloca(513 * sizeof(unsigned short));
   }
 
-  unsigned notenoughsame = instart + ZOPFLI_MAX_MATCH;
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
 
-    //You think ECT will choke on files with minimum entropy? Think again!
-    if (i < inend - ZOPFLI_MAX_MATCH - 1 && i > notenoughsame && *(long*)&in[i - 200] == *(long*)&in[i - 8]){
-      unsigned same = GetMatch(&in[i + 1], &in[i], &in[inend], &in[inend] - 8) - &in[i];
+    //Faster pathway for files with minimum entropy
+    if (((i - instart) & 7) == 7) {
       /* If we're in a long repetition of the same character and have more than
        ZOPFLI_MAX_MATCH characters before and after our position. */
-      unsigned same2 = GetMatch(&in[i + 1 - ZOPFLI_MAX_MATCH], &in[i - ZOPFLI_MAX_MATCH], &in[i + 1], &in[i] - 7) - &in[i - ZOPFLI_MAX_MATCH];
-      if (same > ZOPFLI_MAX_MATCH
-          && same2
-          > ZOPFLI_MAX_MATCH) {
-        unsigned match = same - ZOPFLI_MAX_MATCH;
+      const unsigned char* match_end = GetMatch(&in[i], &in[i - 1], &in[inend], &in[inend] - 8);
+      if (match_end > &in[i] + ZOPFLI_MAX_MATCH) {
+        unsigned match = match_end - &in[i] - ZOPFLI_MAX_MATCH;
 
         float symbolcost = costcontext ? costcontext->ll_symbols[285] + costcontext->d_symbols[0] : 13;
         /* Set the length to reach each one to ZOPFLI_MAX_MATCH, and the cost to
@@ -543,24 +527,25 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
 
           if (mfinexport & 2 && i + match > inend - ZOPFLI_MAX_MATCH - 1 && i <= inend - ZOPFLI_MAX_MATCH - 1) {
             unsigned now = inend - ZOPFLI_MAX_MATCH - i;
-            Bt3Zip_MatchFinder_Skip(&p, now);
+            Bt3Zip_MatchFinder_Skip2(&p, now);
             CopyMF(&p, &mf);
             right = 1;
-            Bt3Zip_MatchFinder_Skip(&p, match - now);
+            Bt3Zip_MatchFinder_Skip2(&p, match - now);
 
           }
           else{
-            Bt3Zip_MatchFinder_Skip(&p, match);
+            if (match > 32768) {
+              p.buffer = &in[i + match - 1];
+              memset(p.hash, 0, 65536 * sizeof(unsigned));
+              p.cyclicBufferPos = 0;
+              p.pos = ZOPFLI_WINDOW_SIZE;
+              Bt3Zip_MatchFinder_Skip2(&p, 1);
+            }
+            else {
+              Bt3Zip_MatchFinder_Skip2(&p, match);
+            }
           }
-        notenoughsame = i + same + ZOPFLI_MAX_MATCH - 1;
-
         i += match;
-      }
-      else if (same <= ZOPFLI_MAX_MATCH){
-        notenoughsame = i + same + ZOPFLI_MAX_MATCH - 1;
-      }
-      else{
-        notenoughsame = i + ZOPFLI_MAX_MATCH - same2 < i + same2 - 1 ? i + ZOPFLI_MAX_MATCH - same2 : i + same2 - 1;
       }
     }
 

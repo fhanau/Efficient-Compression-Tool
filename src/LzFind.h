@@ -27,6 +27,7 @@ void MatchFinder_Free(CMatchFinder *p);
 
 unsigned short Bt3Zip_MatchFinder_GetMatches(CMatchFinder *p, unsigned short* distances);
 void Bt3Zip_MatchFinder_Skip(CMatchFinder *p, UInt32 num);
+void Bt3Zip_MatchFinder_Skip2(CMatchFinder *p, UInt32 num);
 
 void CopyMF(const CMatchFinder *p, CMatchFinder* copy);
 
