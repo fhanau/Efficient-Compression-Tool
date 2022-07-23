@@ -1247,7 +1247,7 @@ static void ZopfliDeflateMulti(const ZopfliOptions* options, int final,
   size_t msize = ZOPFLI_MASTER_BLOCK_SIZE;
 
   if (!options->isPNG && options->numiterations == 1){
-    msize /= 5;
+    msize = (msize * 2) / 5;
   }
   ZopfliLZ77Store* lf = 0;//!
   ZopfliLZ77Store dummy;
@@ -1380,7 +1380,7 @@ void ZopfliDeflate(const ZopfliOptions* options, int final,
   size_t msize = ZOPFLI_MASTER_BLOCK_SIZE;
   unsigned char costmodelnotinited = 1;
   if (!options->isPNG && options->numiterations == 1){
-    msize /= 5;
+    msize = (msize * 2) / 5;
   }
   while (i < insize) {
     int masterfinal = (i + msize >= insize);
