@@ -291,7 +291,7 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
 
     if (((i - instart) & 7) == 7) {
       /* If we're in a long repetition of the same character and have more than
-       ZOPFLI_MAX_MATCH characters before and after our position. */
+       ZOPFLI_MAX_MATCH characters after our position. */
       const unsigned char* match_end = GetMatch(&in[i], &in[i - 1], &in[inend], &in[inend] - 8);
       if (match_end > &in[i] + ZOPFLI_MAX_MATCH) {
         unsigned match = match_end - &in[i] - ZOPFLI_MAX_MATCH;
@@ -510,7 +510,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
     //Faster pathway for files with minimum entropy
     if (((i - instart) & 7) == 7) {
       /* If we're in a long repetition of the same character and have more than
-       ZOPFLI_MAX_MATCH characters before and after our position. */
+       ZOPFLI_MAX_MATCH characters after our position. */
       const unsigned char* match_end = GetMatch(&in[i], &in[i - 1], &in[inend], &in[inend] - 8);
       if (match_end > &in[i] + ZOPFLI_MAX_MATCH) {
         unsigned match = match_end - &in[i] - ZOPFLI_MAX_MATCH;

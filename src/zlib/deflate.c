@@ -350,10 +350,6 @@ static int deflateStateCheck (strm)
         return 1;
     s = strm->state;
     if (s == Z_NULL || s->strm != strm || (s->status != INIT_STATE &&
-                                           s->status != EXTRA_STATE &&
-                                           s->status != NAME_STATE &&
-                                           s->status != COMMENT_STATE &&
-                                           s->status != HCRC_STATE &&
                                            s->status != BUSY_STATE &&
                                            s->status != FINISH_STATE))
         return 1;
