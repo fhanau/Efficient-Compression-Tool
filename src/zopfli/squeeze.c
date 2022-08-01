@@ -285,16 +285,21 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
   if (!costs) exit(1); /* Allocation failed. */
   costs[0] = 0;  /* Because it's the start. */
   memset(costs + 1, 127, sizeof(float) * blocksize);
+  //Special handling for files with high redundancy
+#define RLE 1
+#define ML_MATCH 2
+#define ML_RLE 3
+  unsigned match_type = 0;
 
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
 
-    if (((i - instart) & 7) == 7) {
+    if (match_type == ML_RLE) {
       /* If we're in a long repetition of the same character and have more than
        ZOPFLI_MAX_MATCH characters after our position. */
       const unsigned char* match_end = GetMatch(&in[i], &in[i - 1], &in[inend], &in[inend] - 8);
-      if (match_end > &in[i] + ZOPFLI_MAX_MATCH) {
-        unsigned match = match_end - &in[i] - ZOPFLI_MAX_MATCH;
+      if (match_end >= &in[i] + ZOPFLI_MAX_MATCH) {
+        unsigned match = match_end - &in[i] - ZOPFLI_MAX_MATCH + 1;
 
         float symbolcost = costcontext->ll_symbols[285] + costcontext->d_symbols[0];
         /* Set the length to reach each one to ZOPFLI_MAX_MATCH, and the cost to
@@ -308,6 +313,7 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
 
         i += match;
       }
+      match_type = 0;
     }
 
     unsigned short* matches = c->cache + c->pointer;
@@ -318,9 +324,10 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
     if (numPairs){
       const unsigned short * mend = matches + numPairs;
 
-      if (*(mend - 2) == ZOPFLI_MAX_MATCH && numPairs == 2){
-
+      if (matches[0] == ZOPFLI_MAX_MATCH) {
         unsigned dist = matches[1];
+        if (dist == 1) {match_type = ML_RLE;}
+
         costs[j + ZOPFLI_MAX_MATCH] = costs[j] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (dist << 9);
 
@@ -504,16 +511,18 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
     matches = alloca(513 * sizeof(unsigned short));
   }
 
+  unsigned match_type = 0;
+  unsigned dist_258 = inend + 1;
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
 
     //Faster pathway for files with minimum entropy
-    if (((i - instart) & 7) == 7) {
+    if (match_type == ML_RLE) {
       /* If we're in a long repetition of the same character and have more than
        ZOPFLI_MAX_MATCH characters after our position. */
       const unsigned char* match_end = GetMatch(&in[i], &in[i - 1], &in[inend], &in[inend] - 8);
-      if (match_end > &in[i] + ZOPFLI_MAX_MATCH) {
-        unsigned match = match_end - &in[i] - ZOPFLI_MAX_MATCH;
+      if (match_end >= &in[i] + ZOPFLI_MAX_MATCH) {
+        unsigned match = match_end - &in[i] - ZOPFLI_MAX_MATCH + 1;
 
         float symbolcost = costcontext ? costcontext->ll_symbols[285] + costcontext->d_symbols[0] : 13;
         /* Set the length to reach each one to ZOPFLI_MAX_MATCH, and the cost to
@@ -531,12 +540,11 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
             CopyMF(&p, &mf);
             right = 1;
             Bt3Zip_MatchFinder_Skip2(&p, match - now);
-
           }
           else{
             if (match > 32768) {
               p.buffer = &in[i + match - 1];
-              memset(p.hash, 0, 65536 * sizeof(unsigned));
+              memset(p.hash, 0, LZFIND_HASH_SIZE * sizeof(unsigned));
               p.cyclicBufferPos = 0;
               p.pos = ZOPFLI_WINDOW_SIZE;
               Bt3Zip_MatchFinder_Skip2(&p, 1);
@@ -547,13 +555,20 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
           }
         i += match;
       }
+      match_type = i + ZOPFLI_MAX_MATCH < inend;
     }
 
     int numPairs;
     if (!storeincache){
-      numPairs = Bt3Zip_MatchFinder_GetMatches(&p, matches);
+      if (!match_type) {
+        numPairs = Bt3Zip_MatchFinder_GetMatches(&p, matches);
+      } else if (match_type == RLE) {
+        numPairs = Bt3Zip_MatchFinder_GetMatches2(&p, matches); match_type = 0;
+      } else {
+        numPairs = Bt3Zip_MatchFinder_GetMatches3(&p, matches, dist_258); match_type = 0;
+      }
     }
-    else{
+    else {
         if (c->size < c->pointer + (ZOPFLI_MAX_MATCH - ZOPFLI_MIN_MATCH + 1) * 2 + 1){
           c->size *= 2;
           c->cache = realloc(c->cache, c->size * sizeof(unsigned short));
@@ -562,12 +577,15 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
         numPairs = Bt3Zip_MatchFinder_GetMatches(&p, matches);
         *(matches - 1) = numPairs;
         c->pointer += numPairs + 1;
+        match_type = 0;
     }
     if (numPairs){
       const unsigned short * mend = matches + numPairs;
-
       //It would be really nice to get this faster, but that seems impossible. Using AVX1 is slower.
-      if (*(mend - 2) == ZOPFLI_MAX_MATCH && numPairs == 2){
+      if (matches[0] == ZOPFLI_MAX_MATCH) {
+        dist_258 = matches[1];
+        if (dist_258 == 1) {match_type = ML_RLE;}
+        else if (i + ZOPFLI_MAX_MATCH < inend && in[i + ZOPFLI_MAX_MATCH] == in[i + ZOPFLI_MAX_MATCH - dist_258]) {match_type = ML_MATCH;}
         unsigned dist = matches[1];
         costs[j + ZOPFLI_MAX_MATCH] = costs[j] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (dist << 9);
@@ -580,6 +598,8 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
       }
 #endif
       else{
+        if (*(mend - 2) == ZOPFLI_MAX_MATCH && i + ZOPFLI_MAX_MATCH < inend && in[i + ZOPFLI_MAX_MATCH] == in[i + ZOPFLI_MAX_MATCH - *(mend - 1)]){match_type = ML_MATCH; dist_258 = *(mend - 1);}
+        else if (matches[1] == 1 && matches[0] > 3 && i + ZOPFLI_MAX_MATCH < inend) {match_type = RLE;}
         float price = costs[j];
         unsigned short* mp = matches;
 
@@ -702,7 +722,7 @@ the amount of lz77 symbols.
 static void TraceBackwards(size_t size, const unsigned* length_array,
                            unsigned** path, size_t* pathsize) {
   size_t osize = size * sizeof(unsigned);
-  size_t allocsize = size / 258 + 50;
+  size_t allocsize = size / ZOPFLI_MAX_MATCH + 50;
   *path = (unsigned*)malloc(allocsize * sizeof(unsigned));
   for (;size;) {
     unsigned space = allocsize - (*pathsize);

@@ -423,7 +423,7 @@ static void AddLZ77Data(const unsigned short* litlens,
       assert(ll_lengths[litlen] > 0);
 #ifdef FAST_BITWRITER
       AddBits2(ll_symbols[litlen], ll_lengths[litlen], out, &bits);
-#else 
+#else
       AddHuffmanBits(ll_symbols[litlen], ll_lengths[litlen], bp, out, outsize);
 #endif
 
@@ -1133,9 +1133,9 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
     size_t inend = store->end;
     size_t blocksize = inend - instart;
     store->btype = 2;
-    
+
     ZopfliInitLZ77Store(&store->store);
-    
+
     if (blocksize <= options->skipdynamic){
       store->btype = 1;
       ZopfliLZ77OptimalFixed(options, in, instart, inend, &store->store, 0);
@@ -1143,7 +1143,7 @@ static void DeflateDynamicBlock2(const ZopfliOptions* options, const unsigned ch
     else{
       ZopfliLZ77Optimal2(options, in, instart, inend, &store->store, 1, store->statsp, 0);
     }
-    
+
     /* For small block, encoding with fixed tree can be smaller. For large block,
      don't bother doing this expensive test, dynamic tree will be better.*/
     if (blocksize > options->skipdynamic && store->store.size < options->trystatic){
