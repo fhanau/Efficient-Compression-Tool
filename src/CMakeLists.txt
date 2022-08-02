@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project(ect VERSION 0.9.1 LANGUAGES CXX C)
 
 include(GNUInstallDirs)
-set (CMAKE_CXX_STANDARD 11)
+
+#Note that C++11 is still supported, but using it will cause the directory support to be disabled.
+set (CMAKE_CXX_STANDARD 17)
 
 if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Release)
@@ -115,7 +117,6 @@ add_definitions(-DZLIB_CONST)
 
 option(ECT_MULTITHREADING "Enable multithreaded processing support" ON)
 option(ECT_MP3_SUPPORT "Enable MP3 support (not currently working)" OFF)
-option(ECT_FOLDER_SUPPORT "Enable folder support (requires Boost)" OFF)
 
 add_subdirectory(leanify EXCLUDE_FROM_ALL)
 add_subdirectory(lodepng EXCLUDE_FROM_ALL)
@@ -156,15 +157,6 @@ if(ECT_MP3_SUPPORT)
 	target_compile_definitions(ect
 		PRIVATE
 			MP3_SUPPORTED=1)
-endif()
-
-if(ECT_FOLDER_SUPPORT)
-	find_package(Boost 1.56 REQUIRED COMPONENTS filesystem)
-	target_link_libraries(ect
-		Boost::filesystem)
-	target_compile_definitions(ect
-		PRIVATE
-			BOOST_SUPPORTED=1)
 endif()
 
 install(TARGETS ect RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

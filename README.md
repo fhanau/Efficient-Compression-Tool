@@ -40,7 +40,6 @@ make
 
 In addition, you can add the following arguments to the cmake call to turn various features on and off:
 - `-DECT_MULTITHREADING=OFF`: Turn off multithreading support
-- `-DECT_FOLDER_SUPPORT=ON`: Turn on the ability to recursively search folders (requires [boost::filesystem](https://www.boostcpp.org/))
 
 ### With Xcode
 You can use cmake to generate an Xcode project.  Just add `-G Xcode` to the end of the cmake command:

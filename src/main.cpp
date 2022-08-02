@@ -36,7 +36,7 @@ static void Usage() {
             " compiled on %s\n"
 #endif
             "Folder support "
-#ifdef BOOST_SUPPORTED
+#ifdef FS_SUPPORTED
             "enabled\n"
 #else
             "disabled\n"
@@ -44,7 +44,7 @@ static void Usage() {
 
             "Losslessly optimizes GZIP, ZIP, JPEG and PNG images\n"
             "Usage: ECT [Options] Files"
-#ifdef BOOST_SUPPORTED
+#ifdef FS_SUPPORTED
             "/Folders"
 #endif
             "...\n"
@@ -54,7 +54,7 @@ static void Usage() {
             " -progressive      Use progressive encoding for JPEGs\n"
             " -autorotate       Automatically rotate JPEGs, when perfectly transformable\n"
             " -autorotate=force Automatically rotate JPEGs, dropping non-transformable edge blocks\n"
-#ifdef BOOST_SUPPORTED
+#ifdef FS_SUPPORTED
             " -recurse          Recursively search directories\n"
 #endif
             " -zip              Compress file(s) with  ZIP algorithm\n"
@@ -258,7 +258,7 @@ static unsigned char OptimizeJPEG(const char * Infile, const ECTOptions& Options
 }
 
 #ifdef MP3_SUPPORTED
-#error MP3 code may corrupt metadata.
+#error MP3 code may corrupt metadata and has been disabled.
 static void OptimizeMP3(const char * Infile, const ECTOptions& Options){
     ID3_Tag orig (Infile);
     size_t start = orig.Size();
@@ -368,8 +368,8 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
     else{
         //Construct name
         if(!isDirectory(argv[args[0]])
-#ifdef BOOST_SUPPORTED
-           && boost::filesystem::is_regular_file(argv[args[0]])
+#ifdef FS_SUPPORTED
+           && std::filesystem::is_regular_file(argv[args[0]])
 #endif
            ){
             if(zipfilename.find_last_of(".") > zipfilename.find_last_of("/\\")) {
@@ -390,12 +390,12 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
     int error = 0;
     for(; error == 0 && i < files; i++){
         if(isDirectory(argv[args[i]])){
-#ifdef BOOST_SUPPORTED
-            std::string fold = boost::filesystem::canonical(argv[args[i]]).string();
-            int substr = boost::filesystem::path(fold).has_parent_path() ? boost::filesystem::path(fold).parent_path().string().length() + 1 : 0;
+#ifdef FS_SUPPORTED
+            std::string fold = std::filesystem::canonical(argv[args[i]]).string();
+            int substr = std::filesystem::path(fold).has_parent_path() ? std::filesystem::path(fold).parent_path().string().length() + 1 : 0;
 
-            boost::filesystem::recursive_directory_iterator a(fold), b;
-            std::vector<boost::filesystem::path> paths(a, b);
+            std::filesystem::recursive_directory_iterator a(fold), b;
+            std::vector<std::filesystem::path> paths(a, b);
             for(unsigned j = 0; j < paths.size(); j++){
                 std::string newfile = paths[j].string();
                 const char* name = newfile.erase(0, substr).c_str();
@@ -515,7 +515,7 @@ int main(int argc, const char * argv[]) {
     Options.Progressive = false;
     Options.Autorotate = 0;
     Options.Mode = 3;
-#ifdef BOOST_SUPPORTED
+#ifdef FS_SUPPORTED
     Options.Recurse = false;
 #endif
     Options.PNG_ACTIVE = true;
@@ -560,7 +560,7 @@ int main(int argc, const char * argv[]) {
             else if (strncmp(argv[i], "-keep", strlen) == 0) {Options.keep = true;}
             else if (strcmp(argv[i], "--disable-jpeg") == 0 || strcmp(argv[i], "--disable-jpg") == 0 ){Options.JPEG_ACTIVE = false;}
             else if (strcmp(argv[i], "--disable-png") == 0){Options.PNG_ACTIVE = false;}
-#ifdef BOOST_SUPPORTED
+#ifdef FS_SUPPORTED
             else if (strncmp(argv[i], "-recurse", strlen) == 0)  {Options.Recurse = 1;}
 #endif
             else if (strcmp(argv[i], "--strict") == 0) {Options.Strict = true;}
@@ -609,20 +609,20 @@ int main(int argc, const char * argv[]) {
         else {
             std::vector<std::string> fileList;
             for (int j = 0; j < files; j++){
-#ifdef BOOST_SUPPORTED
-                if (boost::filesystem::is_regular_file(argv[args[j]])){
+#ifdef FS_SUPPORTED
+                if (std::filesystem::is_regular_file(argv[args[j]])){
                     fileList.push_back(argv[args[j]]);
                 }
-                else if (boost::filesystem::is_directory(argv[args[j]])){
-                    if(Options.Recurse){boost::filesystem::recursive_directory_iterator a(argv[args[j]]), b;
-                        std::vector<boost::filesystem::path> paths(a, b);
+                else if (std::filesystem::is_directory(argv[args[j]])){
+                    if(Options.Recurse){std::filesystem::recursive_directory_iterator a(argv[args[j]]), b;
+                        std::vector<std::filesystem::path> paths(a, b);
                         for(unsigned i = 0; i < paths.size(); i++){
                             fileList.push_back(paths[i].string());
                         }
                     }
                     else{
-                        boost::filesystem::directory_iterator a(argv[args[j]]), b;
-                        std::vector<boost::filesystem::path> paths(a, b);
+                        std::filesystem::directory_iterator a(argv[args[j]]), b;
+                        std::vector<std::filesystem::path> paths(a, b);
                         for(unsigned i = 0; i < paths.size(); i++){
                             fileList.push_back(paths[i].string());
                         }

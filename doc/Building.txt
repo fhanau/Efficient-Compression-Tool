@@ -11,16 +11,12 @@ cd src/
 make deps
 Then, open the Xcode Project and compile the program.
 
-If you want Support for optimizing all files in a folder, you need to link the Boost.Filesystem and Boost.System libraries (boost.org) and define BOOST_SUPPORTED in main.cpp.
-This is already done in the Xcode project. In both cases you need to have Boost installed.
-
 (For MP3 Support (Images in MP3 files are recompressed), define MP3_SUPPORTED in main.c and link id3lib(id3lib.sourceforge.net).) This code has been disabled as metadata might get corrupted.
 
 Dependencies:
 CMake
 Make
 NASM
-Boost (optional)
 
 Tested Operating Systems and Compilers:
 Debian Wheezy (GCC)

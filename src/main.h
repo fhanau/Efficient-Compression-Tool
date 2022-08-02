@@ -13,16 +13,10 @@
 
 #include "gztools.h"
 
-//Compile support for folder input. Requires linking of Boost::filesystem and Boost::system.
-//TODO: Native filesystem support is missing from e.g. Xcode, but this will be the preferable solution eventually
-/*#if __cplusplus >= 201703L
+//Compile support for folder input. Requires std::filesystem introduced in C++17.
+#if __cplusplus >= 201703L
 #define FS_SUPPORTED
 #include <filesystem>
-//#include <experimental/filesystem>
-using std::fs;
-#else*/
-#ifdef BOOST_SUPPORTED
-#include <boost/filesystem.hpp>
 #endif
 
 struct ECTOptions{
@@ -42,7 +36,7 @@ struct ECTOptions{
   bool Allfilters;
   bool Allfiltersbrute;
   bool Allfilterscheap;
-#ifdef BOOST_SUPPORTED
+#ifdef FS_SUPPORTED
   bool Recurse;
 #endif
   unsigned DeflateMultithreading;
