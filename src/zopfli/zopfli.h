@@ -108,14 +108,6 @@ typedef struct ZopfliOptionsMin {
 /* Initializes options with default values. */
 void ZopfliInitOptions(ZopfliOptions* options, unsigned mode, unsigned multithreading, unsigned isPNG);
 
-/* Output format */
-typedef enum {
-  ZOPFLI_FORMAT_GZIP,
-  ZOPFLI_FORMAT_ZLIB,
-  ZOPFLI_FORMAT_DEFLATE,
-  ZOPFLI_FORMAT_ZIP
-} ZopfliFormat;
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

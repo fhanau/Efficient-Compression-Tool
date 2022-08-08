@@ -12,6 +12,6 @@
 #include <stdio.h>
 
 int ungz(const char * Infile, const char * Outfile);
-int IsGzip(const char * Infile);
+int IsGzip(const char * Infile, char** gzip_name);
 int IsZIP(const char * Infile);
 #endif /* defined(__Efficient_Compression_Tool__ungz__) */

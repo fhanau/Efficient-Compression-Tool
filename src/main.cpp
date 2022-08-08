@@ -5,6 +5,7 @@
 
 #include "main.h"
 #include "support.h"
+#include "gztools.h"
 #include "miniz/miniz.h"
 #include <limits.h>
 #include <atomic>
@@ -130,35 +131,49 @@ static void ECT_ReportSavings(){
 
 static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multithreading, long long fs, unsigned ZIP, int strict){
     if (!fs){
-        printf("%s: Compression of empty files is currently not supported\n", Infile);
-        return 2;
+      printf("%s: Compression of empty files is currently not supported\n", Infile);
+      return 2;
     }
-    int isGZ = IsGzip(Infile);
+    char* gzip_name = 0;
+    int isGZ = IsGzip(Infile, &gzip_name);
     if(isGZ == 2){
-        return 2;
+      if (gzip_name) {
+        free(gzip_name);
+      }
+      return 2;
     }
     if(isGZ == 3 && strict){
-        printf("%s: File includes extra field, file name or comment, can't be optimized in strict mode\n", Infile);
-        return 2;
+      if (gzip_name) {
+        free(gzip_name);
+      }
+      fprintf(stderr, "%s: File includes extra field or comment, can't be optimized in strict mode\n", Infile);
+      return 2;
     }
+
+    const char* out_name = ((std::string)Infile).append(ZIP ? ".zip" : isGZ ? ".tmp" : ".gz").c_str();
     if (ZIP || !isGZ){
-        if (exists(((std::string)Infile).append(ZIP ? ".zip" : ".gz").c_str())){
-            printf("%s: Compressed file already exists\n", Infile);
-            return 2;
-        }
-        ZopfliGzip(Infile, 0, Mode, multithreading, ZIP, 0);
-        return 1;
+      if (exists(out_name)) {
+        fprintf(stderr, "%s: Compressed file already exists\n", Infile);
+        return 2;
+      }
+      if (ZopfliGzip(Infile, out_name, Mode, multithreading, ZIP, 0, Infile)) {return 2;}
+      return 1;
     }
     else {
-      if (exists(((std::string)Infile).append(".tmp").c_str())){
+      if (exists(out_name) || ZopfliGzip(Infile, out_name, Mode, multithreading, ZIP, 1, gzip_name)) {
+        if (gzip_name) {
+          free(gzip_name);
+        }
         return 2;
       }
-      ZopfliGzip(Infile, 0, Mode, multithreading, ZIP, 1);
-      if (filesize(((std::string)Infile).append(".tmp").c_str()) < filesize(Infile)){
-          RenameAndReplace(((std::string)Infile).append(".tmp").c_str(), Infile);
+      if (gzip_name) {
+        free(gzip_name);
+      }
+      if (filesize(out_name) < filesize(Infile)){
+        RenameAndReplace(out_name, Infile);
       }
       else {
-          unlink(((std::string)Infile).append(".tmp").c_str());
+        unlink(out_name);
       }
       return 0;
     }

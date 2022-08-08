@@ -34,7 +34,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 (*size)++;\
 }
 
-static void ZopfliZipCompress(const ZopfliOptions* options,
+static void ZopfliZipCompress(unsigned mode, unsigned multithreading,
                               const unsigned char* in, size_t insize, time_t time, std::string name,
                               unsigned char** out, size_t* outsize) {
   static const unsigned char filePKh[10]     = { 80, 75,  3,  4, 20,  0,  2,  0,  8,  0};
@@ -44,10 +44,8 @@ static void ZopfliZipCompress(const ZopfliOptions* options,
 
   unsigned long crcvalue = crc32(0, in, insize);
   unsigned long i;
-  std::string x = name.substr(name.find_last_of('/') + 1);
-  const char* infilename = x.c_str();
-  unsigned char bp = 0;
-  size_t max = x.size();
+  std::string infilename = name.substr(name.find_last_of('/') + 1);
+  size_t max = infilename.size();
   *out = (unsigned char*)realloc(*out, 200);
 
   struct tm* times = localtime(&time);
@@ -82,7 +80,7 @@ static void ZopfliZipCompress(const ZopfliOptions* options,
   for(i=0;i<max;++i) ZOPFLI_APPEND_DATA(infilename[i], out, outsize);
   unsigned long rawdeflsize = *outsize;
 
-  ZopfliDeflate(options, 1, in, insize, &bp, out, outsize);
+  ZopfliBuffer(mode, multithreading, in, insize, out, outsize);
   *out = (unsigned char*)realloc(*out, 200 + *outsize);
 
   rawdeflsize = *outsize - rawdeflsize;
@@ -135,17 +133,21 @@ static void ZopfliZipCompress(const ZopfliOptions* options,
 /*
 Compresses the data according to the gzip specification.
 */
-static void ZopfliGzipCompress(const ZopfliOptions* options,
+static void ZopfliGzipCompress(unsigned mode, unsigned multithreading,
                         const unsigned char* in, size_t insize, time_t time,
-                        unsigned char** out, size_t* outsize) {
+                        unsigned char** out, size_t* outsize, std::string name = "") {
   unsigned crcvalue = crc32(0, in, insize);
-  unsigned char bp = 0;
+
+  unsigned char has_name = name != "";
+  std::string infile_str = name.substr(name.find_last_of('/') + 1);
+  unsigned name_size = infile_str.length() + 1;
+  const char* infilename = infile_str.c_str();
 
   (*out) = (unsigned char*)malloc(20);
-  (*out)[*outsize] = 31; (*outsize)++;  /* ID1 */
-  (*out)[*outsize] = 139; (*outsize)++; /* ID2 */
-  (*out)[*outsize] = 8; (*outsize)++;   /* CM  */
-  (*out)[*outsize] = 0; (*outsize)++;   /* FLG */
+  (*out)[*outsize] = 31; (*outsize)++;            /* ID1 */
+  (*out)[*outsize] = 139; (*outsize)++;           /* ID2 */
+  (*out)[*outsize] = 8; (*outsize)++;             /* CM  */
+  (*out)[*outsize] = has_name << 3; (*outsize)++; /* FLG */
 
   /* MTIME */
   *(unsigned*)(&(*out)[*outsize]) = time & UINT_MAX; (*outsize) += 4;
@@ -153,8 +155,14 @@ static void ZopfliGzipCompress(const ZopfliOptions* options,
   (*out)[*outsize] = 2; (*outsize)++;  /* XFL, 2 indicates best compression. */
   (*out)[*outsize] = 3; (*outsize)++;  /* OS follows Unix conventions. */
 
+  if (has_name) {
+    (*out) = (unsigned char*)realloc(*out, 20 + name_size);
+    memcpy((&(*out)[*outsize]), infilename, name_size);
+    (*outsize) += name_size;
+  }
+
   //Use zlib-based compression
-  if (options->numiterations == -1) {
+  if (mode == 1) {
     z_stream stream;
     stream.zalloc = 0;
     stream.zfree = 0;
@@ -174,7 +182,7 @@ static void ZopfliGzipCompress(const ZopfliOptions* options,
     (*outsize) += stream.total_out;
   }
   else {
-    ZopfliDeflate(options, 1, in, insize, &bp, out, outsize);
+    ZopfliBuffer(mode, multithreading, in, insize, out, outsize);
     (*out) = (unsigned char*)realloc(*out, *outsize + 8);
   }
 
@@ -183,24 +191,6 @@ static void ZopfliGzipCompress(const ZopfliOptions* options,
 
   /* ISIZE */
   *(unsigned*)(&(*out)[*outsize]) = insize % UINT_MAX; (*outsize) += 4;
-}
-
-static void ZopfliCompress(const ZopfliOptions* options, ZopfliFormat output_type,
-                    const unsigned char* in, size_t insize, time_t time, std::string name,
-                    unsigned char** out, size_t* outsize) {
-  if (output_type == ZOPFLI_FORMAT_GZIP) {
-    ZopfliGzipCompress(options, in, insize, time, out, outsize);
-  }
-  else if (output_type == ZOPFLI_FORMAT_ZIP) {
-    ZopfliZipCompress(options, in, insize, time, name, out, outsize);
-  }
-  else if (output_type == ZOPFLI_FORMAT_ZLIB) {
-    //ZopfliZlibCompress(options, in, insize, out, outsize);
-  }
-  else if (output_type == ZOPFLI_FORMAT_DEFLATE) {
-    unsigned char bp = 0;
-    ZopfliDeflate(options, 1, in, insize, &bp, out, outsize);
-  }
 }
 
 static void LoadGzip(const char* filename, unsigned char** out, long long* outsize_p) {
@@ -225,7 +215,7 @@ static void LoadGzip(const char* filename, unsigned char** out, long long* outsi
       break;
     }
     else if (bytes < 0) {
-      printf("%s: gzip decompression error\n", filename);
+      fprintf(stderr, "%s: gzip decompression error\n", filename);
       gzclose_r(r);
       *outsize_p = 0;
       return;
@@ -272,7 +262,7 @@ static void SaveFile(const char* filename,
                      const unsigned char* in, size_t insize) {
   FILE* file = fopen(filename, "wb");
   if (!file){
-    printf ("Can't write to file");
+    fprintf(stderr, "Can't write to file %s\n", filename);
   }
   else {
     fwrite((char*)in, 1, insize, file);
@@ -283,15 +273,12 @@ static void SaveFile(const char* filename,
 /*
  outfilename: filename to write output to, or 0 to write to stdout instead
  */
-static void CompressFile(const ZopfliOptions* options,
-                         ZopfliFormat output_type,
-                         const char* infilename,
-                         const char* outfilename,
-                         unsigned char isGZ) {
+int ZopfliGzip(const char* infilename, const char* outfilename, unsigned mode, unsigned multithreading, unsigned ZIP, unsigned char isGZ, const char* gzip_name) {
   unsigned char* in;
   long long insize = -1;
   unsigned char* out = 0;
   size_t outsize = 0;
+
   if (isGZ) {
     LoadGzip(infilename, &in, &insize);
   }
@@ -299,32 +286,25 @@ static void CompressFile(const ZopfliOptions* options,
     LoadFile(infilename, &in, &insize);
   }
   if (insize < 0) {
-    fprintf(stderr, "Invalid filename: %s\n", infilename);
-    return;
+    fprintf(stderr, "Invalid file: %s\n", infilename);
+    return EXIT_FAILURE;
   }
 
   struct stat st;
   stat(infilename, &st);
   time_t time = st.st_mtime;
-  ZopfliCompress(options, output_type, in, insize, time, infilename, &out, &outsize);
+  if (!ZIP) {
+    ZopfliGzipCompress(mode, multithreading, in, insize, time, &out, &outsize, (std::string)gzip_name);
+  }
+  else {
+    ZopfliZipCompress(mode, multithreading, in, insize, time, infilename, &out, &outsize);
+  }
   free(in);
 
   SaveFile(outfilename, out, outsize);
 
   free(out);
-}
-
-int ZopfliGzip(const char* filename, const char* outname, unsigned mode, unsigned multithreading, unsigned ZIP, unsigned char isGZ) {
-  ZopfliOptions options;
-  //ZopfliFormat output_type = ZOPFLI_FORMAT_GZIP;
-  //output_type = ZOPFLI_FORMAT_ZLIB;
-  //output_type = ZOPFLI_FORMAT_DEFLATE;
-
-  ZopfliInitOptions(&options, mode, multithreading, 0);
-  //Append ".gz" ".zlib" ".deflate"
-
-  CompressFile(&options, ZIP ? ZOPFLI_FORMAT_ZIP : ZOPFLI_FORMAT_GZIP, filename, outname ? outname : ((std::string)filename).append(ZIP ? ".zip" : isGZ ? ".tmp" : ".gz").c_str(), isGZ);
-  return 0;
+  return EXIT_SUCCESS;
 }
 
 void ZopfliBuffer(unsigned mode, unsigned multithreading, const unsigned char* in, size_t insize, unsigned char** out, size_t* outsize) {
@@ -333,3 +313,4 @@ void ZopfliBuffer(unsigned mode, unsigned multithreading, const unsigned char* i
   unsigned char bp = 0;
   ZopfliDeflate(&options, 1, in, insize, &bp, out, outsize);
 }
+
