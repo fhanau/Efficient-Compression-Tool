@@ -625,11 +625,22 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
         unsigned short* mp = matches;
 
         unsigned curr = ZOPFLI_MIN_MATCH;
-        while (mp < mend){
+        while (mp < mend) {
           unsigned len = *mp++;
           unsigned dist = *mp++;
           float price2 = price + disttable[dist];
           dist <<=9;
+
+          /* Speed hack to not consider matches that do not seem promising. While
+           * this may degrade compression by a tiny amount, this is acceptable as
+           * it only affects the first iteration, this should be corrected in
+           * subsequent iterations on higher levels and a high threshold is chosen. */
+          float old_costs = costs[j + len];
+          float new_costs = price2 + litlentable[len];
+          if (new_costs > old_costs + 6.0) {
+            curr = len + 1;
+            continue;
+          }
           for (; curr <= len; curr++) {
             float x = price2 + litlentable[curr];
             if (x < costs[j + curr]){
