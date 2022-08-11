@@ -126,7 +126,7 @@ static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, u
   size_t ostart = start;
   for (;;) {
     if (end - start <= options->num){
-      if (options->numiterations > 50){
+      if (options->numiterations > 30){
         for (unsigned j = 0; j < end - start; j++){
           double cost = SplitCost(start + j, context, options->searchext & 2, options->entropysplit, ll_count, d_count, ll_count2, d_count2, pos2);
           if (cost < best){
