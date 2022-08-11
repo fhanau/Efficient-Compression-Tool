@@ -79,6 +79,7 @@ unsigned ZopfliGetLengthExtraBitsValue(unsigned l);
 
 /* Gets the symbol for the given dist, cfr. the DEFLATE spec. */
 int ZopfliGetDistSymbol(int dist);
+int ZopfliNextDistSymbol(int dist);
 
 /* Gets the amount of extra bits for the given dist, cfr. the DEFLATE spec. */
 unsigned ZopfliGetDistExtraBits(unsigned dist);

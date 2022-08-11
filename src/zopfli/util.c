@@ -117,6 +117,20 @@ int ZopfliGetDistSymbol(int dist) {
 #endif
 }
 
+int ZopfliNextDistSymbol(int sym) {
+  if (sym < 20) {return 0;}
+  if (sym == 20) {return 1537;}
+  if (sym == 21) {return 2049;}
+  if (sym == 22) {return 3073;}
+  if (sym == 23) {return 4097;}
+  if (sym == 24) {return 6145;}
+  if (sym == 25) {return 8193;}
+  if (sym == 26) {return 12289;}
+  if (sym == 27) {return 16385;}
+  if (sym == 28) {return 24577;}
+  return 32769;
+}
+
 unsigned ZopfliGetLengthExtraBits(unsigned l) {
   static const unsigned table[259] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,

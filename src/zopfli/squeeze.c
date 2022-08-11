@@ -199,7 +199,12 @@ static int LZ4HC_InsertAndFindBestMatch3 (LZ3HC_Data_Structure* hc4,   /* Index 
   if (iLimit - ip < 3){
     return 0;
   }
+
+  unsigned diff_dsym = 0;
+  unsigned max_match = iLimit - ip;
+  unsigned last_match = 0;
   int num = 0;
+  int last_dsym = 30;
   U16* const chainTable = hc4->chainTable;
   U32* const HashTable = hc4->hashTable;
   const BYTE* const base = hc4->base;
@@ -212,9 +217,25 @@ static int LZ4HC_InsertAndFindBestMatch3 (LZ3HC_Data_Structure* hc4,   /* Index 
   while ((matchIndex>=lowLimit))
   {
     const BYTE* match = base + matchIndex;
+    int dsym;
+    if(ip - match < diff_dsym) {
+      dsym = diff_dsym;
+    }
+    else {
+      dsym = ZopfliGetDistSymbol(ip - match);
+    }
+    if (dsym == last_dsym && (last_match == max_match || *(unsigned*)&ip[last_match - 3] != *(unsigned*)&match[last_match - 3])) {matchIndex -= chainTable[matchIndex & MAX_DISTANCE3]; continue;}
     size_t mlt = GetMatch(ip, match, iLimit, iLimit - 8) - ip;
+
     if (likely(mlt >= 3)) {
-      matches[num++] = mlt; matches[num++] = ip - match;
+      if (dsym != last_dsym) {
+        matches[num++] = last_match = mlt; matches[num++] = ip - match;
+        last_dsym = dsym;
+      }
+      else if(mlt > matches[num - 2]) {
+        matches[num - 2] = last_match = mlt; matches[num - 1] = ip - match;
+        diff_dsym = ZopfliNextDistSymbol(dsym);
+      }
     }
     matchIndex -= chainTable[matchIndex & MAX_DISTANCE3];
   }
@@ -673,8 +694,8 @@ static void GetBestLengthsultra2(const unsigned char* in, size_t instart, size_t
   LZ3HC_Data_Structure h3;
   LZ4HC_init3(&h3, &in[windowstart]);
 
-  unsigned matchesarr[32768 * 2 + 1];
-    unsigned* matches = matchesarr;
+  unsigned matchesarr[30 * 2 + 1];
+  unsigned* matches = matchesarr;
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
 
@@ -685,13 +706,11 @@ static void GetBestLengthsultra2(const unsigned char* in, size_t instart, size_t
       unsigned price = costs[j];
       unsigned* mp = matches;
 
-      unsigned curr = ZOPFLI_MIN_MATCH;
       while (mp < mend){
-        curr = ZOPFLI_MIN_MATCH;
         unsigned len = *mp++;
         unsigned dist = *mp++;
         unsigned price2 = price + disttable[dist];
-        for (; curr <= len; curr++) {
+        for (unsigned curr = ZOPFLI_MIN_MATCH; curr <= len; curr++) {
           unsigned x = price2 + litlentable[curr];
           if (x < costs[j + curr]){
             costs[j + curr] = x;
