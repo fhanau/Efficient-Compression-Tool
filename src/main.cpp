@@ -150,7 +150,8 @@ static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multi
       return 2;
     }
 
-    const char* out_name = ((std::string)Infile).append(ZIP ? ".zip" : isGZ ? ".tmp" : ".gz").c_str();
+    std::string out_str = ((std::string)Infile).append(ZIP ? ".zip" : isGZ ? ".tmp" : ".gz");
+    const char* out_name = out_str.c_str();
     if (ZIP || !isGZ){
       if (exists(out_name)) {
         fprintf(stderr, "%s: Compressed file already exists\n", Infile);
