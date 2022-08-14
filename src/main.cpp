@@ -32,7 +32,7 @@ static void Usage() {
     printf (
             "Efficient Compression Tool\n"
             "(c) 2014-2022 Felix Hanau.\n"
-            "Version 0.9.1"
+            "Version 0.9.2"
 #ifdef __DATE__
             " compiled on %s\n"
 #endif
@@ -43,10 +43,10 @@ static void Usage() {
             "disabled\n"
 #endif
 
-            "Losslessly optimizes GZIP, ZIP, JPEG and PNG images\n"
-            "Usage: ECT [Options] Files"
+            "Losslessly optimizes GZIP, ZIP, JPEG and PNG files\n"
+            "Usage: ect [Options] files"
 #ifdef FS_SUPPORTED
-            "/Folders"
+            "/folders"
 #endif
             "...\n"
             "Options:\n"

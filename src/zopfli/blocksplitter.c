@@ -102,7 +102,7 @@ Finds minimum of function f(i) where is is of type size_t, f(i) is of type
 double, i is in range start-end (excluding end).
 */
 static size_t FindMinimum(SplitCostContext* context, size_t start, size_t end, unsigned char* enough, const ZopfliOptions* options) {
-  //Count LZ77 symbols once, then, on later runs, just for 1st potential block and substract
+  //Count LZ77 symbols once, then, on later runs, just for 1st potential block and subtract
   size_t ll_count[288];
   size_t d_count[32];
   size_t ll_count2[288];
@@ -305,7 +305,7 @@ void ZopfliBlockSplit(const ZopfliOptions* options,
     store.symbols = twiceStore.symbols;
   }
 
-  /* Blocksplitting likely wont improve compression on small files */
+  /* Blocksplitting likely won't improve compression on small files */
   if (inend - instart < options->noblocksplit){
     *stats = (SymbolStats*)malloc(sizeof(SymbolStats));
     GetStatistics(&store, *stats);

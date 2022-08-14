@@ -246,7 +246,7 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
                            SymbolStats* costcontext, unsigned* length_array, LZCache* c) {
   size_t i;
 
-  /*TODO: Put this in seperate function*/
+  /*TODO: Put this in separate function*/
   float litlentable [259];
   float* disttable = (float*)malloc(ZOPFLI_WINDOW_SIZE * sizeof(float));
   float* literals = costcontext->ll_symbols;
@@ -399,7 +399,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
                            SymbolStats* costcontext, unsigned* length_array, unsigned char storeincache, LZCache* c, unsigned mfinexport) {
   size_t i;
 
-  /*TODO: Put this in seperate function*/
+  /*TODO: Put this in separate function*/
   float litlentable [259];
   float* disttable = (float*)malloc(ZOPFLI_WINDOW_SIZE * sizeof(float));
   float* literals;
@@ -830,7 +830,7 @@ static void FollowPath(unsigned* path, size_t pathsize, ZopfliLZ77Store* store) 
 /*
  Calculates the entropy of each symbol, based on the counts of each symbol. The
  result is similar to the result of ZopfliCalculateBitLengths, but with the
- actual theoritical bit lengths according to the entropy. Since the resulting
+ actual theoretical bit lengths according to the entropy. Since the resulting
  values are fractional, they cannot be used to encode the tree specified by
  DEFLATE.
  */
@@ -1001,7 +1001,7 @@ static void ZopfliLZ77Optimal(const ZopfliOptions* options,
     ZopfliInitLZ77Store(&currentstore);
 
     //TODO: This is very powerful and needs additional tuning.
-    if ((i == options->numiterations - 1 && options->numiterations > 5)|| (i == 9/* && !options->ultra*/) || i == 30){//TODO:Disabling this helps with high iters
+    if ((i == options->numiterations - 1 && options->numiterations > 5)|| (i == 9/* && !options->ultra*/) || i == 30){//TODO:Disabling this helps with high iters, also with enwik -6
       unsigned bl[288];
 
       OptimizeHuffmanCountsForRle(32, beststats.dists);

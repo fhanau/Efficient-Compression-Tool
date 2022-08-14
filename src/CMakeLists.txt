@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
-project(ect VERSION 0.9.1 LANGUAGES CXX C)
+project(ect VERSION 0.9.2 LANGUAGES CXX C)
 
 include(GNUInstallDirs)
 

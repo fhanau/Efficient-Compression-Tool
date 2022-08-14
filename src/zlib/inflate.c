@@ -284,7 +284,7 @@ unsigned copy;
 	if (state->window == Z_NULL) return 1;
 	#ifdef INFLATE_CLEAR_UNUSED_UNDEFINED
 	/* Copies from the overflow portion of this buffer are undefined and
-	   may cause analysis tools to raise a wraning if we don't initialize
+	   may cause analysis tools to raise a warning if we don't initialize
 	   it. However, this undefined data overwrites other undefined data
 	   and is subsequently either overwritten or left deliberately
 	   undefined at the end of decode; so there's really no point.

@@ -479,7 +479,7 @@ static size_t AbsDiff(size_t x, size_t y) {
 /*
  Change the population counts in a way that the consequent Hufmann tree
  compression, especially its rle-part will be more likely to compress this data
- more efficiently. length containts the size of the histogram.
+ more efficiently. length contains the size of the histogram.
  */
 static void OptimizeHuffmanCountsForRlezop(int length, size_t* counts) {
   int i, k, stride;

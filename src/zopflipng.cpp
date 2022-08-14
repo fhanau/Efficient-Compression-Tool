@@ -57,7 +57,7 @@ ZopfliPNGOptions::ZopfliPNGOptions()
 {
 }
 
-// Deflate compressor passed as fuction pointer to LodePNG to have it use Zopfli
+// Deflate compressor passed as function pointer to LodePNG to have it use Zopfli
 // as its compression backend.
 static unsigned CustomPNGDeflate(unsigned char** out, size_t* outsize, const unsigned char* in, size_t insize, const LodePNGCompressSettings* settings) {
   const ZopfliPNGOptions* png_options = static_cast<const ZopfliPNGOptions*>(settings->custom_context);

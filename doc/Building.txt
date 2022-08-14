@@ -1,17 +1,16 @@
 To build ECT, you need to recursively clone it, just downloading isn’t enough, i. e. git clone --recursive https://github.com/fhanau/Efficient-Compression-Tool.git
 
-Makefile Build:
+CMake Build:
+ECT is built with cmake
+mkdir build
+cd build
+cmake ../src
+make
+
+Makefile Build (deprecated and unsupported):
 Use the Makefile to build dependencies and the binary:
 cd src/
 make
-
-Xcode Build (Mac only):
-Build the dependencies first:
-cd src/
-make deps
-Then, open the Xcode Project and compile the program.
-
-(For MP3 Support (Images in MP3 files are recompressed), define MP3_SUPPORTED in main.c and link id3lib(id3lib.sourceforge.net).) This code has been disabled as metadata might get corrupted.
 
 Dependencies:
 CMake

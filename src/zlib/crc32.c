@@ -145,7 +145,7 @@ uLong crc32(crc, buf, len)
       return crc32_generic(crc, buf, len);
     #endif
     /* Handle the leading patial chunk */
-    uInt misalign = PCLMUL_ALIGN_MASK & ((unsigned long)buf);
+    uInt misalign = PCLMUL_ALIGN_MASK & ((unsigned long long)buf);
     uInt sz = (PCLMUL_ALIGN - misalign) % PCLMUL_ALIGN;
     if (sz) {
       crc = crc32_generic(crc, buf, sz);
