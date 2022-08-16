@@ -925,11 +925,19 @@ IPos cur_match;                             /* current match */
     uint32_t wmask = s->w_mask;
 
     register uint8_t *strend = s->window + s->strstart + MAX_MATCH;
-    register unsigned short scan_start = *(unsigned short*)scan;
     uInt scan_start32 = *(uIntf*)scan;          /* 1st 4 bytes of scan */
     uint64_t scan_start64 = *(uint64_t*)scan;          /* 1st 4 bytes of scan */
     register unsigned scan_end32;
     register uint64_t scan_end64;
+    int rle_len = 3;
+    if (scan_start32 == (*(uIntf*)(scan + 1))) {
+      while(rle_len < 256 && *(uint64_t*)(scan + rle_len) == *(uint64_t*)(scan + rle_len + 1)) {
+        rle_len += 8;
+      }
+      if (*(unsigned*)(scan + rle_len) == *(unsigned*)(scan + rle_len + 1)) {
+        rle_len += 4;
+      }
+    }
 
     /* The code is optimized for HASH_BITS >= 8 and MAX_MATCH-2 multiple of 16.
      * It is easy to get rid of this optimization if necessary.
@@ -948,6 +956,9 @@ IPos cur_match;                             /* current match */
         Assert((uint64_t)s->strstart <= s->window_size-MIN_LOOKAHEAD, "need lookahead");
 
     unsigned OFF = 0;
+#define NEXT_CHAIN \
+    cur_match = prev[cur_match & wmask]; \
+    if (cur_match <= limit || --chain_length == 0) goto break_matching;
     if (best_len >= MIN_MATCH) {
         /* We're continuing search (lazy evaluation).
          * Note: for deflate_fast best_len is always MIN_MATCH-1 here
@@ -978,9 +989,15 @@ IPos cur_match;                             /* current match */
           limit += OFF;
         }
     }
-#define NEXT_CHAIN \
-    cur_match = prev[cur_match & wmask]; \
-    if (cur_match <= limit || --chain_length == 0) goto break_matching;
+    else {
+      //Find initial match
+      unsigned scan_start24 = scan_start32 & 0xFFFFFF;
+      uint8_t * win = s->window;
+      for (;;) {
+        if (((*(unsigned*)(win + cur_match)) & 0xFFFFFF) == scan_start24) break;
+        NEXT_CHAIN;
+      }
+    }
 
     do {
         Assert(cur_match < s->strstart, "no future");
@@ -991,10 +1008,6 @@ IPos cur_match;                             /* current match */
          */
         uint8_t * win = s->window;
       if (best_len < MIN_MATCH) {
-            for (;;) {
-              if (*(unsigned short*)(win + cur_match) == scan_start) break;
-              NEXT_CHAIN;
-            }
         }
       else if (best_len >= 7) {
           /* current len >= 7 (looking for 8+ bytes); compare first and last 8 bytes */
@@ -1068,7 +1081,7 @@ IPos cur_match;                             /* current match */
               scanning_end = s->strstart - cur_match - 1;
             }
             next_pos = prev[cur_match & wmask];
-            for (int i = 1; i <= scanning_end; i++) {
+            for (int i = rle_len - 2; i <= scanning_end; i++) {
               pos = prev[(cur_match + i) & wmask];
               if (pos + OFF < next_pos + i) {
                 /* this hash chain is more distant, use it */
