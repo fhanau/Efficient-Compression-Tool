@@ -117,7 +117,7 @@ static const config configuration_table[10] = {
 
 #include <arm_neon.h>
 #include <arm_acle.h>
-__attribute__ ((always_inline)) inline static unsigned
+ALWAYS_INLINE inline static unsigned
 platform_compute_hash(deflate_state *s, const unsigned char *str) {
     unsigned v = 0xffffff & *(const unsigned*)str;
     unsigned hash = __crc32cw(0, v);
@@ -128,7 +128,7 @@ platform_compute_hash(deflate_state *s, const unsigned char *str) {
 
 #include "nmmintrin.h"
 
-__attribute__ ((always_inline)) inline static unsigned
+ALWAYS_INLINE inline static unsigned
 platform_compute_hash(deflate_state *s, const unsigned char *str) {
     unsigned v = 0xffffff & *(const unsigned*)str;
     unsigned hash = _mm_crc32_u32(0, v);
@@ -899,7 +899,7 @@ static void lm_init (deflate_state* s)
 /* Please retain this line */
 const char fast_lm_copyright[] = " Fast match finder for zlib, https://github.com/gildor2/fast_zlib ";
 
-__attribute__ ((always_inline)) inline static uint32_t longest_match(s, cur_match)
+ALWAYS_INLINE inline static uint32_t longest_match(s, cur_match)
 deflate_state *s;
 IPos cur_match;                             /* current match */
 {

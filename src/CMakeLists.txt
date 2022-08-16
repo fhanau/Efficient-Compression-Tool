@@ -37,9 +37,10 @@ if(MINGW)
 	add_compile_options($<$<COMPILE_LANGUAGE:C>:-mno-ms-bitfields>)
 endif()
 
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-sign-compare -Wno-unused -Wno-unused-parameter")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-sign-compare -Wno-unused -Wno-unused-parameter")
+if(NOT MSVC)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-sign-compare -Wno-unused -Wno-unused-parameter")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-sign-compare -Wno-unused -Wno-unused-parameter")
+endif()
 
 # Use -Ofast in release builds
 foreach(var CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELWITHDEBINFO)
@@ -91,24 +92,28 @@ if(MSVC_IDE AND CMAKE_GENERATOR_PLATFORM MATCHES "arm64")
 endif()
 
 #Enable vector extensions. May also add these for ARM if needed.
+#32-bit x86 is no longer officially supported and might not work, but do enable the compile flags for it.
+if(CPU_TYPE STREQUAL "x86_64" OR CPU_TYPE STREQUAL "i386")
+  add_definitions(-DADLER32_SIMD_SSSE3)
+  add_definitions(-DINFLATE_CHUNK_SIMD_SSE2)
+  add_definitions(-DINFLATE_CHUNK_READ_64LE)
+  add_definitions(-DHAS_PCLMUL)
+elseif(CPU_TYPE STREQUAL arm64)
+  add_definitions(-DADLER32_SIMD_NEON)
+  add_definitions(-DINFLATE_CHUNK_SIMD_NEON)
+  add_definitions(-DINFLATE_CHUNK_READ_64LE)
+  add_definitions(-DPNG_ALIGNED_MEMORY_SUPPORTED)
+  set(PNG_ARM_NEON "on")
+endif()
+
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR CMAKE_CXX_COMPILER_ID STREQUAL "ARMClang")
-  #32-bit x86 is no longer officially supported and might not work, but do enable the compile flags for it.
   if(CPU_TYPE STREQUAL "x86_64" OR CPU_TYPE STREQUAL "i386")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mpclmul -msse4.2")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mpclmul -msse4.2")
-    add_definitions(-DADLER32_SIMD_SSSE3)
-    add_definitions(-DINFLATE_CHUNK_SIMD_SSE2)
-    add_definitions(-DINFLATE_CHUNK_READ_64LE)
-    add_definitions(-DHAS_PCLMUL)
   elseif(CPU_TYPE STREQUAL arm64)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a+crc")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a+crcc")
-    add_definitions(-DADLER32_SIMD_NEON)
-    add_definitions(-DINFLATE_CHUNK_SIMD_NEON)
-    add_definitions(-DINFLATE_CHUNK_READ_64LE)
-    add_definitions(-DPNG_ALIGNED_MEMORY_SUPPORTED)
-    set(PNG_ARM_NEON "on")
   endif()
 endif()
 
