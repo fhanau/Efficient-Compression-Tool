@@ -130,13 +130,13 @@ bool GetCDHeaders(const uint8_t* fp, size_t size, const EOCD& eocd, size_t zip_o
     // Check if file name matches.
     if (local_header->filename_len != cd_header.filename_len ||
         memcmp(p_local_header + sizeof(LocalHeader), p_cdheader + sizeof(CDHeader), cd_header.filename_len) != 0){
-		return false;
-	}
+      return false;
+    }
 
     p_cdheader += sizeof(CDHeader) + cd_header.filename_len + cd_header.extra_field_len + cd_header.comment_len;
     if (p_cdheader > cd_end){
-		return false;
-	}
+      return false;
+    }
     cd_headers.push_back(cd_header);
   }
   std::sort(cd_headers.begin(), cd_headers.end(), [](const CDHeader& a, const CDHeader& b) { return a.local_header_offset < b.local_header_offset; });
@@ -185,7 +185,7 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   const char* temp = tempname;
   if (exists(temp)) {
     printf("Error: Can't create temp file\n");
-	  return size;
+    return size;
   }
   FILE* stream = fopen(temp, "wb");
 #else
@@ -265,13 +265,13 @@ size_t Zip::Leanify(const ECTOptions& Options, size_t* files) {
     if (p_eocd + sizeof(EOCD) > p_end){
       continue;
     }
-  
+
     memcpy(&eocd, p_eocd, sizeof(EOCD));
     uint8_t* cd_end = fp_ + eocd.cd_offset + eocd.cd_size;
     if (cd_end > p_eocd){
       continue;
     }
-	
+
     // Try to get all CD headers using this EOCD, if everything checks out then proceed.
     if (GetCDHeaders(fp_, size_, eocd, zip_offset, &cd_headers, &base_offset)) {
       break;
@@ -326,7 +326,7 @@ size_t Zip::Leanify(const ECTOptions& Options, size_t* files) {
     if (local_header->compression_method == 0) {
       // method is store
       if (local_header->compressed_size) {
-        uint32_t new_size = RecompressFile(p_read, local_header->compressed_size, p_read - p_write, filename, Options);
+        uint32_t new_size = Options.Strict ? local_header->compressed_size : RecompressFile(p_read, local_header->compressed_size, p_read - p_write, filename, Options);
         if(new_size == local_header->compressed_size){
           memmove(p_write, p_read, local_header->compressed_size);
         }
@@ -367,7 +367,7 @@ size_t Zip::Leanify(const ECTOptions& Options, size_t* files) {
     }
 
     // Leanify uncompressed file
-    uint32_t new_uncomp_size = RecompressFile(decompress_buf, decompressed_size, 0, filename, Options);
+    uint32_t new_uncomp_size = Options.Strict ? local_header->uncompressed_size : RecompressFile(decompress_buf, decompressed_size, 0, filename, Options);
 
     // recompress
     uint8_t* compress_buf = nullptr;
