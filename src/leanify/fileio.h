@@ -1,6 +1,7 @@
 #ifndef FILEIO_H_
 #define FILEIO_H_
 
+#include <stdio.h>
 #include <sys/stat.h>
 #ifdef _WIN32
 #include <Windows.h>
@@ -11,7 +12,7 @@ class File {
   explicit File(const char* filepath);
 
   void* GetFilePionter() const {
-    return fp_;
+    return data_;
   }
 
   unsigned int GetSize() const {
@@ -19,10 +20,11 @@ class File {
   }
 
   bool IsOK() const {
-    return fp_ != nullptr;
+    return data_ != nullptr;
   }
 
-  void UnMapFile(size_t new_size);
+  void UnMap();
+  void Write(size_t new_size, const char* filepath);
 
  private:
 #ifdef _WIN32
@@ -30,7 +32,7 @@ class File {
 #else
   int fd_;
 #endif // _WIN32
-  void* fp_;
+  void* data_;
   size_t size_;
 };
 

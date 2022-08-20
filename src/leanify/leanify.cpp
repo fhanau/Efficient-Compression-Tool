@@ -14,38 +14,31 @@ using std::string;
 
 #ifdef _WIN32
 File::File(const char* filepath) {
-  fp_ = nullptr;
-  hFile_ = CreateFile(filepath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
-                      FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_WRITE_THROUGH, nullptr);
+  data_ = nullptr;
+  hFile_ = CreateFile(filepath, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                      FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
   if (hFile_ == INVALID_HANDLE_VALUE) {
     size_ = 0;
     return;
   }
   size_ = GetFileSize(hFile_, nullptr);
-  hMap_ = CreateFileMapping(hFile_, nullptr, PAGE_READWRITE, 0, 0, nullptr);
+  hMap_ = CreateFileMapping(hFile_, nullptr, PAGE_READONLY, 0, 0, nullptr);
   if (hMap_ == INVALID_HANDLE_VALUE) {
     return;
   }
-  fp_ = MapViewOfFile(hMap_, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+  data_ = MapViewOfFile(hMap_, FILE_MAP_COPY, 0, 0, 0);
 }
 
-void File::UnMapFile(size_t new_size) {
-  if (new_size < size_)
-    FlushViewOfFile(fp_, 0);
-
-  UnmapViewOfFile(fp_);
+void File::UnMap() {
+  UnmapViewOfFile(data_);
 
   CloseHandle(hMap_);
-  if (new_size) {
-    SetFilePointer(hFile_, new_size, nullptr, FILE_BEGIN);
-    SetEndOfFile(hFile_);
-  }
   CloseHandle(hFile_);
-  fp_ = nullptr;
+  data_ = nullptr;
 }
 #else
 File::File(const char* filepath) {
-  fp_ = nullptr;
+  data_ = nullptr;
   fd_ = open(filepath, O_RDWR);
 
   if (fd_ == -1) {
@@ -61,24 +54,44 @@ File::File(const char* filepath) {
   size_ = sb.st_size;
 
   // map the file into memory
-  fp_ = mmap(nullptr, size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);
-  if (fp_ == MAP_FAILED) {
+  data_ = mmap(nullptr, size_, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd_, 0);
+  if (data_ == MAP_FAILED) {
     perror("Map file error");
-    fp_ = nullptr;
+    data_ = nullptr;
   }
 }
 
-void File::UnMapFile(size_t new_size) {
-  if (munmap(fp_, size_) == -1)
+void File::UnMap() {
+  if (munmap(data_, size_) == -1)
     perror("munmap");
-  if (new_size)
-    if (ftruncate(fd_, new_size) == -1)
-      perror("ftruncate");
-
   close(fd_);
-  fp_ = nullptr;
+  data_ = nullptr;
 }
 #endif
+
+void File::Write(size_t new_size, const char* filepath) {
+  if (new_size && new_size < size_) {
+    string filepath_tmp = filepath;
+    filepath_tmp.append(".tmp");
+    FILE* new_fp = fopen(filepath_tmp.c_str(), "wbx");
+    if (!new_fp) {
+      perror("Open file error");
+      UnMap();
+      return;
+    }
+    if (fwrite(data_, 1, new_size, new_fp) != new_size) {
+      perror("fwrite");
+      UnMap();
+      return;
+    }
+
+    fclose(new_fp);
+    UnMap();
+    if (rename(filepath_tmp.c_str(), filepath)) {
+      perror("rename");
+    }
+  }
+}
 
 // Leanify the file
 // and move the file ahead size_leanified bytes
@@ -86,11 +99,9 @@ void File::UnMapFile(size_t new_size) {
 // it's designed this way to avoid extra memmove or memcpy
 // return new size
 static size_t LeanifyFile(void* file_pointer, size_t file_size, const ECTOptions& Options, size_t* files) {
-
   if (memcmp(file_pointer, Zip::header_magic, sizeof(Zip::header_magic)) != 0) {
     return file_size;
   }
-
 
   Zip* f = new Zip(file_pointer, file_size);
   size_t r = f->Leanify(Options, files);
@@ -106,6 +117,6 @@ void ReZipFile(const char* file_path, const ECTOptions& Options, size_t* files) 
     size_t original_size = input_file.GetSize();
 
     size_t new_size = LeanifyFile(input_file.GetFilePionter(), original_size, Options, files);
-    input_file.UnMapFile(new_size);
+    input_file.Write(new_size, file_path);
   }
 }
