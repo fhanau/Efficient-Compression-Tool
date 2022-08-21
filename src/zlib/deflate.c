@@ -555,16 +555,8 @@ static int deflate_ (strm, flush, put)
     if (s->status == INIT_STATE) {
         {
             uint32_t header = (Z_DEFLATED + ((s->w_bits-8)<<4)) << 8;
-            uint32_t level_flags;
-
-            if (s->strategy >= Z_HUFFMAN_ONLY || s->level < 2)
-                level_flags = 0;
-            else if (s->level < 6)
-                level_flags = 1;
-            else if (s->level == 6)
-                level_flags = 2;
-            else
-                level_flags = 3;
+            //ECT's zlib aims for maximum compression within the possibilities of the zlib library.
+            uint32_t level_flags = 3;
             header |= (level_flags << 6);
             if (s->strstart != 0) header |= PRESET_DICT;
             header += 31 - (header % 31);
@@ -929,9 +921,9 @@ IPos cur_match;                             /* current match */
     uint64_t scan_start64 = *(uint64_t*)scan;          /* 1st 4 bytes of scan */
     register unsigned scan_end32;
     register uint64_t scan_end64;
-    int rle_len = 3;
-    if (scan_start32 == (*(uIntf*)(scan + 1))) {
-      while(rle_len < 256 && *(uint64_t*)(scan + rle_len) == *(uint64_t*)(scan + rle_len + 1)) {
+    int rle_len = 4;
+    if (scan_start32 == (*(uIntf*)(scan + 1)) && s->good_match != MAX_MATCH + 1) {
+      while(rle_len < 252 && *(uint64_t*)(scan + rle_len) == *(uint64_t*)(scan + rle_len + 1)) {
         rle_len += 8;
       }
       if (*(unsigned*)(scan + rle_len) == *(unsigned*)(scan + rle_len + 1)) {
@@ -1081,7 +1073,7 @@ IPos cur_match;                             /* current match */
               scanning_end = s->strstart - cur_match - 1;
             }
             next_pos = prev[cur_match & wmask];
-            for (int i = rle_len - 2; i <= scanning_end; i++) {
+            for (int i = rle_len - 3; i <= scanning_end; i++) {
               pos = prev[(cur_match + i) & wmask];
               if (pos + OFF < next_pos + i) {
                 /* this hash chain is more distant, use it */
