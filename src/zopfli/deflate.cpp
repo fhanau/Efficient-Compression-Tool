@@ -1306,7 +1306,7 @@ static void DeflateSplittingFirst(const ZopfliOptions* options,
   SymbolStats* statsp = 0;
   ZopfliBlockSplit(options, in, instart, inend, &splitpoints, &npoints, &statsp, twiceMode, *twiceStore);
 
-  ZopfliLZ77Store* stores;
+  ZopfliLZ77Store* stores = 0;
   if (twiceMode & 1){
     stores = (ZopfliLZ77Store*)malloc((npoints + 1) * sizeof(ZopfliLZ77Store));
     if(!stores){

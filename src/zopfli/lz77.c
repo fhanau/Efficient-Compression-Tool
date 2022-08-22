@@ -234,7 +234,7 @@ static int LZ4HC_InsertAndFindBestMatch(LZ4HC_Data_Structure* hc4,   /* Index ta
   /* HC4 match finder */
   LZ4HC_Insert(hc4, ip);
   U32 matchIndex = HashTable[LZ4HC_hashPtr(ip)];
-  if(HashTable[LZ4HC_hashPtr(ip + ml - 3)] < (lowLimit + ml - 3)) {return ml;}
+  if(HashTable[LZ4HC_hashPtr(ip + ml - 3)] < (lowLimit + ml - 3)) {*matchpos = ip; return ml;}
   U32 start = *(unsigned*)ip;
   U32 end = *(unsigned*)(ip + ml - 3);
 

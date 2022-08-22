@@ -1916,6 +1916,9 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
     const unsigned char* c = (unsigned char*)&image[i];
     if (color_tree_inc(&tree, c[0], c[1], c[2], c[3]) == 0) ++count;
   }
+  //Silence clang static analyzer warnings
+  if (count == 0) {return;}
+
   // sortfield format:
   // bit 0-7: original palette index
   // bit 8-39: color encoding or popularity index
