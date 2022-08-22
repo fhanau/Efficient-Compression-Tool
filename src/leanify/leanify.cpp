@@ -1,7 +1,11 @@
 #include <fcntl.h>
+#include <sys/stat.h>
 #ifndef _WIN32
 #include <unistd.h>
 #include <sys/mman.h>
+#ifdef _MSC_VER
+#include <io.h>
+#endif
 #endif
 
 #include "../miniz/miniz.h"
@@ -73,7 +77,13 @@ void File::Write(size_t new_size, const char* filepath) {
   if (new_size && new_size < size_) {
     string filepath_tmp = filepath;
     filepath_tmp.append(".tmp");
-    FILE* new_fp = fopen(filepath_tmp.c_str(), "wbx");
+    struct stat st;
+    if (stat(filepath_tmp.c_str(), &st) == 0) {
+      fprintf(stderr, "%s: temp file name exists\n", filepath_tmp.c_str());
+      UnMap();
+      return;
+    }
+    FILE* new_fp = fopen(filepath_tmp.c_str(), "wb");
     if (!new_fp) {
       perror("Open file error");
       UnMap();
@@ -87,9 +97,15 @@ void File::Write(size_t new_size, const char* filepath) {
 
     fclose(new_fp);
     UnMap();
+#ifdef WIN32
+    if (MoveFileExA(filepath_tmp.c_str(), filepath, MOVEFILE_REPLACE_EXISTING) == 0) {
+      fprintf(stderr, "%s: zip replace file error\n", filepath);
+    }
+#else
     if (rename(filepath_tmp.c_str(), filepath)) {
       perror("rename");
     }
+#endif
   }
 }
 

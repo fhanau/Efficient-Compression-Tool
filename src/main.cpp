@@ -362,11 +362,6 @@ unsigned fileHandler(const char * Infile, const ECTOptions& Options, int interna
 }
 
 unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const ECTOptions& Options){
-#ifdef _WIN32
-#define EXTSEP "\\"
-#else
-#define EXTSEP "/"
-#endif
     std::string extension = ((std::string)argv[args[0]]).substr(((std::string)argv[args[0]]).find_last_of(".") + 1);
     std::string zipfilename = argv[args[0]];
     size_t local_bytes = 0;
@@ -398,7 +393,7 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
 
         zipfilename += ".zip";
         if(exists(zipfilename.c_str())){
-            printf("Error: ZIP file for chosen file/folder already exists, but you didn't list it.\n");
+            printf("Error: ZIP file for chosen file/folder already exists, but is not listed.\n");
             return 1;
         }
     }
@@ -407,37 +402,44 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
     for(; error == 0 && i < files; i++){
         if(isDirectory(argv[args[i]])){
 #ifdef FS_SUPPORTED
-            std::string fold = std::filesystem::canonical(argv[args[i]]).string();
-            int substr = std::filesystem::path(fold).has_parent_path() ? std::filesystem::path(fold).parent_path().string().length() + 1 : 0;
+            std::string fold = std::filesystem::canonical(argv[args[i]]).generic_string();
+            int substr = std::filesystem::path(fold).has_parent_path() ? std::filesystem::path(fold).parent_path().generic_string().length() + 1 : 0;
 
             std::filesystem::recursive_directory_iterator a(fold), b;
             std::vector<std::filesystem::path> paths(a, b);
             for(unsigned j = 0; j < paths.size(); j++){
-                std::string newfile = paths[j].string();
+                std::string newfile = paths[j].generic_string();
                 const char* name = newfile.erase(0, substr).c_str();
+                std::string file_string = paths[j].generic_string();
+                const char* file_path = file_string.c_str();
 
-                if(isDirectory(paths[j].string().c_str())){
+                if(isDirectory(file_path)){
                     //Only add dir if it is empty to minimize filesize
-                    std::string next = paths[j + 1].string();
-                    if ((next.compare(0, paths[j].string().size() + 1, paths[j].string() + "/") != 0 || next.compare(0, paths[j].string().size() + 1, paths[j].string() + "/") != 0)&& !mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), ((std::string)name + EXTSEP).c_str(), 0, 0, 0, 0, paths[j].string().c_str())) {
-                        printf("can't add directory '%s'\n", argv[args[i]]);
+                    if (j + 1 < files) {
+                        std::string next = paths[j + 1].generic_string();
+                        if (next.compare(0, file_string.size(), file_string) == 0) {
+                            continue;
+                        }
+                    }
+                    if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), (((std::string)name) + "/").c_str(), 0, 0, 0, 0, file_path)) {
+                        printf("can't add directory '%s'\n", file_path);
                     }
                 }
                 else{
-                    long long f = filesize(paths[j].string().c_str());
+                    long long f = filesize(file_path);
                     if(f > UINT_MAX){
-                        printf("%s: file too big\n", paths[j].string().c_str());
+                        printf("%s: file too big\n", file_path);
                         continue;
                     }
                     if(f < 0){
-                        printf("%s: can't read file\n", paths[j].string().c_str());
+                        printf("%s: can't read file\n", file_path);
                         continue;
                     }
                     char* file = (char*)malloc(f);
                     if(!file){
                         exit(1);
                     }
-                    FILE * stream = fopen (paths[j].string().c_str(), "rb");
+                    FILE* stream = fopen(file_path, "rb");
                     if (!stream){
                         free(file); error = 1; continue;
                     }
@@ -445,18 +447,18 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
                         fclose(stream); free(file); error = 1; continue;
                     }
                     fclose(stream);
-                    if(!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), name, file, f, 0, 0, paths[j].string().c_str())){
-                        printf("can't add file '%s'\n", paths[j].string().c_str());
+                    if(!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), name, file, f, 0, 0, file_path)){
+                        printf("can't add file '%s'\n", file_path);
                         free(file); error = 1; continue;
                     }
                     else{
-                        local_bytes += filesize(paths[j].string().c_str());
+                        local_bytes += filesize(file_path);
                     }
                     free(file);
                 }
             }
             if(!paths.size()){
-                if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), (fold.erase(0, substr) + EXTSEP).c_str(), 0, 0, 0, 0, argv[args[i]])) {
+                if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), (fold.erase(0, substr) + "/").c_str(), 0, 0, 0, 0, argv[args[i]])) {
                     printf("can't add directory '%s'\n", argv[args[i]]);
                 }
             }
