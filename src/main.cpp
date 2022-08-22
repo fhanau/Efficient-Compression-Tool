@@ -311,7 +311,7 @@ static void OptimizeMP3(const char * Infile, const ECTOptions& Options){
 unsigned fileHandler(const char * Infile, const ECTOptions& Options, int internal){
     std::string Ext = Infile;
     std::string x = Ext.substr(Ext.find_last_of(".") + 1);
-    time_t t;
+    time_t t = 0;
     unsigned error = 0;
 
     if ((Options.PNG_ACTIVE && (x == "PNG" || x == "png")) || (Options.JPEG_ACTIVE && (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg")) || (Options.Gzip && !internal)){

@@ -256,7 +256,7 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
     for (i = 3; i < 259; i++){
       litlentable[i] = costcontext->ll_symbols[ZopfliGetLengthSymbol(i)] + ZopfliGetLengthExtraBits(i);
     }
-    for (i = 0; i < 1025; i++){
+    for (i = 1; i < 1025; i++){
       disttable[i] = costcontext->d_symbols[ZopfliGetDistSymbol(i)] + ZopfliGetDistExtraBits(i);
     }
     float counter = costcontext->d_symbols[20] + 9;
@@ -385,7 +385,7 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
     float newCost = costs[j] + literals[in[i]];
     if (newCost < costs[j + 1]) {
       costs[j + 1] = newCost;
-      length_array[j + 1] = 1 + (in[i] << 24);
+      length_array[j + 1] = 1U + (in[i] << 24);
     }
   }
 
@@ -412,7 +412,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
     for (i = 3; i < 259; i++){
       litlentable[i] = costcontext->ll_symbols[ZopfliGetLengthSymbol(i)] + ZopfliGetLengthExtraBits(i);
     }
-    for (i = 0; i < 513; i++){
+    for (i = 1; i < 513; i++){
       disttable[i] = costcontext->d_symbols[ZopfliGetDistSymbol(i)] + ZopfliGetDistExtraBits(i);
     }
     float counter = costcontext->d_symbols[18] + 8;
@@ -479,7 +479,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
     for (i = 3; i < 259; i++){
       litlentable[i] = 12 + (i > 114) + ZopfliGetLengthExtraBits(i);
     }
-    for (i = 0; i < 1025; i++){
+    for (i = 1; i < 1025; i++){
       disttable[i] = ZopfliGetDistExtraBits(i);
     }
     for (; i < 2049; i++){
@@ -656,7 +656,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
     float newCost = costs[j] + literals[in[i]];
     if (newCost < costs[j + 1]) {
       costs[j + 1] = newCost;
-      length_array[j + 1] = 1 + (in[i] << 24);
+      length_array[j + 1] = 1U + (in[i] << 24);
     }
 
     if (i == inend - ZOPFLI_MAX_MATCH - 1 && mfinexport & 2){
@@ -689,7 +689,7 @@ static void GetBestLengthsultra2(const unsigned char* in, size_t instart, size_t
   for (i = 3; i < 259; i++){
     litlentable[i] = costcontext->ll_symbols[ZopfliGetLengthSymbol(i)] + ZopfliGetLengthExtraBits(i);
   }
-  for (i = 0; i < 32768; i++){
+  for (i = 1; i < 32768; i++){
     disttable[i] = costcontext->d_symbols[ZopfliGetDistSymbol(i)] + ZopfliGetDistExtraBits(i);
   }
 
@@ -735,7 +735,7 @@ static void GetBestLengthsultra2(const unsigned char* in, size_t instart, size_t
     unsigned newCost = costs[j] + literals[in[i]];
     if (newCost < costs[j + 1]) {
       costs[j + 1] = newCost;
-      length_array[j + 1] = 1 + (in[i] << 24);
+      length_array[j + 1] = 1U + (in[i] << 24);
     }
   }
 

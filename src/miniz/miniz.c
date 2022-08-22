@@ -794,7 +794,7 @@ static void AddNonCompressedBlock(const unsigned char* in, size_t insize, unsign
 
 mz_bool mz_zip_writer_add_mem_ex(mz_zip_archive *pZip, const char *pArchive_name, const void *pBuf, size_t buf_size, const void *pComment, mz_uint16 comment_size, const char* location)
 {
-  void * data;
+  void * data = 0;
   mz_uint32 uncomp_crc32 = (mz_uint32)crc32(MZ_CRC32_INIT, (const mz_uint8*)pBuf, buf_size);
   mz_uint64 uncomp_size = buf_size;
   buf_size = uncomp_size ? uncomp_size + 5 * ((uncomp_size / 65535) + !!(uncomp_size % 65535)) : 0;
