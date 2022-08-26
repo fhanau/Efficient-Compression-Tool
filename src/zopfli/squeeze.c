@@ -194,7 +194,7 @@ static void LZ4HC_Insert3 (LZ3HC_Data_Structure* hc4, const BYTE* ip)
 
 static int LZ4HC_InsertAndFindBestMatch3 (LZ3HC_Data_Structure* hc4,   /* Index table will be updated */
                                           const BYTE* ip, const BYTE* const iLimit,
-                                          unsigned matches[])
+                                          unsigned* matches)
 {
   if (iLimit - ip < 3){
     return 0;

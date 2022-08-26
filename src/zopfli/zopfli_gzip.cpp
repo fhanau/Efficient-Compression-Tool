@@ -294,7 +294,7 @@ int ZopfliGzip(const char* infilename, const char* outfilename, unsigned mode, u
   stat(infilename, &st);
   time_t time = st.st_mtime;
   if (!ZIP) {
-    ZopfliGzipCompress(mode, multithreading, in, insize, time, &out, &outsize, (std::string)gzip_name);
+    ZopfliGzipCompress(mode, multithreading, in, insize, time, &out, &outsize, (std::string)(gzip_name ? gzip_name : ""));
   }
   else {
     ZopfliZipCompress(mode, multithreading, in, insize, time, infilename, &out, &outsize);
