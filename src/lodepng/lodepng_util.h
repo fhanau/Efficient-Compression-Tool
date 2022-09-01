@@ -35,8 +35,7 @@ Extra C++ utilities for LodePNG, for convenience.
 
 #pragma once
 
-namespace lodepng
-{
+namespace lodepng {
 
 /*
 Inserts chunks into the given png file. The chunks must be fully encoded,

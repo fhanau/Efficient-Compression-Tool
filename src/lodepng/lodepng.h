@@ -77,13 +77,12 @@ compiler command to disable them without modifying this header, e.g.
 
 #ifdef LODEPNG_COMPILE_PNG
 /*The PNG color types (also used for raw).*/
-typedef enum LodePNGColorType
-{
-  LCT_GREY = 0, /*greyscale: 1,2,4,8,16 bit*/
-  LCT_RGB = 2, /*RGB: 8,16 bit*/
-  LCT_PALETTE = 3, /*palette: 1,2,4,8 bit*/
-  LCT_GREY_ALPHA = 4, /*greyscale with alpha: 8,16 bit*/
-  LCT_RGBA = 6 /*RGB with alpha: 8,16 bit*/
+typedef enum LodePNGColorType {
+  LCT_GREY = 0, /*greyscale: 1, 2, 4, 8, 16 bit*/
+  LCT_RGB = 2, /*RGB: 8, 16 bit*/
+  LCT_PALETTE = 3, /*palette: 1, 2, 4, 8 bit*/
+  LCT_GREY_ALPHA = 4, /*greyscale with alpha: 8, 16 bit*/
+  LCT_RGBA = 6 /*RGB with alpha: 8, 16 bit*/
 } LodePNGColorType;
 
 #ifdef LODEPNG_COMPILE_DECODER
@@ -108,8 +107,7 @@ unsigned lodepng_decode_memory(unsigned char** out, unsigned* w, unsigned* h,
 #endif /*LODEPNG_COMPILE_DECODER*/
 
 #ifdef LODEPNG_COMPILE_CPP
-namespace lodepng
-{
+namespace lodepng {
 #ifdef LODEPNG_COMPILE_DECODER
 /*Same as lodepng_decode_memory, but decodes to an std::vector. The colortype
 is the format to output the pixels to. Default is RGBA 8-bit per channel.*/
@@ -131,8 +129,7 @@ Settings for zlib compression. Tweaking these settings tweaks the balance
 between speed and compression ratio.
 */
 typedef struct LodePNGCompressSettings LodePNGCompressSettings;
-struct LodePNGCompressSettings /*deflate = compress*/
-{
+struct LodePNGCompressSettings { /*deflate = compress*/
   /*LZ77 related settings*/
   unsigned btype; /*the block type for LZ (0, 1, 2 or 3, see zlib standard). Should be 2 for proper compression.*/
   unsigned minmatch; /*mininum lz77 length. 3 is normally best, 6 can be better for some PNGs. Default: 0*/
@@ -157,8 +154,7 @@ Color mode of an image. Contains all information required to decode the pixel
 bits to RGBA colors. This information is the same as used in the PNG file
 format, and is used both for PNG and raw image data in LodePNG.
 */
-typedef struct LodePNGColorMode
-{
+typedef struct LodePNGColorMode {
   /*header (IHDR)*/
   LodePNGColorType colortype; /*color type, see PNG standard or documentation further in this header file*/
   unsigned bitdepth;  /*bits per sample, see PNG standard or documentation further in this header file*/
@@ -215,8 +211,7 @@ unsigned lodepng_has_palette_alpha(const LodePNGColorMode* info);
 size_t lodepng_get_raw_size(unsigned w, unsigned h, const LodePNGColorMode* color);
 
 /*Information about the PNG image, except pixels, width and height.*/
-typedef struct LodePNGInfo
-{
+typedef struct LodePNGInfo {
   /*header (IHDR), palette (PLTE) and transparency (tRNS) chunks*/
   unsigned compression_method;/*compression method of the original file. Always 0.*/
   unsigned filter_method;     /*filter method of the original file*/
@@ -309,8 +304,7 @@ unsigned lodepng_convert(unsigned char* out, const unsigned char* in,
 Settings for the decoder. This contains settings for the PNG and the Zlib
 decoder, but not the Info settings from the Info structs.
 */
-typedef struct LodePNGDecoderSettings
-{
+typedef struct LodePNGDecoderSettings {
   unsigned color_convert; /*whether to convert the PNG to the color type you want. Default: yes*/
 
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
@@ -323,25 +317,24 @@ typedef struct LodePNGDecoderSettings
 
 #ifdef LODEPNG_COMPILE_ENCODER
 /*automatically use color type with less bits per pixel if losslessly possible. Default: AUTO*/
-typedef enum LodePNGFilterStrategy
-{
+typedef enum LodePNGFilterStrategy {
   /*every filter at zero*/
   LFS_ZERO = 0,
-    LFS_SUB = 1,
-    LFS_UP = 2,
-    LFS_AVG = 3,
-    LFS_PAETH = 4,
-  /*Use the filter type that gives smallest Shannon entropy for this scanline. Depending
-  on the image, this is better or worse than minsum.*/
-  LFS_ENTROPY = 7,
+  LFS_SUB = 1,
+  LFS_UP = 2,
+  LFS_AVG = 3,
+  LFS_PAETH = 4,
   /*Brute-force-search PNG filters by compressing each filter for each scanline.*/
   LFS_BRUTE_FORCE = 5,
   /*use predefined_filters buffer: you specify the filter type for each scanline*/
   LFS_PREDEFINED = 6,
-  /*Use the filter type that gives the least number of distinct bytes*/
-  LFS_DISTINCT_BYTES = 9,
+  /*Use the filter type that gives smallest Shannon entropy for this scanline. Depending
+  on the image, this is better or worse than minsum.*/
+  LFS_ENTROPY = 7,
   /*Use the filter type that gives the least number of distinct bigrams*/
   LFS_DISTINCT_BIGRAMS = 8,
+  /*Use the filter type that gives the least number of distinct bytes*/
+  LFS_DISTINCT_BYTES = 9,
   LFS_MINSUM = 10,
   LFS_INCREMENTAL = 11,
   LFS_INCREMENTAL2 = 12,
@@ -350,40 +343,36 @@ typedef enum LodePNGFilterStrategy
   LFS_ALL_CHEAP = 15
 } LodePNGFilterStrategy;
 
-typedef enum LodePNGPalettePriorityStrategy
-{
+typedef enum LodePNGPalettePriorityStrategy {
   /*Prioritize by frequency of color*/
   LPPS_POPULARITY = 0,
+  /*Prioritize by most significant bits of each RGB channel*/
+  LPPS_MSB = 1,
   /*Prioritize by RGB color space*/
   LPPS_RGB = 2,
-  /*Prioritize by Y'UV color space*/
-  LPPS_YUV = 4,
   /*Prioritize by L*a*b* color space*/
   LPPS_LAB = 3,
-  /*Prioritize by most significant bits of each RGB channel*/
-  LPPS_MSB = 1
+  /*Prioritize by Y'UV color space*/
+  LPPS_YUV = 4
 } LodePNGPalettePriorityStrategy;
 
-typedef enum LodePNGPaletteDirectionStrategy
-{
+typedef enum LodePNGPaletteDirectionStrategy {
   /*Sort in ascending direction*/
   LPDS_ASCENDING = 0,
   /*Sort in descending direction*/
   LPDS_DESCENDING = 1
 } LodePNGPaletteDirectionStrategy;
 
-typedef enum LodePNGPaletteTransparencyStrategy
-{
+typedef enum LodePNGPaletteTransparencyStrategy {
+  /*Put colors with transparency first*/
+  LPTS_FIRST = 0,
   /*Don't consider transparency*/
   LPTS_IGNORE = 1,
   /*Sort transparency as additional color channel*/
-  LPTS_SORT = 2,
-  /*Put colors with transparency first*/
-  LPTS_FIRST = 0
+  LPTS_SORT = 2
 } LodePNGPaletteTransparencyStrategy;
 
-typedef enum LodePNGPaletteOrderStrategy
-{
+typedef enum LodePNGPaletteOrderStrategy {
   /*Do not change palette*/
   LPOS_NONE = -1,
   /*Consider all colors when ordering*/
@@ -405,8 +394,7 @@ typedef struct LodePNGPaletteSettings{
 } LodePNGPaletteSettings;
 /*Gives characteristics about the colors of the image, which helps decide which color model to use for encoding.
 Used internally by default if "auto_convert" is enabled. Public because it's useful for custom algorithms.*/
-typedef struct LodePNGColorProfile
-{
+typedef struct LodePNGColorProfile {
   unsigned colored; /*not greyscale*/
   unsigned key; /*if true, image is not opaque. Only if true and alpha is false, color key is possible.*/
   unsigned short key_r; /*these values are always in 16-bit bitdepth in the profile*/
@@ -429,8 +417,7 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
                                    const LodePNGColorMode* mode_in);
 
 /*Settings for the encoder.*/
-typedef struct LodePNGEncoderSettings
-{
+typedef struct LodePNGEncoderSettings {
   LodePNGCompressSettings zlibsettings; /*settings for the zlib encoder, such as window size, ...*/
 
   unsigned auto_convert; /*automatically choose output PNG color type. Default: true*/
@@ -464,8 +451,7 @@ void lodepng_encoder_settings_init(LodePNGEncoderSettings* settings);
 
 #if defined(LODEPNG_COMPILE_DECODER) || defined(LODEPNG_COMPILE_ENCODER)
 /*The settings, state and information for extended encoding and decoding.*/
-typedef struct LodePNGState
-{
+typedef struct LodePNGState {
 #ifdef LODEPNG_COMPILE_DECODER
   LodePNGDecoderSettings decoder; /*the decoding settings*/
 #endif /*LODEPNG_COMPILE_DECODER*/
@@ -541,8 +527,8 @@ unsigned char lodepng_chunk_ancillary(const unsigned char* chunk);
 const unsigned char* lodepng_chunk_data_const(const unsigned char* chunk);
 
 /*iterate to next chunks. don't use on IEND chunk, as there is no next chunk then*/
-unsigned char* lodepng_chunk_next(unsigned char* chunk);
-const unsigned char* lodepng_chunk_next_const(const unsigned char* chunk);
+unsigned char* lodepng_chunk_next(unsigned char* chunk, unsigned char* end);
+const unsigned char* lodepng_chunk_next_const(const unsigned char* chunk, const unsigned char* end);
 
 /*
 Appends new chunk to out. The chunk to append is given by giving its length, type
@@ -570,11 +556,9 @@ unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
 
 #ifdef LODEPNG_COMPILE_CPP
 //The LodePNG C++ wrapper uses std::vectors instead of manually allocated memory buffers.
-namespace lodepng
-{
+namespace lodepng {
 #ifdef LODEPNG_COMPILE_PNG
-class State : public LodePNGState
-{
+class State : public LodePNGState {
   public:
     State();
     virtual ~State();
