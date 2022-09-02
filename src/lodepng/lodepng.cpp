@@ -976,7 +976,7 @@ static int color_tree_get(ColorTree* tree, unsigned char r, unsigned char g, uns
   for(int bit = 0; bit < 8; ++bit) {
     unsigned i = x & 15;
     if(!tree->children[i]) return -1;
-    tree = tree->children[i];
+    else tree = tree->children[i];
     x >>= 4;
   }
   return tree ? tree->index : -1;
@@ -1572,12 +1572,20 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
 }
 
 static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
-                      unsigned w, unsigned h, const size_t count,
-                      const LodePNGPalettePriorityStrategy priority,
-                      const LodePNGPaletteDirectionStrategy direction,
-                      const LodePNGPaletteTransparencyStrategy transparency,
-                      const LodePNGPaletteOrderStrategy order, ColorTree* tree) {
-  size_t i;
+                             const unsigned w, const unsigned h,
+                             LodePNGPalettePriorityStrategy priority,
+                             LodePNGPaletteDirectionStrategy direction,
+                             LodePNGPaletteTransparencyStrategy transparency,
+                             LodePNGPaletteOrderStrategy order) {
+  size_t i, count = 0;
+  ColorTree tree;
+  color_tree_init(&tree);
+  for (i = 0; i < w * h; ++i) {
+    const unsigned char* c = (unsigned char*)&image[i];
+    if(color_tree_inc(&tree, c[0], c[1], c[2], c[3]) == 0) ++count;
+  }
+  if(count == 0) return; //Silence clang static analyzer warnings
+
   /*sortfield format:
     bit 0-7:   original palette index
     bit 8-39:  color encoding or popularity index
@@ -1589,7 +1597,7 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
   uint32_t* palette_in = (uint32_t*)(mode_out->palette);
   for(i = 0; i != count; ++i) { /*all priority values will run through this for loop*/
     const unsigned char* c = (unsigned char*)&palette_in[i];
-    if(priority == LPPS_POPULARITY) sortfield[i] |= (color_tree_get(tree, c[0], c[1], c[2], c[3]) + 1) << 8;
+    if(priority == LPPS_POPULARITY) sortfield[i] |= (color_tree_get(&tree, c[0], c[1], c[2], c[3]) + 1) << 8;
     else if(priority == LPPS_RGB) sortfield[i] |= uint64_t(c[0]) << 32 | uint64_t(c[1]) << 24 | uint64_t(c[2]) << 16;
     else if(priority == LPPS_YUV || priority == LPPS_LAB) {
       const double r = c[0];
@@ -1646,11 +1654,13 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
       break;
   }
   size_t best = 0;
-  if(order == LPOS_GLOBAL && direction == LPDS_DESCENDING) {
-    for(i = 0; i != count; ++i) {
-      /*flip bits, but preserve original index and transparency mode 2*/
-      sortfield[i] = (~sortfield[i] & 0x7FFFFFFFFFFFFF00ULL)
-      | (sortfield[i] & 0x80000000000000FFULL);
+  if(order == LPOS_GLOBAL) {
+    if(direction == LPDS_DESCENDING) {
+      for(i = 0; i != count; ++i) {
+        /*flip bits, but preserve original index and transparency mode 2*/
+        sortfield[i] = (~sortfield[i] & 0x7FFFFFFFFFFFFF00ULL)
+        | (sortfield[i] & 0x80000000000000FFULL);
+      }
     }
   } else {
     if(direction == LPDS_DESCENDING) {
@@ -1706,7 +1716,7 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
         }
       }
     }
-    for(i = 0; i != count - 1; ++i) {
+    for(i = 0; i < count - 1; ++i) {
       if(i != best) {
         sortfield[i] ^= sortfield[best];
         sortfield[best] ^= sortfield[i];
@@ -1730,20 +1740,22 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
           const int a2 = c2[3];
           dist += (a - a2) * (a - a2);
         }
-        if(order == LPOS_NEAREST && dist < bestdist) {
-          bestdist = dist;
-          best = j;
-        } else { /*LPOS_NEAREST_WEIGHT or LPOS_NEAREST_NEIGHBOR*/
+        if(order == LPOS_NEAREST) {
+          if(dist < bestdist) {
+            bestdist = dist;
+            best = j;
+          }
+        } else if(order == LPOS_NEAREST_WEIGHT || order == LPOS_NEAREST_NEIGHBOR) {
           double d_dist = (double)dist;
           if(order == LPOS_NEAREST_WEIGHT) {
-            d_dist /= (color_tree_get(tree, c2[0], c2[1], c2[2], c2[3]) + 1);
+            d_dist /= (color_tree_get(&tree, c2[0], c2[1], c2[2], c2[3]) + 1);
             if(d_dist < (double)bestdist) {
               bestdist = (int)d_dist;
               best = j;
             }
           } else { /*LPOS_NEAREST_NEIGHBOR*/
             d_dist /= (color_tree_get(&neighbors, color_tree_get(&paltree, c[0], c[1], c[2], c[3]),
-                                                             color_tree_get(&paltree, c2[0], c2[1], c2[2], c2[3]), 0, 0) + 1);
+                                                  color_tree_get(&paltree, c2[0], c2[1], c2[2], c2[3]), 0, 0) + 1);
             if(d_dist != 0 && d_dist < (double)bestdist) {
               bestdist = (int)d_dist;
               best = j;
@@ -1751,11 +1763,11 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
           }
         }
       }
-      sortfield[count - 1] |= uint64_t(count - 1) << 40;
-      if(order == LPOS_NEAREST_NEIGHBOR) {
-        color_tree_cleanup(&paltree);
-        color_tree_cleanup(&neighbors);
-      }
+    }
+    sortfield[count - 1] |= uint64_t(count - 1) << 40;
+    if(order == LPOS_NEAREST_NEIGHBOR) {
+      color_tree_cleanup(&paltree);
+      color_tree_cleanup(&neighbors);
     }
   }
   std::sort(sortfield, sortfield + count);
@@ -1764,7 +1776,7 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
   std::copy(palette_out, palette_out + mode_out->palettesize, palette_in);
   free(palette_out);
   free(sortfield);
-  color_tree_cleanup(tree);
+  color_tree_cleanup(&tree);
 }
 
 /*Automatically chooses color type that gives smallest amount of bits in the
@@ -3669,24 +3681,14 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
     state->error = lodepng_auto_choose_color(&info.color, &state->info_raw, &prof, numpixels, state->div);
     if(state->error) goto cleanup;
     if(info.color.colortype == LCT_PALETTE && palset.order != LPOS_NONE) {
-      size_t i, count = 0;
       if(palset._first & 1) color_tree_init(&ct);
-
-      ColorTree tree;
-      color_tree_init(&tree);
-      for(i = 0; i != numpixels; ++i) {
-        const unsigned char* c = (unsigned char*)&image[i];
-        if(color_tree_inc(&tree, c[0], c[1], c[2], c[3]) == 0) ++count;
-      }
-      if(count == 0) color_tree_cleanup(&tree);
-      else optimize_palette(&info.color, (uint32_t*)image, w, h, count, palset.priority,
-                                                          palset.direction, palset.trans, palset.order, &tree);
+      if(palset.order != LPOS_NONE) optimize_palette(&info.color, (uint32_t*)image, w, h, 
+                                                     palset.priority, palset.direction, palset.trans, palset.order);
 
       unsigned crc = crc32(0, info.color.palette, info.color.palettesize);
       if(!color_tree_inc(&ct, crc & 0xFF, crc & 0xFF00, crc & 0xFF0000, crc & 0xFF000000)) {
       } else {
         if(palset._first & 2) color_tree_cleanup(&ct);
-        lodepng_info_cleanup(&info);
         state->error = 96;
         goto cleanup;
       }
