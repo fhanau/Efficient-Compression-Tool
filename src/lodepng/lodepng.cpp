@@ -1,7 +1,7 @@
 /*
-LodePNG version 20141130
+LodePNG version 20220717
 
-Copyright (c) 2005-2014 Lode Vandevenne
+Copyright (c) 2005-2022 Lode Vandevenne
 
 This software is provided 'as-is', without any express or implied
 warranty. In no event will the authors be held liable for any damages
@@ -23,13 +23,12 @@ freely, subject to the following restrictions:
     distribution.
 */
 
-
 /*
 The manual and changelog are in the header file "lodepng.h"
 Rename this file to lodepng.cpp to use it for C++, or to lodepng.c to use it for C.
 */
 
-/*Modified by Felix Hanau to remove unused functions*/
+/*Modified by Felix Hanau to remove unused code, add compression improvements*/
 
 #include "lodepng.h"
 #include "../zlib/zlib.h"
@@ -44,7 +43,7 @@ Rename this file to lodepng.cpp to use it for C++, or to lodepng.c to use it for
 #endif /*LODEPNG_COMPILE_CPP*/
 
 /*
-This source file is built up in the following large parts. The code sections
+This source file is divided into the following large parts. The code sections
 with the "LODEPNG_COMPILE_" #defines divide this up further in an intermixed way.
 -Tools for C and common code for PNG and Zlib
 -C Code for Zlib (huffman, deflate, ...)
@@ -57,8 +56,8 @@ static void* lodepng_malloc(size_t size)
   return malloc(size);
 }
 
-static void* lodepng_realloc(void* ptr, size_t new_size)
-{
+/* NOTE: when realloc returns NULL, it leaves the original memory untouched */
+static void* lodepng_realloc(void* ptr, size_t new_size) {
   return realloc(ptr, new_size);
 }
 
@@ -73,8 +72,7 @@ Often in case of an error a value is assigned to a variable and then it breaks
 out of a loop (to go to the cleanup phase of a function). This macro does that.
 It makes the error handling code shorter and more readable.
 */
-#define CERROR_BREAK(errorvar, code)\
-{\
+#define CERROR_BREAK(errorvar, code){\
   errorvar = code;\
   break;\
 }
@@ -83,22 +81,19 @@ It makes the error handling code shorter and more readable.
 #define ERROR_BREAK(code) CERROR_BREAK(error, code)
 
 /*Set error var to the error code, and return it.*/
-#define CERROR_RETURN_ERROR(errorvar, code)\
-{\
+#define CERROR_RETURN_ERROR(errorvar, code){\
   errorvar = code;\
   return code;\
 }
 
 /*Try the code, if it returns error, also return the error.*/
-#define CERROR_TRY_RETURN(call)\
-{\
+#define CERROR_TRY_RETURN(call){\
   unsigned error = call;\
   if(error) return error;\
 }
 
 /*Set error var to the error code, and return from the void function.*/
-#define CERROR_RETURN(errorvar, code)\
-{\
+#define CERROR_RETURN(errorvar, code){\
   errorvar = code;\
   return;\
 }
@@ -315,9 +310,9 @@ unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
 #endif
     return 83;
   }
-  
+
 #if defined(_WIN32) || defined(WIN32)
-	free(buf);
+  free(buf);
 #endif
   return 0;
 }
@@ -326,22 +321,16 @@ unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
 
 #ifdef LODEPNG_COMPILE_ENCODER
 
-/* ////////////////////////////////////////////////////////////////////////// */
-/* / Deflator (Compressor)                                                  / */
-/* ////////////////////////////////////////////////////////////////////////// */
-
 static unsigned deflate(unsigned char** out, size_t* outsize,
                         const unsigned char* in, size_t insize,
-                        const LodePNGCompressSettings* settings)
-{
+                        const LodePNGCompressSettings* settings) {
     return settings->custom_deflate(out, outsize, in, insize, settings);
 }
 
 #endif /*LODEPNG_COMPILE_DECODER*/
 
 /*Return the adler32 of the bytes data[0..len-1]*/
-static unsigned adler32(const unsigned char* data, unsigned len)
-{
+static unsigned adler32(const unsigned char* data, unsigned len) {
   return adler32(1, data, len);
 }
 

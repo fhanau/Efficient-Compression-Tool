@@ -1,7 +1,7 @@
 /*
 LodePNG Utils
 
-Copyright (c) 2005-2014 Lode Vandevenne
+Copyright (c) 2005-2022 Lode Vandevenne
 
 This software is provided 'as-is', without any express or implied
 warranty. In no event will the authors be held liable for any damages
@@ -27,7 +27,11 @@ freely, subject to the following restrictions:
 
 /*
 Extra C++ utilities for LodePNG, for convenience.
+Not part of the stable API of lodepng, more loose separate utils.
 */
+
+#ifndef LODEPNG_UTIL_H
+#define LODEPNG_UTIL_H
 
 #include <string>
 #include <vector>
@@ -63,3 +67,5 @@ unsigned getChunks(std::vector<std::string> names[3],
 unsigned getFilterTypes(std::vector<unsigned char>& filterTypes, const std::vector<unsigned char>& png);
 
 } // namespace lodepng
+
+#endif /*LODEPNG_UTIL_H inclusion guard*/

@@ -1,7 +1,7 @@
 /*
 LodePNG Utils
 
-Copyright (c) 2005-2014 Lode Vandevenne
+Copyright (c) 2005-2022 Lode Vandevenne
 
 This software is provided 'as-is', without any express or implied
 warranty. In no event will the authors be held liable for any damages
@@ -27,13 +27,11 @@ freely, subject to the following restrictions:
 
 #include "lodepng_util.h"
 
-namespace lodepng
-{
+namespace lodepng {
 
 unsigned getChunks(std::vector<std::string> names[3],
                    std::vector<std::vector<unsigned char> > chunks[3],
-                   const std::vector<unsigned char>& png)
-{
+                   const std::vector<unsigned char>& png) {
   const unsigned char *chunk, *next, *begin, *end;
   end = &png.back() + 1;
   begin = chunk = &png.front() + 8;
@@ -50,16 +48,11 @@ unsigned getChunks(std::vector<std::string> names[3],
     next = lodepng_chunk_next_const(chunk);
     if (next <= chunk) return 1; // integer overflow
 
-    if(name == "IHDR")
-    {
+    if(name == "IHDR") {
       location = 0;
-    }
-    else if(name == "PLTE")
-    {
+    } else if(name == "PLTE") {
       location = 1;
-    }
-    else if(name == "IDAT")
-    {
+    } else if(name == "IDAT") {
       location = 2;
     }
     else if(name == "tRNS")
@@ -105,17 +98,12 @@ unsigned insertChunks(std::vector<unsigned char>& png,
     next = lodepng_chunk_next_const(chunk);
     if (next <= chunk) return 1; // integer overflow
 
-    if(name == "PLTE")
-    {
+    if(name == "PLTE") {
       if(l0 == 0) l0 = chunk - begin + 8;
-    }
-    else if(name == "IDAT")
-    {
+    } else if(name == "IDAT") {
       if(l0 == 0) l0 = chunk - begin + 8;
       if(l1 == 0) l1 = chunk - begin + 8;
-    }
-    else if(name == "IEND")
-    {
+    } else if(name == "IEND") {
       if(l2 == 0) l2 = chunk - begin + 8;
     }
 
@@ -141,8 +129,7 @@ unsigned insertChunks(std::vector<unsigned char>& png,
     unsigned char* buffer = 0;
     size_t buffersize = 0;
     unsigned error = lodepng_zlib_decompress(&buffer, &buffersize, in, insize);
-    if(buffer)
-    {
+    if(buffer) {
       out.insert(out.end(), &buffer[0], &buffer[buffersize]);
       free(buffer);
     }
@@ -173,8 +160,7 @@ unsigned insertChunks(std::vector<unsigned char>& png,
       lodepng_chunk_type(type, chunk);
       if(std::string(type).size() != 4) return 1; //Probably not a PNG file
 
-      if(std::string(type) == "IDAT")
-      {
+      if(std::string(type) == "IDAT") {
         const unsigned char* cdata = lodepng_chunk_data_const(chunk);
         unsigned clength = lodepng_chunk_length(chunk);
         if(chunk + clength + 12 > end || clength > png.size() || chunk + clength + 12 < begin) {
@@ -182,8 +168,7 @@ unsigned insertChunks(std::vector<unsigned char>& png,
           return 1;
         }
 
-        for(unsigned i = 0; i < clength; i++)
-        {
+        for(unsigned i = 0; i < clength; i++) {
           zdata.push_back(cdata[i]);
         }
       }
@@ -193,26 +178,22 @@ unsigned insertChunks(std::vector<unsigned char>& png,
       chunk = next;
     }
 
-    //Decompress all IDAT data
+    //Decompress all IDAT data (if the while loop ended early, this might fail)
     std::vector<unsigned char> data;
     error = lodepng::decompress(data, &zdata[0], zdata.size());
 
     if(error) return 1;
 
-    if(state.info_png.interlace_method == 0)
-    {
+    if(state.info_png.interlace_method == 0) {
       filterTypes.resize(1);
 
       //A line is 1 filter byte + all pixels
       size_t linebytes = 1 + lodepng_get_raw_size(w, 1, &state.info_png.color);
 
-      for(size_t i = 0; i < data.size(); i += linebytes)
-      {
+      for(size_t i = 0; i < data.size(); i += linebytes) {
         filterTypes[0].push_back(data[i]);
       }
-    }
-    else
-    {
+    } else {
       //Interlaced
       filterTypes.resize(7);
       static const unsigned ADAM7_IX[7] = { 0, 4, 0, 2, 0, 1, 0 }; /*x start values*/
@@ -220,15 +201,12 @@ unsigned insertChunks(std::vector<unsigned char>& png,
       static const unsigned ADAM7_DX[7] = { 8, 8, 4, 4, 2, 2, 1 }; /*x delta values*/
       static const unsigned ADAM7_DY[7] = { 8, 8, 8, 4, 4, 2, 2 }; /*y delta values*/
       size_t pos = 0;
-      for(size_t j = 0; j < 7; j++)
-      {
+      for(size_t j = 0; j < 7; j++) {
         unsigned w2 = (w - ADAM7_IX[j] + ADAM7_DX[j] - 1) / ADAM7_DX[j];
         unsigned h2 = (h - ADAM7_IY[j] + ADAM7_DY[j] - 1) / ADAM7_DY[j];
-        if(ADAM7_IX[j] >= w) w2 = 0;
-        if(ADAM7_IY[j] >= h) h2 = 0;
+        if(ADAM7_IX[j] >= w || ADAM7_IY[j] >= h) continue;
         size_t linebytes = 1 + lodepng_get_raw_size(w2, 1, &state.info_png.color);
-        for(size_t i = 0; i < h2; i++)
-        {
+        for(size_t i = 0; i < h2; i++) {
           filterTypes[j].push_back(data[pos]);
           pos += linebytes;
         }
@@ -238,18 +216,14 @@ unsigned insertChunks(std::vector<unsigned char>& png,
   }
 
 
-  unsigned getFilterTypes(std::vector<unsigned char>& filterTypes, const std::vector<unsigned char>& png)
-  {
+  unsigned getFilterTypes(std::vector<unsigned char>& filterTypes, const std::vector<unsigned char>& png) {
     std::vector<std::vector<unsigned char> > passes;
     unsigned error = getFilterTypesInterlaced(passes, png);
     if(error) return error;
 
-    if(passes.size() == 1)
-    {
+    if(passes.size() == 1) {
       filterTypes.swap(passes[0]);
-    }
-    else
-    {
+    } else {
       lodepng::State state;
       unsigned w, h;
       lodepng_inspect(&w, &h, &state, &png[0], png.size());
@@ -259,8 +233,7 @@ unsigned insertChunks(std::vector<unsigned char>& png,
        filter corresponding the closest to what it would be for non-interlaced
        image.
        */
-      for(size_t i = 0; i < h; i++)
-      {
+      for(size_t i = 0; i < h; i++) {
         filterTypes.push_back(i % 2 == 0 ? passes[5][i / 2] : passes[6][i / 2]);
       }
     }
