@@ -551,17 +551,22 @@ int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int f
   std::vector<unsigned char> origpng;
 
   std::vector<unsigned char> filters;
-  lodepng::load_file(origpng, Infile);
+  unsigned error = lodepng::load_file(origpng, Infile);
+  if (error) {
+    fprintf(stderr, "Could not load PNG %s\n", Infile);
+  }
   if (filter == 6){
     lodepng::getFilterTypes(filters, origpng);
     if(!filters.size()){
-      printf("Could not load PNG filters\n");
+      fprintf(stderr, "Could not load PNG filters\n");
       return -1;
     }
   }
   std::vector<unsigned char> resultpng;
   if (ZopfliPNGOptimize(origpng, png_options, &resultpng, filter, filters, palette_filter)) {return -1;}
   if (resultpng.size() >= origpng.size()) {return 1;}
-  lodepng::save_file(resultpng, Infile);
+  if (lodepng::save_file(resultpng, Infile) != 0) {
+    fprintf(stderr, "Failed to write to file %s\n", Infile);
+  }
   return 0;
 }
