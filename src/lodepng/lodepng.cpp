@@ -3557,7 +3557,6 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     if(strategy == LFS_BRUTE_FORCE) {
     /*brute force filter chooser.
      deflate the scanline after every filter attempt to see which one deflates best.*/
-    size_t size[5];
     unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
     size_t smallest = 0;
     unsigned type = 0, bestType = 0;
@@ -3586,6 +3585,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
           filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
         }
 
+        size_t size = 0;
         if(settings->filter_style < 2 || 1) {
           deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
           stream.next_in = (z_const unsigned char *)attempt[type];
@@ -3595,16 +3595,16 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
 
           deflate_nooutput(&stream, Z_FINISH);
 
-          size[type] = stream.total_out;
+          size = stream.total_out;
           deflateReset(&stream);
         } else {
-          size[type] = ZopfliLZ77LazyLauncher(attempt[type], 0, linebytes, settings->filter_style);
+          size = ZopfliLZ77LazyLauncher(attempt[type], 0, linebytes, settings->filter_style);
         }
 
         /*check if this is smallest size (or if type == 0 it's the first case so always store the values)*/
-        if(type == 0 || size[type] < smallest) {
+        if(type == 0 || size < smallest) {
           bestType = type;
-          smallest = size[type];
+          smallest = size;
         }
         if(clean) {
           memcpy(&in2[y * linebytes], rem, linebytes);
@@ -3622,14 +3622,13 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     }
 
     deflateEnd(&stream);
-    for(type = 0; type != 5; ++type) free(&attempt[type]);
+    for(type = 0; type != 5; ++type) free(attempt[type]);
 
   } else if(strategy == LFS_INCREMENTAL || strategy == LFS_INCREMENTAL2 || strategy == LFS_INCREMENTAL3) {
     /*Incremental brute force filter chooser.
      Keep a buffer of each tested scanline and deflate the entire buffer after every filter attempt to see which one deflates best.
      Now implemented with streaming, which reduces complexity to O(n)
      This is slow.*/
-    size_t size[5];
     unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
     size_t smallest;
     unsigned type, bestType = 0;
@@ -3682,7 +3681,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         /*copy result to output buffer temporarily to include compression test*/
         out[y * (linebytes + 1)] = type; /*the first byte of a scanline will be the filter type*/
         for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[type][x];
-        size[type] = 0;
+        size_t size = 0;
 
         deflateCopy(&teststream, &dstream, 0);
         teststream.next_in = (z_const unsigned char *)(out + y * testsize);
@@ -3691,12 +3690,12 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         teststream.next_out = dummy;
         deflate_nooutput(&teststream, Z_FINISH);
 
-        size[type] = teststream.total_out;
+        size = teststream.total_out;
 
         /*check if this is smallest size (or if type == 4 it's the first case so always store the values)*/
-        if(size[type] < smallest) {
+        if(size < smallest) {
           bestType = type;
-          smallest = size[type];
+          smallest = size;
         }
       }
 
@@ -3798,7 +3797,6 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
 
     for(type = 0; type != 5; ++type) free(attempt[type]);
   } else if(strategy == LFS_DISTINCT_BYTES) {
-    size_t sum[5];
     unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
     size_t smallest;
     unsigned type, bestType = 0;
@@ -3814,6 +3812,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       smallest = SIZE_MAX;
       /*try the 5 filter types*/
       for(type = 0; type != 5; ++type) {
+        size_t sum = 0;
         if(clean) {
           filterScanline2(&in2[y * linebytes], prevline, linebytes, type, 0);
           filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
@@ -3823,14 +3822,13 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         memset(count, 0, 256);
         for(x = 0; x != linebytes; ++x) count[attempt[type][x]] = 1;
         count[type] = 1; /*the filter type itself is part of the scanline*/
-        sum[type] = 0;
         for(x = 0; x != 256; ++x) {
-          if(count[x]) ++sum[type];
+          if(count[x]) ++sum;
         }
         /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
-        if(sum[type] < smallest) {
+        if(sum < smallest) {
           bestType = type;
-          smallest = sum[type];
+          smallest = sum;
         }
         if(clean) {
           memcpy(&in2[y * linebytes], rem, linebytes);
@@ -3850,7 +3848,6 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
 
     for(type = 0; type != 5; ++type) free(attempt[type]);
   } else if(strategy == LFS_DISTINCT_BIGRAMS) {
-    size_t sum[5];
     unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
     size_t smallest;
     unsigned type, bestType = 0;
@@ -3866,6 +3863,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       smallest = SIZE_MAX;
       /*try the 5 filter types*/
       for(type = 0; type != 5; ++type) {
+        size_t sum = 0;
         if(clean) {
           filterScanline2(&in2[y * linebytes], prevline, linebytes, type, 0);
           filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
@@ -3875,14 +3873,13 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         memset(count, 0, 65536);
         for(x = 1; x != linebytes; ++x) count[(attempt[type][x - 1] << 8) + attempt[type][x]] = 1;
         count[type] = 1; /*the filter type itself is part of the scanline*/
-        sum[type] = 0;
         for(x = 0; x != 65536; ++x) {
-          if(count[x] != 0) ++sum[type];
+          if(count[x] != 0) ++sum;
         }
         /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
-        if(sum[type] < smallest) {
+        if(sum < smallest) {
           bestType = type;
-          smallest = sum[type];
+          smallest = sum;
         }
         if(clean) {
           memcpy(&in2[y * linebytes], rem, linebytes);
