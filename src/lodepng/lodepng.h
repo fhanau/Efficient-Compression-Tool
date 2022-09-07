@@ -384,6 +384,7 @@ typedef struct LodePNGDecoderSettings {
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
   unsigned read_text_chunks; /*if false but remember_unknown_chunks is true, they're stored in the unknown chunks*/
   /*store all bytes from unknown chunks in the LodePNGInfo (off by default, useful for a png editor)*/
+
   unsigned remember_unknown_chunks;
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
 } LodePNGDecoderSettings;
@@ -627,7 +628,7 @@ const unsigned char* lodepng_chunk_next_const(const unsigned char* chunk, const 
 Appends new chunk to out. The chunk to append is given by giving its length, type
 and data separately. The type is a 4-letter string.
 The out variable and outsize are updated to reflect the new reallocated buffer.
-Returne error code (0 if it went ok)
+Returns error code (0 if it went ok)
 */
 unsigned lodepng_chunk_create(unsigned char** out, size_t* outsize, unsigned length,
                               const char* type, const unsigned char* data);
@@ -1399,7 +1400,7 @@ state.decoder.remember_unknown_chunks: whether to read in unknown chunks
 state.info_raw.colortype: desired color type for decoded image
 state.info_raw.bitdepth: desired bit depth for decoded image
 state.info_raw....: more color settings, see struct LodePNGColorMode
-state.info_png....: no settings for decoder but ouput, see struct LodePNGInfo
+state.info_png....: no settings for decoder but output, see struct LodePNGInfo
 
 For encoding:
 
