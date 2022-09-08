@@ -554,6 +554,7 @@ int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int f
   unsigned error = lodepng::load_file(origpng, Infile);
   if (error) {
     fprintf(stderr, "Could not load PNG %s\n", Infile);
+    return -1;
   }
   if (filter == 6){
     lodepng::getFilterTypes(filters, origpng);
@@ -567,6 +568,7 @@ int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int f
   if (resultpng.size() >= origpng.size()) {return 1;}
   if (lodepng::save_file(resultpng, Infile) != 0) {
     fprintf(stderr, "Failed to write to file %s\n", Infile);
+    return -1;
   }
   return 0;
 }

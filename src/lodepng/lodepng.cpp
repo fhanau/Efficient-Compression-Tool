@@ -1616,6 +1616,7 @@ void lodepng_color_stats_init(LodePNGColorStats* stats) {
   stats->alpha = 0;
   stats->numcolors = 0;
   stats->bits = 1;
+  stats->white = 1;
 }
 
 /*Returns how many bits needed to represent given value (max 8 bit)*/
@@ -3867,7 +3868,6 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
 
     for(type = 0; type != 5; ++type) free(attempt[type]);
   } else if(strategy == LFS_ENTROPY) {
-    float sum[5];
     unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
     float smallest = 0;
     unsigned type, bestType = 0;
@@ -3891,15 +3891,15 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         memset(count, 0, 256 * sizeof(*count));
         for(x = 0; x != linebytes; ++x) ++count[attempt[type][x]];
         ++count[type]; /*the filter type itself is part of the scanline*/
-        sum[type] = 0;
+        float sum = 0;
         for(x = 0; x != 256; ++x) {
           float p = count[x] / (float)(linebytes + 1);
-          sum[type] += count[x] == 0 ? 0 : log2f(1 / p) * p;
+          sum += count[x] == 0 ? 0 : log2f(1 / p) * p;
         }
         /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
-        if(type == 0 || sum[type] < smallest) {
+        if(type == 0 || sum < smallest) {
           bestType = type;
-          smallest = sum[type];
+          smallest = sum;
         }
         if(clean) {
           memcpy(&in2[y * linebytes], rem, linebytes);
