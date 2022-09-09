@@ -1,7 +1,7 @@
 /*
 LodePNG Utils
 
-Copyright (c) 2005-2014 Lode Vandevenne
+Copyright (c) 2005-2022 Lode Vandevenne
 
 This software is provided 'as-is', without any express or implied
 warranty. In no event will the authors be held liable for any damages
@@ -27,27 +27,17 @@ freely, subject to the following restrictions:
 
 /*
 Extra C++ utilities for LodePNG, for convenience.
+Not part of the stable API of lodepng, more loose separate utils.
 */
+
+#ifndef LODEPNG_UTIL_H
+#define LODEPNG_UTIL_H
 
 #include <string>
 #include <vector>
 #include "lodepng.h"
 
-#pragma once
-
-namespace lodepng
-{
-
-/*
-Inserts chunks into the given png file. The chunks must be fully encoded,
-including length, type, content and CRC.
-The array index determines where it goes:
-0: between IHDR and PLTE, 1: between PLTE and IDAT, 2: between IDAT and IEND.
-They're appended at the end of those locations within the PNG.
-Returns 0 if ok, non-0 if error happened.
-*/
-unsigned insertChunks(std::vector<unsigned char>& png,
-                    const std::vector<std::vector<unsigned char> > chunks[3]);
+namespace lodepng {
 
 /*
 Returns the names and full chunks (including the name and everything else that
@@ -60,6 +50,30 @@ unsigned getChunks(std::vector<std::string> names[3],
                    std::vector<std::vector<unsigned char> > chunks[3],
                    const std::vector<unsigned char>& png);
 
+/*
+Inserts chunks into the given png file. The chunks must be fully encoded,
+including length, type, content and CRC.
+The array index determines where it goes:
+0: between IHDR and PLTE, 1: between PLTE and IDAT, 2: between IDAT and IEND.
+They're appended at the end of those locations within the PNG.
+Returns 0 if ok, non-0 if error happened.
+*/
+unsigned insertChunks(std::vector<unsigned char>& png,
+                      const std::vector<std::vector<unsigned char> > chunks[3]);
+
+/*
+Get the filtertypes of each scanline in this PNG file.
+Returns 0 if ok, 1 if PNG decoding error happened.
+
+For a non-interlaced PNG, it returns one filtertype per scanline, in order.
+
+For interlaced PNGs, it returns a result as if it's not interlaced. It returns
+one filtertype per scanline, in order. The values match pass 6 and 7 of the
+Adam7 interlacing, alternating between the two, so that the values correspond
+the most to their scanlines.
+*/
 unsigned getFilterTypes(std::vector<unsigned char>& filterTypes, const std::vector<unsigned char>& png);
 
 } // namespace lodepng
+
+#endif /*LODEPNG_UTIL_H inclusion guard*/
