@@ -196,11 +196,12 @@ static void ZopfliGzipCompress(unsigned mode, unsigned multithreading,
 static void LoadGzip(const char* filename, unsigned char** out, long long* outsize_p) {
   gzFile r = gzopen(filename, "rb");
   if (!r) {
+    *outsize_p = -1;
     return;
   }
 #define GZIP_READ_SIZE 65536
   size_t alloc_size = GZIP_READ_SIZE;
-  *out = (unsigned char*)malloc(alloc_size + 8);
+  *out = (unsigned char*)malloc(alloc_size + 16);
   size_t out_size = 0;
   do {
     int bytes = gzread(r, (*out) + out_size, GZIP_READ_SIZE);
@@ -208,7 +209,7 @@ static void LoadGzip(const char* filename, unsigned char** out, long long* outsi
       out_size += bytes;
       if (alloc_size - out_size < GZIP_READ_SIZE) {
         alloc_size *= 2;
-        (*out) = (unsigned char*)realloc(*out, alloc_size + 8);
+        (*out) = (unsigned char*)realloc(*out, alloc_size + 16);
       }
     }
     else if (bytes == 0) {
@@ -217,7 +218,7 @@ static void LoadGzip(const char* filename, unsigned char** out, long long* outsi
     else if (bytes < 0) {
       fprintf(stderr, "%s: gzip decompression error\n", filename);
       gzclose_r(r);
-      *outsize_p = 0;
+      *outsize_p = -1;
       return;
     }
   }
@@ -232,13 +233,13 @@ static void LoadGzip(const char* filename, unsigned char** out, long long* outsi
 static void LoadFile(const char* filename,
                      unsigned char** out, long long* outsize) {
   FILE* file = fopen(filename, "rb");
-  if (!file) return;
+  if (!file) {*outsize = -1; return;}
 
   fseek(file , 0 , SEEK_END);
   *outsize = ftell(file);
   rewind(file);
 
-  *out = (unsigned char*)malloc(*outsize + 8);
+  *out = (unsigned char*)malloc(*outsize + 16);
   if (!*out && *outsize){
     exit(1);
   }

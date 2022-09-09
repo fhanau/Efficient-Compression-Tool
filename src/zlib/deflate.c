@@ -1029,7 +1029,7 @@ IPos cur_match;                             /* current match */
                       uint64_t mv = *(uint64_t*)(void*)match;
                       uint64_t xor = sv ^ mv;
                       if (xor) {
-                          scan += __builtin_ctzll(xor) / 8;
+                          scan += (__builtin_ctzll(xor) >> 3);
                           break;
                       }
                       scan += 8;
@@ -1039,7 +1039,7 @@ IPos cur_match;                             /* current match */
                       mv = *(uint64_t*)(void*)match;
                       xor = sv ^ mv;
                       if (xor) {
-                          scan += __builtin_ctzll(xor) / 8;
+                          scan += (__builtin_ctzll(xor) >> 3);
                           break;
                       }
                       scan += 8;

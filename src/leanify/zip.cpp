@@ -32,20 +32,6 @@ using std::endl;
 using std::string;
 using std::vector;
 
-//From miniz
-static void *decompress_mem_to_heap(const void *pSrc_buf, size_t src_buf_len, size_t *pOut_len)
-{
-  unsigned char *pBuf = 0;
-
-  unsigned error = lodepng_inflate(&pBuf, pOut_len, (unsigned char*)pSrc_buf, src_buf_len);
-  //Work around problem w/ nonstandard mallocs
-  pBuf = (unsigned char*)realloc(pBuf, (*(pOut_len)) + 8);
-  if(error){
-    free(pBuf); *pOut_len = 0; return 0;
-  }
-  return pBuf;
-}
-
 const uint8_t Zip::header_magic[] = { 0x50, 0x4B, 0x03, 0x04 };
 
 namespace {
@@ -354,10 +340,10 @@ size_t Zip::Leanify(const ECTOptions& Options, size_t* files) {
 
     // decompress
     size_t decompressed_size = 0;
-    uint8_t* decompress_buf = static_cast<uint8_t*>(
-    decompress_mem_to_heap(p_read, local_header->compressed_size, &decompressed_size));
+    uint8_t* decompress_buf = 0;
+    unsigned error = lodepng_inflate((unsigned char**)&decompress_buf, &decompressed_size, (unsigned char*)p_read, local_header->compressed_size);
 
-    if (!decompress_buf || decompressed_size != local_header->uncompressed_size ||
+    if (error || decompressed_size != local_header->uncompressed_size ||
         local_header->crc32 != crc32(0, decompress_buf, local_header->uncompressed_size)) {
       cerr << "Decompression failed or CRC32 mismatch, skipping this file." << endl;
       free(decompress_buf);
@@ -365,6 +351,8 @@ size_t Zip::Leanify(const ECTOptions& Options, size_t* files) {
       p_write += local_header->compressed_size;
       continue;
     }
+    //Allocate 16 more bytes to accomodate optimized deflate match finder
+    decompress_buf = (uint8_t*)realloc(decompress_buf, decompressed_size + 16);
 
     // Leanify uncompressed file
     uint32_t new_uncomp_size = Options.Strict ? local_header->uncompressed_size : RecompressFile(decompress_buf, decompressed_size, 0, filename, Options);

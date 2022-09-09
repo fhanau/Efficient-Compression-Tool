@@ -20,18 +20,31 @@
 #ifdef __GNUC__
 __attribute__ ((always_inline, hot))
 #endif
-static inline const unsigned char* GetMatch(const unsigned char* scan,
-                                            const unsigned char* match,
-                                            const unsigned char* end
+static inline const unsigned char* GetMatch(const unsigned char* __restrict__ scan,
+                                            const unsigned char* __restrict__ match,
+                                            const unsigned char* __restrict__ end
                                             , const unsigned char* safe_end) {
 #ifdef __GNUC__
-  /* Optimized Function based on cloudflare's zlib fork.*/
+  /* Optimized Function based on cloudflare's zlib fork.
+   * Note that this may read up to 15 bytes beyond end,
+   * so it is necessary to allocate memory beyond the
+   * end of the data whenever ZopfliDeflate is called.
+   */
   do {
     uint64_t sv = *(uint64_t*)(void*)scan;
     uint64_t mv = *(uint64_t*)(void*)match;
     uint64_t xor = sv ^ mv;
     if (xor) {
-      scan += __builtin_ctzll(xor) / 8;
+      scan += (__builtin_ctzll(xor) >> 3);
+      break;
+    }
+    scan += 8;
+    match += 8;
+    sv = *(uint64_t*)(void*)scan;
+    mv = *(uint64_t*)(void*)match;
+    xor = sv ^ mv;
+    if (xor) {
+      scan += (__builtin_ctzll(xor) >> 3);
       break;
     }
     scan += 8;
