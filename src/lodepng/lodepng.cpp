@@ -3287,47 +3287,53 @@ static void filterScanline(unsigned char* out, const unsigned char* scanline, co
   size_t i;
   switch(filterType) {
     case 0: /*None*/
-      for(i = 0; i != length; ++i) out[i] = scanline[i];
+      memcpy(out, scanline, length);
       break;
-    case 1: /*Sub*/
-      for(i = 0; i != bytewidth; ++i) out[i] = scanline[i];
-      for(i = bytewidth; i < length; ++i) out[i] = scanline[i] - scanline[i - bytewidth];
+    case 1: { /*Sub*/
+      size_t j = 0;
+      memcpy(out, scanline, bytewidth);
+      for(i = bytewidth; i != length; ++i, ++j) out[i] = scanline[i] - scanline[j];
       break;
+    }
     case 2: /*Up*/
       if(prevline) {
         for(i = 0; i != length; ++i) out[i] = scanline[i] - prevline[i];
       } else {
-        for(i = 0; i != length; ++i) out[i] = scanline[i];
+        memcpy(out, scanline, length);
       }
       break;
-    case 3: /*Average*/
+    case 3: { /*Average*/
+      size_t j = 0;
       if(prevline) {
-        for(i = 0; i != bytewidth; ++i) out[i] = scanline[i] - (prevline[i] >> 1);
-        for(i = bytewidth; i < length; ++i) out[i] = scanline[i] - ((scanline[i - bytewidth] + prevline[i]) >> 1);
+        for(i = 0; i != bytewidth; ++i) out[i] = scanline[i] - (prevline[i] >> 1u);
+        for(i = bytewidth; i < length; ++i, ++j) out[i] = scanline[i] - ((scanline[j] + prevline[i]) >> 1u);
       } else {
-        for(i = 0; i != bytewidth; ++i) out[i] = scanline[i];
-        for(i = bytewidth; i < length; ++i) out[i] = scanline[i] - (scanline[i - bytewidth] >> 1);
+        memcpy(out, scanline, bytewidth);
+        for(i = bytewidth; i < length; ++i, ++j) out[i] = scanline[i] - (scanline[j] >> 1u);
       }
       break;
-    case 4: /*Paeth*/
+    }
+    case 4: { /*Paeth*/
+      size_t j = 0;
       if(prevline) {
         /*paethPredictor(0, prevline[i], 0) is always prevline[i]*/
-        for(i = 0; i != bytewidth; ++i) out[i] = (scanline[i] - prevline[i]);
-        for(i = bytewidth; i < length; ++i) {
-          out[i] = (scanline[i] - paethPredictor(scanline[i - bytewidth], prevline[i], prevline[i - bytewidth]));
+        for(i = 0; i != bytewidth; ++i) out[i] = scanline[i] - prevline[i];
+        for(i = bytewidth; i != length; ++i, ++j) {
+          out[i] = scanline[i] - paethPredictor(scanline[j], prevline[i], prevline[j]);
         }
       } else {
-        for(i = 0; i != bytewidth; ++i) out[i] = scanline[i];
+        memcpy(out, scanline, bytewidth);
         /*paethPredictor(scanline[i - bytewidth], 0, 0) is always scanline[i - bytewidth]*/
-        for(i = bytewidth; i < length; ++i) out[i] = (scanline[i] - scanline[i - bytewidth]);
+        for(i = bytewidth; i != length; ++i, ++j) out[i] = scanline[i] - scanline[j];
       }
       break;
+    }
     default: return; /*invalid filter type given*/
   }
 }
 
 static void filterScanline2(unsigned char* scanline, const unsigned char* prevline,
-                           size_t length, unsigned char filterType, unsigned char forReal) {
+                            size_t length, unsigned char filterType) {
   if (!filterType) {
     for(int i = 0; i < length; i+=4) {
       if (!scanline[i + 3]) {
@@ -3389,8 +3395,8 @@ static void filterScanline2(unsigned char* scanline, const unsigned char* prevli
         }
       }
     }
-  } else if(filterType == 4 && forReal) {
-    if(!prevline) {
+  } else if(filterType == 4) { /*forReal var is always zero, so the code is commented out for now*/
+  /*if(!prevline) {
       if(!scanline[3]) {
         *(unsigned*)scanline = 0;
       }
@@ -3414,7 +3420,7 @@ static void filterScanline2(unsigned char* scanline, const unsigned char* prevli
           scanline[i + 2] = paethPredictor(scanline[i - 2], prevline[i], prevline[i - 2]);
         }
       }
-    }
+    }*/
   }
 }
 
@@ -3548,7 +3554,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       memcpy(rem, &in2[y * linebytes], linebytes * clean);
       for(type = 0; type != 5; ++type) {
         if(clean) {
-          filterScanline2(&in2[y * linebytes], prevline, linebytes, type, 0);
+          filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
           filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
         } else {
           filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
@@ -3583,7 +3589,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
       for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
       if(clean) {
-        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType, 0);
+        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
         prevline = &in2[y * linebytes];
       } else {
         prevline = &in[y * linebytes];
@@ -3642,7 +3648,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       {
         if(clean) {
           memcpy(linebuf, &in[y * linebytes], linebytes);
-          filterScanline2(linebuf, prevline2, linebytes, type, 0);
+          filterScanline2(linebuf, prevline2, linebytes, type);
           filterScanline(attempt[type], linebuf, prevline2, linebytes, bytewidth, type);
         } else {
           filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
@@ -3670,7 +3676,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
 
       if(clean) {
         memcpy(linebuf, &in[y * linebytes], linebytes);
-        filterScanline2(linebuf, prevline2, linebytes, bestType, 0);
+        filterScanline2(linebuf, prevline2, linebytes, bestType);
         filterScanline(attempt[bestType], linebuf, prevline2, linebytes, bytewidth, bestType);
       } else {
         filterScanline(attempt[bestType], &in[y * linebytes], prevline, linebytes, bytewidth, bestType);
@@ -3688,7 +3694,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       prevline = &in[y * linebytes];
       if(clean) {
         memcpy(linebuf, &in[y * linebytes], linebytes);
-        filterScanline2(linebuf, prevline2, linebytes, bestType, 0);
+        filterScanline2(linebuf, prevline2, linebytes, bestType);
         memcpy(prevlinebuf, linebuf, linebytes);
         prevline2 = prevlinebuf;
       }
@@ -3723,7 +3729,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       for(type = 0; type != 5; ++type) {
         size_t sum = 0;
         if(clean) {
-          filterScanline2(&in2[y * linebytes], prevline, linebytes, type, 0);
+          filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
           filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
         } else {
           filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
@@ -3756,7 +3762,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
       for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
       if(clean) {
-        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType, 0);
+        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
         prevline = &in2[y * linebytes];
       } else {
         prevline = &in[y * linebytes];
@@ -3783,7 +3789,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       for(type = 0; type != 5; ++type) {
         size_t sum = 0;
         if(clean) {
-          filterScanline2(&in2[y * linebytes], prevline, linebytes, type, 0);
+          filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
           filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
         } else {
           filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
@@ -3808,7 +3814,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
       for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
       if(clean) {
-        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType, 0);
+        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
         prevline = &in2[y * linebytes];
       } else {
         prevline = &in[y * linebytes];
@@ -3834,7 +3840,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       for(type = 0; type != 5; ++type) {
         size_t sum = 0;
         if(clean) {
-          filterScanline2(&in2[y * linebytes], prevline, linebytes, type, 0);
+          filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
           filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
         } else {
           filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
@@ -3859,7 +3865,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
       for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
       if(clean) {
-        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType, 0);
+        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
         prevline = &in2[y * linebytes];
       } else {
         prevline = &in[y * linebytes];
@@ -3883,7 +3889,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       /*try the 5 filter types*/
       for(type = 0; type != 5; ++type) {
         if(clean) {
-          filterScanline2(&in2[y * linebytes], prevline, linebytes, type, 0);
+          filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
           filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
         } else {
           filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
@@ -3910,7 +3916,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
       for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
       if(clean) {
-        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType, 0);
+        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
         prevline = &in2[y * linebytes];
       } else {
         prevline = &in[y * linebytes];
@@ -3981,7 +3987,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         out[y * (linebytes + 1)] = type;
         if(clean) {
           memcpy(linebuf, &in[y * linebytes], linebytes);
-          filterScanline2(linebuf, prevline, linebytes, type, 0);
+          filterScanline2(linebuf, prevline, linebytes, type);
           filterScanline(&out[y * (linebytes + 1) + 1], linebuf, prevline, linebytes, bytewidth, type);
           memcpy(prevlinebuf, linebuf, linebytes);
           prevline = prevlinebuf;
@@ -4074,7 +4080,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
           out[y * (linebytes + 1)] = type;
           if(clean) {
             memcpy(linebuf, &in[y * linebytes], linebytes);
-            filterScanline2(linebuf, prevline, linebytes, type, 0);
+            filterScanline2(linebuf, prevline, linebytes, type);
             filterScanline(&out[y * (linebytes + 1) + 1], linebuf, prevline, linebytes, bytewidth, type);
             memcpy(prevlinebuf, linebuf, linebytes);
             prevline = prevlinebuf;
@@ -4104,7 +4110,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       out[y * (linebytes + 1)] = type;
       if(clean) {
         memcpy(linebuf, &in[y * linebytes], linebytes);
-        filterScanline2(linebuf, prevline, linebytes, type, 0);
+        filterScanline2(linebuf, prevline, linebytes, type);
         filterScanline(&out[y * (linebytes + 1) + 1], linebuf, prevline, linebytes, bytewidth, type);
         memcpy(prevlinebuf, linebuf, linebytes);
         prevline = prevlinebuf;
