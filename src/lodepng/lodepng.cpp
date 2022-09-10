@@ -103,8 +103,8 @@ void* lodepng_realloc(void* ptr, size_t new_size);
 #define LODEPNG_RESTRICT /* not available */
 #endif
 
+#define LODEPNG_ABS(x) ((x) < 0 ? -(x) : (x))
 #define LODEPNG_MAX(a, b) (((a) > (b)) ? (a) : (b))
-#define LODEPNG_MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 #if defined(LODEPNG_COMPILE_PNG) || defined(LODEPNG_COMPILE_DECODER)
 /* Safely check if adding two integers will overflow (no undefined
@@ -228,7 +228,7 @@ static char* alloc_string(const char* in) {
 #if defined(LODEPNG_COMPILE_DECODER) || defined(LODEPNG_COMPILE_PNG)
 static unsigned lodepng_read32bitInt(const unsigned char* buffer) {
   return (((unsigned)buffer[0] << 24u) | ((unsigned)buffer[1] << 16u) |
-         ((unsigned)buffer[2] << 8u) | (unsigned)buffer[3]);
+          ((unsigned)buffer[2] << 8u)  |  (unsigned)buffer[3]);
 }
 #endif /*defined(LODEPNG_COMPILE_DECODER) || defined(LODEPNG_COMPILE_PNG)*/
 
@@ -271,18 +271,16 @@ static unsigned lodepng_buffer_file(unsigned char* out, size_t size, const char*
   size_t readsize;
   file = fopen(filename, "rb");
   if(!file) return 78;
-
   readsize = fread(out, 1, size, file);
   fclose(file);
-
   if(readsize != size) return 78;
-  return 0;
+  else return 0;
 }
 
 /*write given buffer to the file, overwriting the file, it doesn't append to it.*/
 static unsigned lodepng_save_file(const unsigned char* buffer, size_t buffersize, const char* filename) {
   FILE* file;
-  file = fopen(filename, "wb" );
+  file = fopen(filename, "wb");
   if(!file) return 79;
   fwrite(buffer, 1, buffersize, file);
   fclose(file);
@@ -306,13 +304,13 @@ unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
   inf.zalloc = 0;
   inf.zfree = 0;
   inf.opaque = 0;
-  inf.next_in = (z_const Byte *)in;
+  inf.next_in = (z_const Byte*)in;
   inf.avail_in = (uInt)insize;
 
   //The reallocation speed on windows(or at least mingw) is pretty bad which makes this a lot faster. A bigger buffer would be even better on large images.
 #if defined(_WIN32) || defined(WIN32)
 #define BUFSIZE 1024 * 128
-  unsigned char* buf = (unsigned char*)malloc(BUFSIZE);
+  unsigned char* buf = (unsigned char*)lodepng_malloc(BUFSIZE);
   if(!buf) {exit(1);}
 #else
 #define BUFSIZE 1024 * 32
@@ -322,7 +320,7 @@ unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
   inf.next_out = buf;
   inf.avail_out = BUFSIZE;
 
-  if(inflateInit2(&inf, -15) != Z_OK) {return 83;}
+  if(inflateInit2(&inf, -15) != Z_OK) return 83;
 
   while(1) {
     int err = inflate(&inf, Z_SYNC_FLUSH);
@@ -343,7 +341,7 @@ unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
       free(buf);
 #endif
       unsigned ret = 95;
-      if(err == Z_MEM_ERROR) {ret = 83;}
+      if(err == Z_MEM_ERROR) ret = 83;
       inflateEnd(&inf);
       return ret;
     }
@@ -372,11 +370,6 @@ static unsigned deflate(unsigned char** out, size_t* outsize,
 }
 
 #endif /*LODEPNG_COMPILE_DECODER*/
-
-/*Return the adler32 of the bytes data[0..len-1]*/
-static unsigned adler32(const unsigned char* data, unsigned len) {
-  return adler32(1, data, len);
-}
 
 /* ////////////////////////////////////////////////////////////////////////// */
 /* / Zlib                                                                   / */
@@ -416,7 +409,7 @@ static unsigned lodepng_zlib_decompress(unsigned char** out, size_t* outsize, co
   if(error) return error;
 
   unsigned ADLER32 = lodepng_read32bitInt(&in[insize - 4]);
-  unsigned checksum = adler32(*out, (unsigned)(*outsize));
+  unsigned checksum = adler32(1, *out, (unsigned)(*outsize));
   if(checksum != ADLER32) return 58; /*error, adler checksum not correct, data must be corrupted*/
 
   return 0; /*no error*/
@@ -443,7 +436,7 @@ static unsigned lodepng_zlib_compress(unsigned char** out, size_t* outsize, cons
   }
 
   if(!error) {
-    unsigned ADLER32 = adler32(in, (unsigned)insize);
+    unsigned ADLER32 = adler32(1, in, (unsigned)insize);
     /*zlib data: 1 byte CMF (CM+CINFO), 1 byte FLG, deflate data, 4 byte ADLER32 checksum of the Decompressed data*/
     unsigned CMF = 120; /*0b01111000: CM 8, CINFO 7. With CINFO 7, any window size up to 32768 can be used.*/
     unsigned FLEVEL = 3;
@@ -481,11 +474,6 @@ void lodepng_compress_settings_init(LodePNGCompressSettings* settings) {
 /* ////////////////////////////////////////////////////////////////////////// */
 
 #ifdef LODEPNG_COMPILE_PNG
-
-/*Return the CRC of the bytes buf[0..len-1].*/
-static unsigned lodepng_crc32(const unsigned char* buf, size_t len) {
-  return crc32(0, buf, len);
-}
 
 /* ////////////////////////////////////////////////////////////////////////// */
 /* / Reading and writing PNG color channel bits                             / */
@@ -549,14 +537,14 @@ static unsigned lodepng_chunk_check_crc(const unsigned char* chunk) {
   unsigned length = lodepng_chunk_length(chunk);
   unsigned CRC = lodepng_read32bitInt(&chunk[length + 8]);
   /*the CRC is taken of the data and the 4 chunk type letters, not the length*/
-  unsigned checksum = lodepng_crc32(&chunk[4], length + 4);
+  unsigned checksum = crc32(0, &chunk[4], length + 4);
   if(CRC != checksum) return 1;
-  return 0;
+  else return 0;
 }
 
 static void lodepng_chunk_generate_crc(unsigned char* chunk) {
   unsigned length = lodepng_chunk_length(chunk);
-  unsigned CRC = lodepng_crc32(&chunk[4], length + 4);
+  unsigned CRC = crc32(0, &chunk[4], length + 4);
   lodepng_set32bitInt(chunk + 8 + length, CRC);
 }
 
@@ -564,7 +552,7 @@ unsigned char* lodepng_chunk_next(unsigned char* chunk, unsigned char* end) {
   size_t available_size = (size_t)(end - chunk);
   if(chunk >= end || available_size < 12) return end; /*too small to contain a chunk*/
   if(chunk[0] == 0x89 && chunk[1] == 0x50 && chunk[2] == 0x4e && chunk[3] == 0x47
-    && chunk[4] == 0x0d && chunk[5] == 0x0a && chunk[6] == 0x1a && chunk[7] == 0x0a) {
+  && chunk[4] == 0x0d && chunk[5] == 0x0a && chunk[6] == 0x1a && chunk[7] == 0x0a) {
     /* Is PNG magic header at start of PNG file. Jump to first actual chunk. */
     return chunk + 8;
   } else {
@@ -579,7 +567,7 @@ const unsigned char* lodepng_chunk_next_const(const unsigned char* chunk, const 
   size_t available_size = (size_t)(end - chunk);
   if(chunk >= end || available_size < 12) return end; /*too small to contain a chunk*/
   if(chunk[0] == 0x89 && chunk[1] == 0x50 && chunk[2] == 0x4e && chunk[3] == 0x47
-    && chunk[4] == 0x0d && chunk[5] == 0x0a && chunk[6] == 0x1a && chunk[7] == 0x0a) {
+  && chunk[4] == 0x0d && chunk[5] == 0x0a && chunk[6] == 0x1a && chunk[7] == 0x0a) {
     /* Is PNG magic header at start of PNG file. Jump to first actual chunk. */
     return chunk + 8;
   } else {
@@ -604,7 +592,7 @@ unsigned lodepng_chunk_append(unsigned char** out, size_t* outsize, const unsign
   (*outsize) = new_length;
   chunk_start = &(*out)[new_length - total_chunk_length];
 
-  for(i = 0; i != total_chunk_length; ++i) chunk_start[i] = chunk[i];
+  memcpy(chunk_start, chunk, total_chunk_length);
 
   return 0;
 }
@@ -676,11 +664,11 @@ static unsigned checkColorValidity(LodePNGColorType colortype, unsigned bd) {
 
 static unsigned getNumColorChannels(LodePNGColorType colortype) {
   switch(colortype) {
-    case LCT_GREY: return 1;
-    case LCT_RGB: return 3;
-    case LCT_PALETTE: return 1;
-    case LCT_GREY_ALPHA: return 2;
-    case LCT_RGBA: return 4;
+    case LCT_GREY:            return 1;
+    case LCT_RGB:             return 3;
+    case LCT_PALETTE:         return 1;
+    case LCT_GREY_ALPHA:      return 2;
+    case LCT_RGBA:            return 4;
     case LCT_MAX_OCTET_VALUE: return 0; /* invalid color type */
     default: return 0; /*invalid color type*/
   }
@@ -800,14 +788,10 @@ unsigned lodepng_can_have_alpha(const LodePNGColorMode* info) {
       || lodepng_has_palette_alpha(info);
 }
 
-static size_t lodepng_get_raw_size_lct(unsigned w, unsigned h, LodePNGColorType colortype, unsigned bitdepth) {
-  size_t bpp = lodepng_get_bpp_lct(colortype, bitdepth);
+size_t lodepng_get_raw_size(unsigned w, unsigned h, const LodePNGColorMode* color) {
+  size_t bpp = lodepng_get_bpp_lct(color->colortype, color->bitdepth);
   size_t n = (size_t)w * (size_t)h;
   return ((n / 8u) * bpp) + ((n & 7u) * bpp + 7u) / 8u;
-}
-
-size_t lodepng_get_raw_size(unsigned w, unsigned h, const LodePNGColorMode* color) {
-  return lodepng_get_raw_size_lct(w, h, color->colortype, color->bitdepth);
 }
 
 
@@ -1135,7 +1119,7 @@ static int color_tree_get(ColorTree* tree, unsigned char r, unsigned char g, uns
     unsigned i = x & 15;
     if(!tree->children[i]) return -1;
     tree = tree->children[i];
-    x>>=4;
+    x >>=4 ;
   }
   return tree ? tree->index : -1;
 }
@@ -1163,7 +1147,7 @@ static int color_tree_has(ColorTree* tree, unsigned char r, unsigned char g, uns
 /*color is not allowed to already exist.
 Index should be >= 0 (it's signed to be compatible with using -1 for "doesn't exist")*/
 static void color_tree_add(ColorTree* tree,
-                               unsigned char r, unsigned char g, unsigned char b, unsigned char a, unsigned index) {
+                           unsigned char r, unsigned char g, unsigned char b, unsigned char a, unsigned index) {
   int bit;
   for(bit = 0; bit < 8; ++bit) {
     int i = 8 * ((r >> bit) & 1) + 4 * ((g >> bit) & 1) + 2 * ((b >> bit) & 1) + 1 * ((a >> bit) & 1);
@@ -1575,13 +1559,13 @@ unsigned lodepng_convert(unsigned char* out, const unsigned char* in,
       getPixelColorsRGBA8(out, numpixels, in, mode_in);
     } else if(mode_out->bitdepth == 8 && mode_out->colortype == LCT_RGB) {
       getPixelColorsRGB8(out, numpixels, in, mode_in);
-    } else if (mode_in->colortype == LCT_RGBA && mode_out->colortype == LCT_PALETTE && mode_in->bitdepth == 8 && mode_out->bitdepth == 8) {
+    } else if(mode_out->bitdepth == 8 && mode_out->colortype == LCT_PALETTE && mode_in->bitdepth == 8 && mode_in->colortype == LCT_RGBA) {
       unsigned match = (*(unsigned*)in) + 1;
       unsigned char prevbyte = 0;
 
       for(i = 0; i != numpixels; ++i) {
         unsigned m = *(unsigned*)(in + 4 * i);
-        if (m == match) {
+        if(m == match) {
           out[i] = prevbyte;
         } else {
           int index = color_tree_get(&tree, in[i * 4], in[i * 4 + 1], in[i * 4 + 2], in[i * 4 + 3]);
@@ -1709,7 +1693,7 @@ unsigned lodepng_compute_color_stats(LodePNGColorStats* stats,
     unsigned char r = 0, g = 0, b = 0, a = 0;
     for(i = 0; i != numpixels; ++i) {
       //If we have already encountered a color (e.g. at the previous pixel), it won't have an effect on the color stats.
-      if (i > 0 && mode_in->colortype == LCT_RGBA && mode_in->bitdepth == 8 && memcmp(in + i * 4, in + i * 4 - 4, 4) == 0) {continue;}
+      if(i > 0 && mode_in->colortype == LCT_RGBA && mode_in->bitdepth == 8 && memcmp(in + i * 4, in + i * 4 - 4, 4) == 0) {continue;}
       getPixelColorRGBA8(&r, &g, &b, &a, in, i, mode_in);
 
       if(!bits_done && stats->bits < 8) {
@@ -1797,7 +1781,7 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
   size_t i, count = 0;
   ColorTree tree;
   color_tree_init(&tree);
-  for (i = 0; i < w * h; ++i) {
+  for(i = 0; i < w * h; ++i) {
     const unsigned char* c = (unsigned char*)&image[i];
     if(color_tree_inc(&tree, c[0], c[1], c[2], c[3]) == 0) ++count;
   }
@@ -2041,7 +2025,7 @@ static unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out, const Lode
   } else /*8-bit or 16-bit per channel*/ {
     mode_out->bitdepth = bits;
     mode_out->colortype = alpha ? (stats->colored ? LCT_RGBA : LCT_GREY_ALPHA)
-                                : (stats->colored ? LCT_RGB : LCT_GREY);
+                                : (stats->colored ? LCT_RGB  : LCT_GREY);
 
     if(stats->key) {
       unsigned mask = (1u << mode_out->bitdepth) - 1u; /*stats always uses 16-bit, mask converts it*/
@@ -2063,9 +2047,9 @@ The parameters are of type short, but should come from unsigned chars, the short
 are only needed to make the paeth calculation correct.
 */
 static unsigned char paethPredictor(short a, short b, short c) {
-  short pa = abs(b - c);
-  short pb = abs(a - c);
-  short pc = abs(a + b - c - c);
+  short pa = LODEPNG_ABS(b - c);
+  short pb = LODEPNG_ABS(a - c);
+  short pc = LODEPNG_ABS(a + b - c - c);
   /* return input value associated with smallest of pa, pb, pc (with certain priority if equal) */
   if(pb < pa) { a = b; pa = pb; }
   return (pc < pa) ? c : a;
@@ -2179,7 +2163,7 @@ unsigned lodepng_inspect(unsigned* w, unsigned* h, LodePNGState* state,
   if(info->interlace_method > 1) CERROR_RETURN_ERROR(state->error, 34);
 
   unsigned CRC = lodepng_read32bitInt(&in[29]);
-  unsigned checksum = lodepng_crc32(&in[12], 17);
+  unsigned checksum = crc32(0, &in[12], 17);
   if(CRC != checksum) {
     CERROR_RETURN_ERROR(state->error, 57); /*invalid CRC*/
   }
@@ -3238,9 +3222,9 @@ static void filterScanline(unsigned char* out, const unsigned char* scanline, co
 
 static void filterScanline2(unsigned char* scanline, const unsigned char* prevline,
                             size_t length, unsigned char filterType) {
-  if (!filterType) {
+  if(!filterType) {
     for(int i = 0; i < length; i+=4) {
-      if (!scanline[i + 3]) {
+      if(!scanline[i + 3]) {
         *(unsigned*)&scanline[i] = 0;
       }
     }
@@ -3260,7 +3244,7 @@ static void filterScanline2(unsigned char* scanline, const unsigned char* prevli
   else if(filterType == 2) {
     if(!prevline) {
       for(int i = 0; i < length; i+=4) {
-        if (!scanline[i + 3]) {
+        if(!scanline[i + 3]) {
           *(unsigned*)&scanline[i] = 0;
         }
       }
@@ -3305,20 +3289,20 @@ static void filterScanline2(unsigned char* scanline, const unsigned char* prevli
         *(unsigned*)scanline = 0;
       }
       for(int i = 4; i < length; i+=4) {
-        if (!scanline[i + 3]) {
+        if(!scanline[i + 3]) {
           scanline[i] = scanline[i - 4];
           scanline[i + 1] = scanline[i - 3];
           scanline[i + 2] = scanline[i - 2];
         }
       }
     } else {
-      if (!scanline[3]) {
+      if(!scanline[3]) {
         scanline[0] = prevline[0];
         scanline[1] = prevline[1];
         scanline[2] = prevline[2];
       }
       for(int i = 4; i < length; i+=4) {
-        if (!scanline[i + 3]) {
+        if(!scanline[i + 3]) {
           scanline[i] = paethPredictor(scanline[i - 4], prevline[i], prevline[i - 4]);
           scanline[i + 1] = paethPredictor(scanline[i - 3], prevline[i], prevline[i - 3]);
           scanline[i + 2] = paethPredictor(scanline[i - 2], prevline[i], prevline[i - 2]);
@@ -3349,14 +3333,14 @@ static uint64_t randomUInt64(uint64_t* s) {
 
 /* generate random number between 0 and 1 */
 static double randomDecimal(uint64_t* s) {
-  return double(randomUInt64(s)) / UINT64_MAX;
+  return double(randomUInt64(s)) / 18446744073709551616.0; //UINT64_MAX+1, silences clang implicit conversion warning
 }
 
 #include <signal.h>
 #include <atomic>
 static std::atomic<int> signaled(0);
 static void sig_handler(int signo) {
-  if (signo == SIGINT) {
+  if(signo == SIGINT) {
     if(signaled.load() == 0) {
       printf("received SIGINT, will stop after this iteration\n");
     }
@@ -3369,28 +3353,45 @@ static char windowbits(unsigned long len) {
 #ifdef __GNUC__
   result = __builtin_clzl(len) ^ (8 * sizeof(unsigned long) - 1);
 #else
-  while (len >>= 1) {result++;}
+  while(len >>= 1) {result++;}
 #endif
 
   result++;
-  if (result < 9) {
-    result = 9;
-  }
-  else if (result > 15) {
-    result = 15;
-  }
-  return -result;
+  if(result < 9) return -9;
+  else if (result > 15) return -15;
+  else return -(char)result;
+}
+
+/* integer binary logarithm, max return value is 31 */
+static size_t ilog2(size_t i) {
+  size_t result = 0;
+  if(i >= 65536) { result += 16; i >>= 16; }
+  if(i >= 256) { result += 8; i >>= 8; }
+  if(i >= 16) { result += 4; i >>= 4; }
+  if(i >= 4) { result += 2; i >>= 2; }
+  if(i >= 2) { result += 1; /*i >>= 1;*/ }
+  return result;
+}
+
+/* integer approximation for i * log2(i), helper function for LFS_ENTROPY */
+static size_t ilog2i(size_t i) {
+  if(i == 0) return 0;
+  size_t l;
+  l = ilog2(i);
+  /* approximate i*log2(i): l is integer logarithm, ((i - (1u << l)) << 1u)
+  linearly approximates the missing fractional part multiplied by i */
+  return i * l + ((i - (1u << l)) << 1u);
 }
 
 static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, unsigned h,
-                       const LodePNGColorMode* info, LodePNGEncoderSettings* settings) {
+                       const LodePNGColorMode* color, LodePNGEncoderSettings* settings) {
   /*
   For PNG filter method 0
   out must be a buffer with as size: h + (w * h * bpp + 7u) / 8u, because there are
   the scanlines with 1 extra byte per scanline
   */
 
-  unsigned bpp = lodepng_get_bpp(info);
+  unsigned bpp = lodepng_get_bpp(color);
   if(bpp == 0) return 31; /*error: invalid color type*/
   /*the width of a scanline in bytes, not including the filter type*/
   size_t linebytes = lodepng_get_raw_size_idat(w, 1, bpp) - 1u;
@@ -3419,7 +3420,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       prevline = &in[inindex];
     }
   } else {
-    const unsigned clean = settings->clean_alpha && info->colortype == LCT_RGBA && info->bitdepth == 8 && !info->key_defined;
+    const unsigned clean = settings->clean_alpha && color->colortype == LCT_RGBA && color->bitdepth == 8 && !color->key_defined;
     unsigned char* in2 = 0;
     unsigned char* rem = 0;
     if(clean) {
@@ -3443,128 +3444,130 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       stream.zfree = 0;
       stream.opaque = 0;
 
-      if(!error && strategy == LFS_BRUTE_FORCE) {
-        /*brute force filter chooser.
-        deflate the scanline after every filter attempt to see which one deflates best.*/
-        int err = deflateInit2(&stream, 3, Z_DEFLATED, windowbits(linebytes), 3, Z_FILTERED);
-        if(err != Z_OK) exit(1);
-
-        for(y = 0; y != h; ++y) { /*try the 5 filter types*/
-          memcpy(rem, &in2[y * linebytes], linebytes * clean);
-          for(type = 0; type != 5; ++type) {
-            size_t size = 0;
-            if(clean) {
-              filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
-              filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
-            } else filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
-
-            if(settings->filter_style < 2 || 1) {
-              deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
-              stream.next_in = (z_const unsigned char*)attempt[type];
-              stream.avail_in = linebytes;
-              stream.avail_out = UINT_MAX;
-              stream.next_out = (unsigned char*)1;
-
-              deflate_nooutput(&stream, Z_FINISH);
-
-              size = stream.total_out;
-              deflateReset(&stream);
-            } else size = ZopfliLZ77LazyLauncher(attempt[type], 0, linebytes, settings->filter_style);
-
-            /*check if this is smallest size (or if type == 0 it's the first case so always store the values)*/
-            if(type == 0 || size < smallest) {
-              bestType = type;
-              smallest = size;
+      if(!error) {
+        if(strategy == LFS_BRUTE_FORCE) {
+          /*brute force filter chooser.
+          deflate the scanline after every filter attempt to see which one deflates best.*/
+          int err = deflateInit2(&stream, 3, Z_DEFLATED, windowbits(linebytes), 3, Z_FILTERED);
+          if(err != Z_OK) exit(1);
+        
+          for(y = 0; y != h; ++y) { /*try the 5 filter types*/
+            memcpy(rem, &in2[y * linebytes], linebytes * clean);
+            for(type = 0; type != 5; ++type) {
+              size_t size = 0;
+              if(clean) {
+                filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
+                filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
+              } else filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+        
+              if(settings->filter_style < 2 || 1) {
+                deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
+                stream.next_in = (z_const unsigned char*)attempt[type];
+                stream.avail_in = linebytes;
+                stream.avail_out = UINT_MAX;
+                stream.next_out = (unsigned char*)1;
+        
+                deflate_nooutput(&stream, Z_FINISH);
+        
+                size = stream.total_out;
+                deflateReset(&stream);
+              } else size = ZopfliLZ77LazyLauncher(attempt[type], 0, linebytes, settings->filter_style);
+        
+              /*check if this is smallest size (or if type == 0 it's the first case so always store the values)*/
+              if(type == 0 || size < smallest) {
+                bestType = type;
+                smallest = size;
+              }
+              if(clean) memcpy(&in2[y * linebytes], rem, linebytes);
             }
-            if(clean) memcpy(&in2[y * linebytes], rem, linebytes);
+            out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+            for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
+            if(clean) {
+              filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
+              prevline = &in2[y * linebytes];
+            } else prevline = &in[y * linebytes];
           }
-          out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
-          for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
+        } else if(strategy >= LFS_INCREMENTAL && strategy <= LFS_INCREMENTAL3) {
+          /*Incremental brute force filter chooser.
+          Keep a buffer of each tested scanline and deflate the entire buffer after every filter attempt to see which one deflates best.
+          Now implemented with streaming, which reduces complexity to O(n)
+          This is slow.*/
+          z_stream teststream;
+          size_t testsize = linebytes + 1;
+          int err = deflateInit2(&stream, strategy == LFS_INCREMENTAL3 ? 1 : 2, Z_DEFLATED, windowbits(testsize * h), 8, Z_FILTERED);
+          if(err != Z_OK) exit(1);
+          if(strategy == LFS_INCREMENTAL) deflateTune(&stream, 16, 258, 258, 200);
+          else if(strategy == LFS_INCREMENTAL2) deflateTune(&stream, 50, 258, 258, 1100);
+          deflateCopy(&teststream, &stream, 1);
+        
+          unsigned char* dummy = (unsigned char*)1; /*Not used, but must not be NULL*/
+          unsigned char* prevline2 = 0;
+          unsigned char* prevlinebuf = 0;
+          unsigned char* linebuf;
           if(clean) {
-            filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
-            prevline = &in2[y * linebytes];
-          } else prevline = &in[y * linebytes];
-        }
-      } else if(!error && strategy >= LFS_INCREMENTAL && strategy <= LFS_INCREMENTAL3) {
-        /*Incremental brute force filter chooser.
-        Keep a buffer of each tested scanline and deflate the entire buffer after every filter attempt to see which one deflates best.
-        Now implemented with streaming, which reduces complexity to O(n)
-        This is slow.*/
-        z_stream teststream;
-        size_t testsize = linebytes + 1;
-        int err = deflateInit2(&stream, strategy == LFS_INCREMENTAL3 ? 1 : 2, Z_DEFLATED, windowbits(testsize * h), 8, Z_FILTERED);
-        if(err != Z_OK) exit(1);
-        if(strategy == LFS_INCREMENTAL) deflateTune(&stream, 16, 258, 258, 200);
-        else if(strategy == LFS_INCREMENTAL2) deflateTune(&stream, 50, 258, 258, 1100);
-        deflateCopy(&teststream, &stream, 1);
-
-        unsigned char* dummy = (unsigned char*)1; /*Not used, but must not be NULL*/
-        unsigned char* prevline2 = 0;
-        unsigned char* prevlinebuf = 0;
-        unsigned char* linebuf;
-        if(clean) {
-          prevlinebuf = (unsigned char*)lodepng_malloc(linebytes);
-          linebuf = (unsigned char*)lodepng_malloc(linebytes);
-        }
-
-        for(y = 0; y != h; ++y) { /*try the 5 filter types*/
-          for(type = 4; type + 1 != 0; --type) { /*type 0 is most likely, so end with that to reduce copying*/
-            size_t size = 0;
+            prevlinebuf = (unsigned char*)lodepng_malloc(linebytes);
+            linebuf = (unsigned char*)lodepng_malloc(linebytes);
+          }
+        
+          for(y = 0; y != h; ++y) { /*try the 5 filter types*/
+            for(type = 4; type + 1 != 0; --type) { /*type 0 is most likely, so end with that to reduce copying*/
+              size_t size = 0;
+              if(clean) {
+                memcpy(linebuf, &in[y * linebytes], linebytes);
+                filterScanline2(linebuf, prevline2, linebytes, type);
+                filterScanline(attempt[type], linebuf, prevline2, linebytes, bytewidth, type);
+              } else filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+              /*copy result to output buffer temporarily to include compression test*/
+              out[y * (linebytes + 1)] = type; /*the first byte of a scanline will be the filter type*/
+              for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[type][x];
+        
+              deflateCopy(&teststream, &stream, 0);
+              teststream.next_in = (z_const unsigned char*)(out + y * testsize);
+              teststream.avail_in = testsize;
+              teststream.avail_out = UINT_MAX;
+              teststream.next_out = dummy;
+              deflate_nooutput(&teststream, Z_FINISH);
+        
+              size = teststream.total_out;
+        
+              /*check if this is smallest size (or if type == 4 it's the first case so always store the values)*/
+              if(type == 4 || size < smallest) {
+                bestType = type;
+                smallest = size;
+              }
+            }
+        
             if(clean) {
               memcpy(linebuf, &in[y * linebytes], linebytes);
-              filterScanline2(linebuf, prevline2, linebytes, type);
-              filterScanline(attempt[type], linebuf, prevline2, linebytes, bytewidth, type);
-            } else filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+              filterScanline2(linebuf, prevline2, linebytes, bestType);
+              filterScanline(attempt[bestType], linebuf, prevline2, linebytes, bytewidth, bestType);
+            } else filterScanline(attempt[bestType], &in[y * linebytes], prevline, linebytes, bytewidth, bestType);
             /*copy result to output buffer temporarily to include compression test*/
-            out[y * (linebytes + 1)] = type; /*the first byte of a scanline will be the filter type*/
-            for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[type][x];
-
-            deflateCopy(&teststream, &stream, 0);
-            teststream.next_in = (z_const unsigned char*)(out + y * testsize);
-            teststream.avail_in = testsize;
-            teststream.avail_out = UINT_MAX;
-            teststream.next_out = dummy;
-            deflate_nooutput(&teststream, Z_FINISH);
-
-            size = teststream.total_out;
-
-            /*check if this is smallest size (or if type == 4 it's the first case so always store the values)*/
-            if(type == 4 || size < smallest) {
-              bestType = type;
-              smallest = size;
+            out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+            for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
+        
+            stream.next_in = (z_const unsigned char*)(out + y * testsize);
+            stream.avail_in = testsize;
+            stream.avail_out = UINT_MAX;
+            stream.next_out = dummy;
+            deflate_nooutput(&stream, Z_NO_FLUSH);
+        
+            prevline = &in[y * linebytes];
+            if(clean) {
+              memcpy(linebuf, &in[y * linebytes], linebytes);
+              filterScanline2(linebuf, prevline2, linebytes, bestType);
+              memcpy(prevlinebuf, linebuf, linebytes);
+              prevline2 = prevlinebuf;
             }
+            out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+            if(type) for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x]; /*last attempt is type 0, so no copying necessary*/
           }
-
           if(clean) {
-            memcpy(linebuf, &in[y * linebytes], linebytes);
-            filterScanline2(linebuf, prevline2, linebytes, bestType);
-            filterScanline(attempt[bestType], linebuf, prevline2, linebytes, bytewidth, bestType);
-          } else filterScanline(attempt[bestType], &in[y * linebytes], prevline, linebytes, bytewidth, bestType);
-          /*copy result to output buffer temporarily to include compression test*/
-          out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
-          for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
-
-          stream.next_in = (z_const unsigned char*)(out + y * testsize);
-          stream.avail_in = testsize;
-          stream.avail_out = UINT_MAX;
-          stream.next_out = dummy;
-          deflate_nooutput(&stream, Z_NO_FLUSH);
-
-          prevline = &in[y * linebytes];
-          if(clean) {
-            memcpy(linebuf, &in[y * linebytes], linebytes);
-            filterScanline2(linebuf, prevline2, linebytes, bestType);
-            memcpy(prevlinebuf, linebuf, linebytes);
-            prevline2 = prevlinebuf;
+            free(prevlinebuf);
+            free(linebuf);
           }
-          out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
-          if(type) for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x]; /*last attempt is type 0, so no copying necessary*/
+          deflateEnd(&teststream);
         }
-        if(clean) {
-          free(prevlinebuf);
-          free(linebuf);
-        }
-        deflateEnd(&teststream);
       }
       deflateEnd(&stream);
       for(type = 0; type != 5; ++type) free(attempt[type]);
@@ -3602,8 +3605,11 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
               unsigned count[256] = { 0 };
               for(x = 0; x != linebytes; ++x) ++count[attempt[type][x]];
               ++count[type]; /*the filter type itself is part of the scanline*/
-              if(strategy == LFS_DISTINCT_BYTES) { for(x = 0; x != 256; ++x) if(count[x] != 0) ++sum; }
-              else if(strategy == LFS_ENTROPY) { for(x = 0; x != 256; ++x) sum += ilog2i(count[x]); }
+              if(strategy == LFS_DISTINCT_BYTES) {
+                for(x = 0; x != 256; ++x) sum = sum + (count[x] != 0);
+              } else if(strategy == LFS_ENTROPY) {
+                for(x = 0; x != 256; ++x) sum += ilog2i(count[x]);
+              }
             } else if(strategy == LFS_DISTINCT_BIGRAMS) {
               unsigned char count[65536] = { 0 };
               for(x = 1; x != linebytes; ++x) ++count[(attempt[type][x - 1] << 8) + attempt[type][x]];
@@ -3683,7 +3689,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       for(g = 0; g <= last; ++g) {
         if(strategy == LFS_ALL_CHEAP) {
           settings->filter_strategy = (LodePNGFilterStrategy)(g + 11);
-          filter(out, in, w, h, info, settings);
+          filter(out, in, w, h, color, settings);
           settings->filter_strategy = LFS_ALL_CHEAP;
           for(size_t k = 0; k < h * (linebytes + 1); k += (linebytes + 1)) population[popcnt++] = out[k];
         }
@@ -4227,7 +4233,6 @@ const char* lodepng_error_text(unsigned code) {
     case 19: return "end of out buffer memory reached while inflating";
     case 20: return "invalid deflate block BTYPE encountered while decoding";
     case 21: return "NLEN is not ones complement of LEN in a deflate block";
-
     /*end of out buffer memory reached while inflating:
     This can happen if the inflated deflate data is longer than the amount of bytes required to fill up
     all the pixels of the image, given the color depth and image dimensions. Something that doesn't
@@ -4408,9 +4413,7 @@ unsigned decode(unsigned char** out, size_t& buffersize, unsigned& w, unsigned& 
   if(*out && !error) {
     buffersize = lodepng_get_raw_size(w, h, &state.info_raw);
   }
-  else if (*out) {
-    free(*out);
-  }
+  else if(*out) free(*out);
   return error;
 }
 
@@ -4426,7 +4429,7 @@ unsigned encode(std::vector<unsigned char>& out,
   size_t buffersize;
 
   unsigned error = lodepng_encode(&buffer, &buffersize, in, w, h, &state, p);
-  if (error == 96) {
+  if(error == 96) {
     error = 0;
     state.note = 1;
   }
