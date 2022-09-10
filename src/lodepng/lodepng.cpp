@@ -1789,69 +1789,49 @@ unsigned lodepng_compute_color_stats(LodePNGColorStats* stats,
 }
 
 static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
-                      unsigned w, unsigned h,
-                      LodePNGPalettePriorityStrategy priority,
-                      LodePNGPaletteDirectionStrategy direction,
-                      LodePNGPaletteTransparencyStrategy transparency,
-                      LodePNGPaletteOrderStrategy order) {
-  if (order == LPOS_NONE) return;
-  size_t count = 0;
+                             const unsigned w, const unsigned h,
+                             LodePNGPalettePriorityStrategy priority,
+                             LodePNGPaletteDirectionStrategy direction,
+                             LodePNGPaletteTransparencyStrategy transparency,
+                             LodePNGPaletteOrderStrategy order) {
+  size_t i, count = 0;
   ColorTree tree;
   color_tree_init(&tree);
-  for (size_t i = 0; i < w * h; ++i) {
+  for (i = 0; i < w * h; ++i) {
     const unsigned char* c = (unsigned char*)&image[i];
-    if (color_tree_inc(&tree, c[0], c[1], c[2], c[3]) == 0) ++count;
+    if(color_tree_inc(&tree, c[0], c[1], c[2], c[3]) == 0) ++count;
   }
-  //Silence clang static analyzer warnings
-  if (count == 0) {return;}
+  if(count == 0) return; //Silence clang static analyzer warnings
 
-  // sortfield format:
-  // bit 0-7: original palette index
-  // bit 8-39: color encoding or popularity index
-  // bit 40-47: order score
-  // bit 48-62: unused
-  // bit 63: transparency flag
+  /*sortfield format:
+    bit 0-7:   original palette index
+    bit 8-39:  color encoding or popularity index
+    bit 40-47: order score
+    bit 48-62: unused
+    bit 63:    transparency flag*/
   uint64_t* sortfield = (uint64_t*)lodepng_malloc(count << 4);
-  for (size_t i = 0; i < count; ++i) sortfield[i] = i;
+  for(i = 0; i != count; ++i) sortfield[i] = i;
   uint32_t* palette_in = (uint32_t*)(mode_out->palette);
-  switch (priority) {
-    case LPPS_POPULARITY:
-      for (size_t i = 0; i < count; ++i) {
-        const unsigned char* p = (unsigned char*)&palette_in[i];
-        sortfield[i] |= (color_tree_get(&tree, p[0], p[1], p[2], p[3]) + 1) << 8;
-      }
-      break;
-    case LPPS_RGB:
-      for (size_t i = 0; i < count; ++i) {
-        const unsigned char* c = (unsigned char*)&palette_in[i];
-        sortfield[i] |= uint64_t(c[0]) << 32 | uint64_t(c[1]) << 24 | uint64_t(c[2]) << 16;
-      }
-      break;
-    case LPPS_YUV:
-      for (size_t i = 0; i < count; ++i) {
-        const unsigned char* c = (unsigned char*)&palette_in[i];
-        const double r = c[0];
-        const double g = c[1];
-        const double b = c[2];
+  for(i = 0; i != count; ++i) { /*all priority values will run through this for loop*/
+    const unsigned char* c = (unsigned char*)&palette_in[i];
+    if(priority == LPPS_POPULARITY) sortfield[i] |= (color_tree_get(&tree, c[0], c[1], c[2], c[3]) + 1) << 8;
+    else if(priority == LPPS_RGB) sortfield[i] |= uint64_t(c[0]) << 32 | uint64_t(c[1]) << 24 | uint64_t(c[2]) << 16;
+    else if(priority == LPPS_YUV || priority == LPPS_LAB) {
+      const double r = c[0];
+      const double g = c[1];
+      const double b = c[2];
+      if(priority == LPPS_YUV) {
         sortfield[i] |= uint64_t(0.299 * r + 0.587 * g + 0.114 * b) << 32
         | uint64_t((-0.14713 * r - 0.28886 * g + 0.436 * b + 111.18) / 0.872) << 24
         | uint64_t((0.615 * r - 0.51499 * g - 0.10001 * b + 156.825) / 1.23) << 16;
-      }
-      break;
-    case LPPS_LAB:
-    {
-      const double ep = 216. / 24389.;
-      const double ka = 24389. / 27.;
-      const double ex = 1. / 3.;
-      const double de = 4. / 29.;
-      for (size_t i = 0; i < count; ++i) {
-        const unsigned char* c = (unsigned char*)&palette_in[i];
-        const double r = c[0];
-        const double g = c[1];
-        const double b = c[2];
+      } else { /*LPPS_LAB*/
         double vx = (0.4124564 * r + 0.3575761 * g + 0.1804375 * b) / 255 / 95.047;
         double vy = (0.2126729 * r + 0.7151522 * g + 0.0721750 * b) / 255 / 100;
         double vz = (0.0193339 * r + 0.1191920 * g + 0.9503041 * b) / 255 / 108.883;
+        const double ep = 216. / 24389.;
+        const double ka = 24389. / 27.;
+        const double ex = 1. / 3.;
+        const double de = 4. / 29.;
         vx = vx > ep ? pow(vx, ex) : ka * vx + de;
         vy = vy > ep ? pow(vy, ex) : ka * vy + de;
         vz = vz > ep ? pow(vz, ex) : ka * vz + de;
@@ -1859,224 +1839,157 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
         | uint64_t((vx - vy) * 500 + 256) << 24
         | uint64_t((vy - vz) * 200 + 256) << 16;
       }
+    } else { /*LPPS_MSB*/
+      const uint64_t r = c[0];
+      const uint64_t g = c[1];
+      const uint64_t b = c[2];
+      sortfield[i] |= (r & 128) << 39 | (g & 128) << 38 | (b & 128) << 37
+      | (r & 64) << 35 | (g & 64) << 34 | (b & 64) << 33
+      | (r & 32) << 31 | (g & 32) << 30 | (b & 32) << 29
+      | (r & 16) << 27 | (g & 16) << 26 | (b & 16) << 25
+      | (r & 8) << 23  | (g & 8) << 22  | (b & 8) << 21
+      | (r & 4) << 19  | (g & 4) << 18  | (b & 4) << 17
+      | (r & 2) << 15  | (g & 2) << 14  | (b & 2) << 13
+      | (r & 1) << 11  | (g & 1) << 10  | (b & 1) << 9;
     }
-      break;
-    case LPPS_MSB:
-      for (size_t i = 0; i < count; ++i) {
-        const unsigned char* c = (unsigned char*)&palette_in[i];
-        const uint64_t r = c[0];
-        const uint64_t g = c[1];
-        const uint64_t b = c[2];
-        sortfield[i] |= (r & 128) << 39 | (g & 128) << 38 | (b & 128) << 37
-        | (r & 64) << 35 | (g & 64) << 34 | (b & 64) << 33
-        | (r & 32) << 31 | (g & 32) << 30 | (b & 32) << 29
-        | (r & 16) << 27 | (g & 16) << 26 | (b & 16) << 25
-        | (r & 8) << 23 | (g & 8) << 22 | (b & 8) << 21
-        | (r & 4) << 19 | (g & 4) << 18 | (b & 4) << 17
-        | (r & 2) << 15 | (g & 2) << 14 | (b & 2) << 13
-        | (r & 1) << 11 | (g & 1) << 10 | (b & 1) << 9;
-      }
-      break;
   }
-  switch (transparency) {
+  switch(transparency) {
     case LPTS_IGNORE:
       break;
     case LPTS_FIRST:
-      for (size_t i = 0; i < count; ++i) {
-        if (((unsigned char*)&palette_in[i])[3] == 0xFF) {
-          sortfield[i] |= 0x8000000000000000ULL;
-        }
-      }
-      // fall through
+      for(i = 0; i != count; ++i) if(((unsigned char*)&palette_in[i])[3] == 0xFF) sortfield[i] |= 0x8000000000000000ULL;
+      /*fall through*/
     case LPTS_SORT:
-      if (priority == LPPS_MSB) {
-        for (size_t i = 0; i < count; ++i) {
+      if(priority == LPPS_MSB) {
+        for(i = 0; i != count; ++i) {
           const uint64_t a = ((unsigned char*)&palette_in[i])[3];
           sortfield[i] |= (a & 0x80ULL) << 36 | (a & 0x40ULL) << 32
           | (a & 0x20ULL) << 28 | (a & 0x10ULL) << 24 | (a & 8ULL) << 20
           | (a & 4ULL) << 16 | (a & 2ULL) << 12 | (a & 1ULL) << 8;
         }
-      } else if(priority != LPPS_POPULARITY) {
-        for (size_t i = 0; i < count; ++i) {
-          sortfield[i] |= uint64_t(((unsigned char*)&palette_in[i])[3]) << 8;
-        }
-      }
+      } else if(priority != LPPS_POPULARITY) for(i = 0; i != count; ++i) sortfield[i] |= uint64_t(((unsigned char*)&palette_in[i])[3]) << 8;
       break;
   }
   size_t best = 0;
-  if (order == LPOS_GLOBAL) {
-    if (direction == LPDS_DESCENDING) {
-      for (size_t i = 0; i < count; ++i) {
-        // flip bits, but preserve original index and transparency mode 2
+  if(order == LPOS_GLOBAL) {
+    if(direction == LPDS_DESCENDING) {
+      for(i = 0; i != count; ++i) {
+        /*flip bits, but preserve original index and transparency mode 2*/
         sortfield[i] = (~sortfield[i] & 0x7FFFFFFFFFFFFF00ULL)
         | (sortfield[i] & 0x80000000000000FFULL);
       }
     }
   } else {
-    if (direction == LPDS_DESCENDING) {
+    if(direction == LPDS_DESCENDING) {
       uint64_t value = 0;
-      for (size_t i = 1; i < count; ++i) {
-        if ((sortfield[i] & 0x7FFFFFFFFFFFFFFFULL) > value) {
+      for(i = 1; i != count; ++i) {
+        if((sortfield[i] & 0x7FFFFFFFFFFFFFFFULL) > value) {
           value = (sortfield[i] & 0x7FFFFFFFFFFFFFFFULL);
           best = i;
         }
       }
     } else {
       uint64_t value = UINT64_MAX;
-      for (size_t i = 1; i < count; ++i) {
-        if ((sortfield[i] & 0x7FFFFFFFFFFFFFFFULL) < value) {
+      for(i = 1; i != count; ++i) {
+        if((sortfield[i] & 0x7FFFFFFFFFFFFFFFULL) < value) {
           value = (sortfield[i] & 0x7FFFFFFFFFFFFFFFULL);
           best = i;
         }
       }
     }
   }
-  switch(order) {
-    case LPOS_NONE:
-    case LPOS_GLOBAL:
-      break;
-    case LPOS_NEAREST:
-      for (size_t i = 0; i < count - 1; ++i) {
-        if (i != best) {
-          sortfield[i] ^= sortfield[best];
-          sortfield[best] ^= sortfield[i];
-          sortfield[i] ^= sortfield[best];
-        }
-        sortfield[i] |= uint64_t(i) << 40;
-        const unsigned char* c = (unsigned char*)&palette_in[sortfield[i] & 0xFF];
-        const int r = c[0];
-        const int g = c[1];
-        const int b = c[2];
-        int bestdist = INT_MAX;
-        for (size_t j = i + 1; j < count; ++j) {
-          const unsigned char* c2 = (unsigned char*)&palette_in[sortfield[j] & 0xFF];
-          const int r2 = c2[0];
-          const int g2 = c2[1];
-          const int b2 = c2[2];
-          int dist = (r - r2) * (r - r2) + (g - g2) + (g - g2) + (b - b2) * (b - b2);
-          if (transparency == LPTS_SORT) {
-            const int a = c[3];
-            const int a2 = c2[3];
-            dist += (a - a2) * (a - a2);
-          }
-          if (dist < bestdist) {
-            bestdist = dist;
-            best = j;
-          }
-        }
-      }
-      sortfield[count - 1] |= uint64_t(count - 1) << 40;
-      break;
-    case LPOS_NEAREST_WEIGHT:
-    {
-      for (size_t i = 0; i < count - 1; ++i) {
-        if (i != best) {
-          sortfield[i] ^= sortfield[best];
-          sortfield[best] ^= sortfield[i];
-          sortfield[i] ^= sortfield[best];
-        }
-        sortfield[i] |= uint64_t(i) << 40;
-        const unsigned char* c = (unsigned char*)&palette_in[sortfield[i] & 0xFF];
-        const int r = c[0];
-        const int g = c[1];
-        const int b = c[2];
-        double bestdist = INT_MAX;
-        for (size_t j = i + 1; j < count; ++j) {
-          const unsigned char* c2 = (unsigned char*)&palette_in[sortfield[j] & 0xFF];
-          const int r2 = c2[0];
-          const int g2 = c2[1];
-          const int b2 = c2[2];
-          double dist = (r - r2) * (r - r2) + (g - g2) + (g - g2) + (b - b2) * (b - b2);
-          if (transparency == LPTS_SORT) {
-            const int a = c[3];
-            const int a2 = c2[3];
-            dist += (a - a2) * (a - a2);
-          }
-          dist /= (color_tree_get(&tree, c2[0], c2[1], c2[2], c2[3]) + 1);
-          if (dist < bestdist) {
-            bestdist = dist;
-            best = j;
-          }
-        }
-      }
-      sortfield[count - 1] |= uint64_t(count - 1) << 40;
-    }
-      break;
-    case LPOS_NEAREST_NEIGHBOR:
-    {
-      ColorTree paltree;
+  if(order > LPOS_GLOBAL) { /*LPOS_NEAREST, LPOS_NEAREST_WEIGHT, LPOS_NEAREST_NEIGHBOR*/
+    size_t j;
+    ColorTree paltree;
+    ColorTree neighbors;
+    if(order == LPOS_NEAREST_NEIGHBOR) {
+      size_t k, l;
       color_tree_init(&paltree);
-      for (size_t i = 0; i < count; ++i) {
+      color_tree_init(&neighbors);
+      for(i = 0; i != count; ++i) {
         const unsigned char* p = (unsigned char*)&palette_in[i];
         color_tree_add(&paltree, p[0], p[1], p[2], p[3], i);
       }
-      ColorTree neighbors;
-      color_tree_init(&neighbors);
-      for (size_t k = 0; k < h; ++k) {
-        for (size_t l = 0; l < w; ++l) {
+      for(k = 0; k != h; ++k) {
+        for(l = 0; l != w; ++l) {
           const unsigned char* c = (unsigned char*)&image[k * w + l];
           int index = color_tree_get(&paltree, c[0], c[1], c[2], c[3]);
-          if (k > 0) { // above
+          if(k > 0) { /*above*/
             const unsigned char* c2 = (unsigned char*)&image[(k - 1) * w + l];
             color_tree_inc(&neighbors, index, color_tree_get(&paltree, c2[0], c2[1], c2[2], c2[3]), 0, 0);
           }
-          if (k < h - 1) { // below
+          if(k < h - 1) { /*below*/
             const unsigned char* c2 = (unsigned char*)&image[(k + 1) * w + l];
             color_tree_inc(&neighbors, index, color_tree_get(&paltree, c2[0], c2[1], c2[2], c2[3]), 0, 0);
           }
-          if (l > 0) { // left
+          if(l > 0) { /*left*/
             const unsigned char* c2 = (unsigned char*)&image[k * w + l - 1];
             color_tree_inc(&neighbors, index, color_tree_get(&paltree, c2[0], c2[1], c2[2], c2[3]), 0, 0);
           }
-          if (l < w - 1) { // right
+          if(l < w - 1) { /*right*/
             const unsigned char* c2 = (unsigned char*)&image[k * w + l + 1];
             color_tree_inc(&neighbors, index, color_tree_get(&paltree, c2[0], c2[1], c2[2], c2[3]), 0, 0);
           }
         }
       }
-      for (size_t i = 0; i < count - 1; ++i) {
-        if (i != best) {
-          sortfield[i] ^= sortfield[best];
-          sortfield[best] ^= sortfield[i];
-          sortfield[i] ^= sortfield[best];
+    }
+    for(i = 0; i < count - 1; ++i) {
+      if(i != best) {
+        sortfield[i] ^= sortfield[best];
+        sortfield[best] ^= sortfield[i];
+        sortfield[i] ^= sortfield[best];
+      }
+      sortfield[i] |= uint64_t(i) << 40;
+      const unsigned char* c = (unsigned char*)&palette_in[sortfield[i] & 0xFF];
+      const int r = c[0];
+      const int g = c[1];
+      const int b = c[2];
+      int bestdist = INT_MAX;
+      if(order == LPOS_NEAREST_NEIGHBOR) best = i + 1;
+      for(j = i + 1; j != count; ++j) {
+        const unsigned char* c2 = (unsigned char*)&palette_in[sortfield[j] & 0xFF];
+        const int r2 = c2[0];
+        const int g2 = c2[1];
+        const int b2 = c2[2];
+        int dist = (r - r2) * (r - r2) + (g - g2) + (g - g2) + (b - b2) * (b - b2);
+        if(transparency == LPTS_SORT) {
+          const int a = c[3];
+          const int a2 = c2[3];
+          dist += (a - a2) * (a - a2);
         }
-        sortfield[i] |= uint64_t(i) << 40;
-        const unsigned char* c = (unsigned char*)&palette_in[sortfield[i] & 0xFF];
-        const int r = c[0];
-        const int g = c[1];
-        const int b = c[2];
-        double bestdist = INT_MAX;
-        best = i + 1;
-        for (size_t j = i + 1; j < count; ++j) {
-          const unsigned char* c2 = (unsigned char*)&palette_in[sortfield[j] & 0xFF];
-          const int r2 = c2[0];
-          const int g2 = c2[1];
-          const int b2 = c2[2];
-          double dist = (r - r2) * (r - r2) + (g - g2) + (g - g2) + (b - b2) * (b - b2);
-          if (transparency == LPTS_SORT) {
-            const int a = c[3];
-            const int a2 = c2[3];
-            dist += (a - a2) * (a - a2);
-          }
-          dist /= (color_tree_get(&neighbors, color_tree_get(&paltree, c[0], c[1], c[2], c[3]),
-                                  color_tree_get(&paltree, c2[0], c2[1], c2[2], c2[3]), 0, 0) + 1);
-          if (dist != 0 && dist < bestdist) {
+        if(order == LPOS_NEAREST) {
+          if(dist < bestdist) {
             bestdist = dist;
             best = j;
           }
+        } else if(order == LPOS_NEAREST_WEIGHT || order == LPOS_NEAREST_NEIGHBOR) {
+          double d_dist = (double)dist;
+          if(order == LPOS_NEAREST_WEIGHT) {
+            d_dist /= (color_tree_get(&tree, c2[0], c2[1], c2[2], c2[3]) + 1);
+            if(d_dist < (double)bestdist) {
+              bestdist = (int)d_dist;
+              best = j;
+            }
+          } else { /*LPOS_NEAREST_NEIGHBOR*/
+            d_dist /= (color_tree_get(&neighbors, color_tree_get(&paltree, c[0], c[1], c[2], c[3]),
+                                                  color_tree_get(&paltree, c2[0], c2[1], c2[2], c2[3]), 0, 0) + 1);
+            if(d_dist != 0 && d_dist < (double)bestdist) {
+              bestdist = (int)d_dist;
+              best = j;
+            }
+          }
         }
       }
-      sortfield[count - 1] |= uint64_t(count - 1) << 40;
+    }
+    sortfield[count - 1] |= uint64_t(count - 1) << 40;
+    if(order == LPOS_NEAREST_NEIGHBOR) {
       color_tree_cleanup(&paltree);
       color_tree_cleanup(&neighbors);
     }
-      break;
   }
   std::sort(sortfield, sortfield + count);
   uint32_t* palette_out = (uint32_t*)lodepng_malloc(mode_out->palettesize << 2);
-  for (size_t i = 0; i < mode_out->palettesize; ++i) {
-    palette_out[i] = palette_in[sortfield[i] & 0xFF];
-  }
+  for(i = 0; i != mode_out->palettesize; ++i) palette_out[i] = palette_in[sortfield[i] & 0xFF];
   std::copy(palette_out, palette_out + mode_out->palettesize, palette_in);
   free(palette_out);
   free(sortfield);
@@ -4337,22 +4250,23 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
     state->error = lodepng_auto_choose_color(&info.color, &state->info_raw, &stats, numpixels, state->div);
     if(state->error) goto cleanup;
     if(info.color.colortype == LCT_PALETTE && palset.order != LPOS_NONE) {
-      if (palset._first & 1) {
+      if(palset._first & 1) {
         color_tree_init(&ct);
       }
-      optimize_palette(&info.color, (uint32_t*)image, w, h, palset.priority, palset.direction,
-                       palset.trans, palset.order);
+      if(palset.order != LPOS_NONE) {
+        optimize_palette(&info.color, (uint32_t*)image, w, h, palset.priority, palset.direction,
+                         palset.trans, palset.order);
+      }
 
       unsigned crc = crc32(0, info.color.palette, info.color.palettesize);
-      if (!color_tree_inc(&ct, crc & 0xFF, crc & 0xFF00, crc & 0xFF0000, crc & 0xFF000000)) {
-      } else {
-        if (palset._first & 2) {
+      if(color_tree_inc(&ct, crc & 0xFF, crc & 0xFF00, crc & 0xFF0000, crc & 0xFF000000)) {
+        if(palset._first & 2) {
           color_tree_cleanup(&ct);
         }
-        lodepng_info_cleanup(&info);
-        return 96;
+        state->error = 96;
+        goto cleanup;
       }
-      if (palset._first & 2) {
+      if(palset._first & 2) {
         color_tree_cleanup(&ct);
       }
     }
