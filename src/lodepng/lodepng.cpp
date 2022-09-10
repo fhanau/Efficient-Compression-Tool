@@ -3383,33 +3383,30 @@ static char windowbits(unsigned long len) {
 }
 
 static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, unsigned h,
-                       const LodePNGColorMode* color, LodePNGEncoderSettings* settings) {
+                       const LodePNGColorMode* info, LodePNGEncoderSettings* settings) {
   /*
   For PNG filter method 0
   out must be a buffer with as size: h + (w * h * bpp + 7u) / 8u, because there are
   the scanlines with 1 extra byte per scanline
   */
 
-  unsigned bpp = lodepng_get_bpp(color);
+  unsigned bpp = lodepng_get_bpp(info);
+  if(bpp == 0) return 31; /*error: invalid color type*/
   /*the width of a scanline in bytes, not including the filter type*/
   size_t linebytes = lodepng_get_raw_size_idat(w, 1, bpp) - 1u;
-
   /*bytewidth is used for filtering, is 1 when bpp < 8, number of bytes per pixel otherwise*/
   size_t bytewidth = (bpp + 7u) / 8u;
+  const LodePNGFilterStrategy strategy = settings->filter_strategy;
   const unsigned char* prevline = 0;
   unsigned x, y;
   unsigned error = 0;
-  LodePNGFilterStrategy strategy = settings->filter_strategy;
-
-  if(bpp == 0) return 31; /*error: invalid color type*/
 
   if(strategy < LFS_BRUTE_FORCE) {
-    unsigned char type = (unsigned char)strategy;
     for(y = 0; y != h; ++y) {
       size_t outindex = (1 + linebytes) * y; /*the extra filterbyte added to each row*/
       size_t inindex = linebytes * y;
-      out[outindex] = type; /*filter type byte*/
-      filterScanline(&out[outindex + 1], &in[inindex], prevline, linebytes, bytewidth, type);
+      out[outindex] = strategy; /*filter type byte*/
+      filterScanline(&out[outindex + 1], &in[inindex], prevline, linebytes, bytewidth, strategy);
       prevline = &in[inindex];
     }
   } else if(strategy == LFS_PREDEFINED) {
@@ -3422,565 +3419,277 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       prevline = &in[inindex];
     }
   } else {
-    unsigned clean = settings->clean_alpha && color->colortype == LCT_RGBA && color->bitdepth == 8 && !color->key_defined;
+    const unsigned clean = settings->clean_alpha && info->colortype == LCT_RGBA && info->bitdepth == 8 && !info->key_defined;
     unsigned char* in2 = 0;
     unsigned char* rem = 0;
     if(clean) {
-      in2 = (unsigned char*)malloc(linebytes * h);
-      if (!in2) {
-        exit(1);
-      }
+      in2 = (unsigned char*)lodepng_malloc(linebytes * h);
+      if(!in2) exit(1);
       memcpy(in2, in, linebytes * h);
-      rem = (unsigned char*)malloc(linebytes);
+      rem = (unsigned char*)lodepng_malloc(linebytes);
     }
-    if(strategy == LFS_BRUTE_FORCE) {
-    /*brute force filter chooser.
-     deflate the scanline after every filter attempt to see which one deflates best.*/
-    unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
-    size_t smallest = 0;
-    unsigned type = 0, bestType = 0;
+    if(strategy == LFS_BRUTE_FORCE || (strategy >= LFS_INCREMENTAL && strategy <= LFS_INCREMENTAL3)) {
+      unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
+      size_t smallest = 0;
+      unsigned type, bestType = 0;
 
-    z_stream stream;
-    stream.zalloc = 0;
-    stream.zfree = 0;
-    stream.opaque = 0;
-
-    int err = deflateInit2(&stream, 3, Z_DEFLATED, windowbits(linebytes), 3, Z_FILTERED);
-    if (err != Z_OK) exit(1);
-
-    for(type = 0; type != 5; ++type) {
-      attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
-      if(!attempt[type]) error = 83; /*alloc fail*/
-    }
-
-    for(y = 0; y != h; ++y) /*try the 5 filter types*/
-    {
-      memcpy(rem, &in2[y * linebytes], linebytes * clean);
       for(type = 0; type != 5; ++type) {
+        attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
+        if(!attempt[type]) error = 83; /*alloc fail*/
+      }
+
+      z_stream stream;
+      stream.zalloc = 0;
+      stream.zfree = 0;
+      stream.opaque = 0;
+
+      if(!error && strategy == LFS_BRUTE_FORCE) {
+        /*brute force filter chooser.
+        deflate the scanline after every filter attempt to see which one deflates best.*/
+        int err = deflateInit2(&stream, 3, Z_DEFLATED, windowbits(linebytes), 3, Z_FILTERED);
+        if(err != Z_OK) exit(1);
+
+        for(y = 0; y != h; ++y) { /*try the 5 filter types*/
+          memcpy(rem, &in2[y * linebytes], linebytes * clean);
+          for(type = 0; type != 5; ++type) {
+            size_t size = 0;
+            if(clean) {
+              filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
+              filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
+            } else filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+
+            if(settings->filter_style < 2 || 1) {
+              deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
+              stream.next_in = (z_const unsigned char*)attempt[type];
+              stream.avail_in = linebytes;
+              stream.avail_out = UINT_MAX;
+              stream.next_out = (unsigned char*)1;
+
+              deflate_nooutput(&stream, Z_FINISH);
+
+              size = stream.total_out;
+              deflateReset(&stream);
+            } else size = ZopfliLZ77LazyLauncher(attempt[type], 0, linebytes, settings->filter_style);
+
+            /*check if this is smallest size (or if type == 0 it's the first case so always store the values)*/
+            if(type == 0 || size < smallest) {
+              bestType = type;
+              smallest = size;
+            }
+            if(clean) memcpy(&in2[y * linebytes], rem, linebytes);
+          }
+          out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+          for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
+          if(clean) {
+            filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
+            prevline = &in2[y * linebytes];
+          } else prevline = &in[y * linebytes];
+        }
+      } else if(!error && strategy >= LFS_INCREMENTAL && strategy <= LFS_INCREMENTAL3) {
+        /*Incremental brute force filter chooser.
+        Keep a buffer of each tested scanline and deflate the entire buffer after every filter attempt to see which one deflates best.
+        Now implemented with streaming, which reduces complexity to O(n)
+        This is slow.*/
+        z_stream teststream;
+        size_t testsize = linebytes + 1;
+        int err = deflateInit2(&stream, strategy == LFS_INCREMENTAL3 ? 1 : 2, Z_DEFLATED, windowbits(testsize * h), 8, Z_FILTERED);
+        if(err != Z_OK) exit(1);
+        if(strategy == LFS_INCREMENTAL) deflateTune(&stream, 16, 258, 258, 200);
+        else if(strategy == LFS_INCREMENTAL2) deflateTune(&stream, 50, 258, 258, 1100);
+        deflateCopy(&teststream, &stream, 1);
+
+        unsigned char* dummy = (unsigned char*)1; /*Not used, but must not be NULL*/
+        unsigned char* prevline2 = 0;
+        unsigned char* prevlinebuf = 0;
+        unsigned char* linebuf;
         if(clean) {
-          filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
-          filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
-        } else {
-          filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+          prevlinebuf = (unsigned char*)lodepng_malloc(linebytes);
+          linebuf = (unsigned char*)lodepng_malloc(linebytes);
         }
 
-        size_t size = 0;
-        if(settings->filter_style < 2 || 1) {
-          deflateTune(&stream, 258, 258, 258, 550 + (settings->filter_style) * 100);
-          stream.next_in = (z_const unsigned char *)attempt[type];
-          stream.avail_in = linebytes;
+        for(y = 0; y != h; ++y) { /*try the 5 filter types*/
+          for(type = 4; type + 1 != 0; --type) { /*type 0 is most likely, so end with that to reduce copying*/
+            size_t size = 0;
+            if(clean) {
+              memcpy(linebuf, &in[y * linebytes], linebytes);
+              filterScanline2(linebuf, prevline2, linebytes, type);
+              filterScanline(attempt[type], linebuf, prevline2, linebytes, bytewidth, type);
+            } else filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+            /*copy result to output buffer temporarily to include compression test*/
+            out[y * (linebytes + 1)] = type; /*the first byte of a scanline will be the filter type*/
+            for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[type][x];
+
+            deflateCopy(&teststream, &stream, 0);
+            teststream.next_in = (z_const unsigned char*)(out + y * testsize);
+            teststream.avail_in = testsize;
+            teststream.avail_out = UINT_MAX;
+            teststream.next_out = dummy;
+            deflate_nooutput(&teststream, Z_FINISH);
+
+            size = teststream.total_out;
+
+            /*check if this is smallest size (or if type == 4 it's the first case so always store the values)*/
+            if(type == 4 || size < smallest) {
+              bestType = type;
+              smallest = size;
+            }
+          }
+
+          if(clean) {
+            memcpy(linebuf, &in[y * linebytes], linebytes);
+            filterScanline2(linebuf, prevline2, linebytes, bestType);
+            filterScanline(attempt[bestType], linebuf, prevline2, linebytes, bytewidth, bestType);
+          } else filterScanline(attempt[bestType], &in[y * linebytes], prevline, linebytes, bytewidth, bestType);
+          /*copy result to output buffer temporarily to include compression test*/
+          out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+          for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
+
+          stream.next_in = (z_const unsigned char*)(out + y * testsize);
+          stream.avail_in = testsize;
           stream.avail_out = UINT_MAX;
-          stream.next_out = (unsigned char *)1;
+          stream.next_out = dummy;
+          deflate_nooutput(&stream, Z_NO_FLUSH);
 
-          deflate_nooutput(&stream, Z_FINISH);
-
-          size = stream.total_out;
-          deflateReset(&stream);
-        } else {
-          size = ZopfliLZ77LazyLauncher(attempt[type], 0, linebytes, settings->filter_style);
-        }
-
-        /*check if this is smallest size (or if type == 0 it's the first case so always store the values)*/
-        if(type == 0 || size < smallest) {
-          bestType = type;
-          smallest = size;
-        }
-        if(clean) {
-          memcpy(&in2[y * linebytes], rem, linebytes);
-        }
-
-      }
-      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
-      for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
-      if(clean) {
-        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
-        prevline = &in2[y * linebytes];
-      } else {
-        prevline = &in[y * linebytes];
-      }
-    }
-
-    deflateEnd(&stream);
-    for(type = 0; type != 5; ++type) free(attempt[type]);
-
-  } else if(strategy == LFS_INCREMENTAL || strategy == LFS_INCREMENTAL2 || strategy == LFS_INCREMENTAL3) {
-    /*Incremental brute force filter chooser.
-     Keep a buffer of each tested scanline and deflate the entire buffer after every filter attempt to see which one deflates best.
-     Now implemented with streaming, which reduces complexity to O(n)
-     This is slow.*/
-    unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
-    size_t smallest;
-    unsigned type, bestType = 0;
-
-    z_stream dstream;
-    z_stream teststream;
-
-    dstream.zalloc = 0;
-    dstream.zfree = 0;
-    dstream.opaque = 0;
-
-    size_t testsize = linebytes + 1;
-    int err = deflateInit2(&dstream, strategy == LFS_INCREMENTAL3 ? 1 : 2, Z_DEFLATED, windowbits(testsize * h), 8, Z_FILTERED);
-    if (err != Z_OK) exit(1);
-    if(strategy == LFS_INCREMENTAL) {
-      deflateTune(&dstream, 16, 258, 258, 200);
-    }
-    else if (strategy == LFS_INCREMENTAL2) {
-      deflateTune(&dstream, 50, 258, 258, 1100);
-    }
-    deflateCopy(&teststream, &dstream, 1);
-
-    unsigned char* dummy = (unsigned char*)1; //Not used, but must not be 0
-
-    unsigned char* prevline2 = 0;
-    unsigned char* prevlinebuf = 0;
-    unsigned char* linebuf;
-    if(clean) {
-      prevlinebuf = (unsigned char*)malloc(linebytes);
-      linebuf = (unsigned char*)malloc(linebytes);
-    }
-
-    for(type = 0; type != 5; ++type) {
-      attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
-      if(!attempt[type]) error = 83; /*alloc fail*/
-    }
-
-    for(y = 0; y != h; ++y) /*try the 5 filter types*/
-    {
-      smallest = SIZE_MAX;
-      for(type = 4; type + 1 != 0; --type) /*type 0 is most likely, so end with that to reduce copying*/
-      {
-        if(clean) {
-          memcpy(linebuf, &in[y * linebytes], linebytes);
-          filterScanline2(linebuf, prevline2, linebytes, type);
-          filterScanline(attempt[type], linebuf, prevline2, linebytes, bytewidth, type);
-        } else {
-          filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
-        }
-        /*copy result to output buffer temporarily to include compression test*/
-        out[y * (linebytes + 1)] = type; /*the first byte of a scanline will be the filter type*/
-        for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[type][x];
-        size_t size = 0;
-
-        deflateCopy(&teststream, &dstream, 0);
-        teststream.next_in = (z_const unsigned char *)(out + y * testsize);
-        teststream.avail_in = testsize;
-        teststream.avail_out = UINT_MAX;
-        teststream.next_out = dummy;
-        deflate_nooutput(&teststream, Z_FINISH);
-
-        size = teststream.total_out;
-
-        /*check if this is smallest size (or if type == 4 it's the first case so always store the values)*/
-        if(size < smallest) {
-          bestType = type;
-          smallest = size;
-        }
-      }
-
-      if(clean) {
-        memcpy(linebuf, &in[y * linebytes], linebytes);
-        filterScanline2(linebuf, prevline2, linebytes, bestType);
-        filterScanline(attempt[bestType], linebuf, prevline2, linebytes, bytewidth, bestType);
-      } else {
-        filterScanline(attempt[bestType], &in[y * linebytes], prevline, linebytes, bytewidth, bestType);
-      }
-      /*copy result to output buffer temporarily to include compression test*/
-      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
-      for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
-
-      dstream.next_in = (z_const unsigned char *)(out + y * testsize);
-      dstream.avail_in = testsize;
-      dstream.avail_out = UINT_MAX;
-      dstream.next_out = dummy;
-      deflate_nooutput(&dstream, Z_NO_FLUSH);
-
-      prevline = &in[y * linebytes];
-      if(clean) {
-        memcpy(linebuf, &in[y * linebytes], linebytes);
-        filterScanline2(linebuf, prevline2, linebytes, bestType);
-        memcpy(prevlinebuf, linebuf, linebytes);
-        prevline2 = prevlinebuf;
-      }
-      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
-      if (type) /*last attempt is type 0, so no copying necessary*/
-      {
-        for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
-      }
-    }
-    if(clean) {
-      free(prevlinebuf);
-      free(linebuf);
-    }
-    deflateEnd(&dstream);
-    deflateEnd(&teststream);
-    for(type = 0; type != 5; ++type) free(attempt[type]);
-  } else if(strategy == LFS_MINSUM) {
-    /*adaptive filtering*/
-    unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
-    size_t smallest = 0;
-    unsigned char type, bestType = 0;
-
-    for(type = 0; type != 5; ++type) {
-      attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
-      if(!attempt[type]) error = 83; /*alloc fail*/
-    }
-
-    if(!error) {
-    for(y = 0; y != h; ++y) {
-      memcpy(rem, &in2[y * linebytes], linebytes * clean);
-      /*try the 5 filter types*/
-      for(type = 0; type != 5; ++type) {
-        size_t sum = 0;
-        if(clean) {
-          filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
-          filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
-        } else {
-          filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
-        }
-
-        /*calculate the sum of the result*/
-        if(type == 0) {
-          for(x = 0; x != linebytes; ++x) sum += (unsigned char)(attempt[type][x]);
-        } else {
-          for(x = 0; x != linebytes; ++x) {
-            /*For differences, each byte should be treated as signed, values above 127 are negative
-             (converted to signed char). Filtertype 0 isn't a difference though, so use unsigned there.
-             This means filtertype 0 is almost never chosen, but that is justified.*/
-            unsigned char s = attempt[type][x];
-            sum += s < 128 ? s : (255U - s);
-          }
-        }
-
-        /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
-        if(type == 0 || sum < smallest) {
-          bestType = type;
-          smallest = sum;
-        }
-        if(clean) {
-          memcpy(&in2[y * linebytes], rem, linebytes);
-        }
-      }
-
-      /*now fill the out values*/
-      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
-      for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
-      if(clean) {
-        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
-        prevline = &in2[y * linebytes];
-      } else {
-        prevline = &in[y * linebytes];
-      }
-    }
-    }
-
-    for(type = 0; type != 5; ++type) free(attempt[type]);
-  } else if(strategy == LFS_DISTINCT_BYTES) {
-    unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
-    size_t smallest;
-    unsigned type, bestType = 0;
-    unsigned char count[256];
-
-    for(type = 0; type != 5; ++type) {
-      attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
-      if(!attempt[type]) error = 83; /*alloc fail*/
-    }
-
-    for(y = 0; y != h; ++y) {
-      memcpy(rem, &in2[y * linebytes], linebytes * clean);
-      smallest = SIZE_MAX;
-      /*try the 5 filter types*/
-      for(type = 0; type != 5; ++type) {
-        size_t sum = 0;
-        if(clean) {
-          filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
-          filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
-        } else {
-          filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
-        }
-        memset(count, 0, 256);
-        for(x = 0; x != linebytes; ++x) count[attempt[type][x]] = 1;
-        count[type] = 1; /*the filter type itself is part of the scanline*/
-        for(x = 0; x != 256; ++x) {
-          if(count[x]) ++sum;
-        }
-        /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
-        if(sum < smallest) {
-          bestType = type;
-          smallest = sum;
-        }
-        if(clean) {
-          memcpy(&in2[y * linebytes], rem, linebytes);
-        }
-      }
-
-      /*now fill the out values*/
-      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
-      for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
-      if(clean) {
-        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
-        prevline = &in2[y * linebytes];
-      } else {
-        prevline = &in[y * linebytes];
-      }
-    }
-
-    for(type = 0; type != 5; ++type) free(attempt[type]);
-  } else if(strategy == LFS_DISTINCT_BIGRAMS) {
-    unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
-    size_t smallest;
-    unsigned type, bestType = 0;
-    unsigned char count[65536];
-
-    for(type = 0; type != 5; ++type) {
-      attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
-      if(!attempt[type]) error = 83; /*alloc fail*/
-    }
-
-    for(y = 0; y != h; ++y) {
-      memcpy(rem, &in2[y * linebytes], linebytes * clean);
-      smallest = SIZE_MAX;
-      /*try the 5 filter types*/
-      for(type = 0; type != 5; ++type) {
-        size_t sum = 0;
-        if(clean) {
-          filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
-          filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
-        } else {
-          filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
-        }
-        memset(count, 0, 65536);
-        for(x = 1; x != linebytes; ++x) count[(attempt[type][x - 1] << 8) + attempt[type][x]] = 1;
-        count[type] = 1; /*the filter type itself is part of the scanline*/
-        for(x = 0; x != 65536; ++x) {
-          if(count[x] != 0) ++sum;
-        }
-        /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
-        if(sum < smallest) {
-          bestType = type;
-          smallest = sum;
-        }
-        if(clean) {
-          memcpy(&in2[y * linebytes], rem, linebytes);
-        }
-      }
-
-      /*now fill the out values*/
-      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
-      for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
-      if(clean) {
-        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
-        prevline = &in2[y * linebytes];
-      } else {
-        prevline = &in[y * linebytes];
-      }
-    }
-
-    for(type = 0; type != 5; ++type) free(attempt[type]);
-  } else if(strategy == LFS_ENTROPY) {
-    unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
-    float smallest = 0;
-    unsigned type, bestType = 0;
-    unsigned count[256];
-
-    for(type = 0; type != 5; ++type) {
-      attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
-      if(!attempt[type]) error = 83; /*alloc fail*/
-    }
-
-    for(y = 0; y != h; ++y) {
-      memcpy(rem, &in2[y * linebytes], linebytes * clean);
-      /*try the 5 filter types*/
-      for(type = 0; type != 5; ++type) {
-        if(clean) {
-          filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
-          filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
-        } else {
-          filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
-        }
-        memset(count, 0, 256 * sizeof(*count));
-        for(x = 0; x != linebytes; ++x) ++count[attempt[type][x]];
-        ++count[type]; /*the filter type itself is part of the scanline*/
-        float sum = 0;
-        for(x = 0; x != 256; ++x) {
-          float p = count[x] / (float)(linebytes + 1);
-          sum += count[x] == 0 ? 0 : log2f(1 / p) * p;
-        }
-        /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
-        if(type == 0 || sum < smallest) {
-          bestType = type;
-          smallest = sum;
-        }
-        if(clean) {
-          memcpy(&in2[y * linebytes], rem, linebytes);
-        }
-      }
-
-      /*now fill the out values*/
-      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
-      for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
-      if(clean) {
-        filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
-        prevline = &in2[y * linebytes];
-      } else {
-        prevline = &in[y * linebytes];
-      }
-    }
-
-    for(type = 0; type != 5; ++type) free(attempt[type]);
-  }
-  else if(strategy == LFS_GENETIC || strategy == LFS_ALL_CHEAP) {
-    if (strategy == LFS_GENETIC) {
-      if(!settings->quiet) {
-        printf("warning: You have decided to enable genetic filtering, which may take a very long time.\n"
-               "the current generation and number of bytes is displayed.\n"
-               "you can stop the genetic filtering anytime by pressing ctrl-c\n"
-               "it will automatically stop after 500 generations without progress\n");
-      }
-      signaled.store(-settings->quiet);
-    }
-
-    unsigned char* prevlinebuf = 0;
-    unsigned char* linebuf;
-    if(clean) {
-      prevlinebuf = (unsigned char*)malloc(linebytes);
-      linebuf = (unsigned char*)malloc(linebytes);
-    }
-
-    uint64_t r[2];
-    initRandomUInt64(r);
-
-    const int Strategies = strategy == LFS_ALL_CHEAP ? 3 : 0;
-    /*Genetic algorithm filter finder. Attempts to find better filters through mutation and recombination.*/
-    const size_t population_size = strategy == LFS_ALL_CHEAP ? Strategies : 19;
-    const size_t last = population_size - 1;
-    unsigned char* population = (unsigned char*)lodepng_malloc(h * population_size);
-    size_t* size = (size_t*)lodepng_malloc(population_size * sizeof(size_t));
-    unsigned* ranking = (unsigned*)lodepng_malloc(population_size * sizeof(int));
-    unsigned g, i, j, e, t, c, type, crossover1, crossover2, selection_size, size_sum;
-    unsigned best_size = UINT_MAX;
-    unsigned total_size = 0;
-    unsigned e_since_best = 0;
-
-    z_stream stream;
-    stream.zalloc = 0;
-    stream.zfree = 0;
-    stream.opaque = 0;
-#define TUNE deflateTune(&stream, 16, 258, 258, 200);
-    int err = deflateInit2(&stream, 3, Z_DEFLATED, windowbits(h * (linebytes + 1)), 8, Z_FILTERED);
-    if (err != Z_OK) exit(1);
-    unsigned char* dummy = (unsigned char *)1;
-    size_t popcnt;
-    uint64_t r2[2];
-    initRandomUInt64(r2);
-    signal(SIGINT, sig_handler);
-    for(popcnt = 0; popcnt < h * (population_size - Strategies); ++popcnt) population[popcnt] = randomUInt64(r2) % 5;
-
-    for(g = 0; g <= last; ++g) {
-      if (strategy == LFS_ALL_CHEAP) {
-        settings->filter_strategy = (LodePNGFilterStrategy)(g + 11);
-        filter(out, in, w, h, color, settings);
-        settings->filter_strategy = LFS_ALL_CHEAP;
-        for(size_t k = 0; k < h * (linebytes + 1); k += (linebytes + 1)) {
-          population[popcnt++] = out[k];
-        }
-      }
-      prevline = 0;
-      for(y = 0; y < h; ++y) {
-        type = population[g * h + y];
-        out[y * (linebytes + 1)] = type;
-        if(clean) {
-          memcpy(linebuf, &in[y * linebytes], linebytes);
-          filterScanline2(linebuf, prevline, linebytes, type);
-          filterScanline(&out[y * (linebytes + 1) + 1], linebuf, prevline, linebytes, bytewidth, type);
-          memcpy(prevlinebuf, linebuf, linebytes);
-          prevline = prevlinebuf;
-        } else {
-          filterScanline(&out[y * (linebytes + 1) + 1], &in[y * linebytes], prevline, linebytes, bytewidth, type);
           prevline = &in[y * linebytes];
+          if(clean) {
+            memcpy(linebuf, &in[y * linebytes], linebytes);
+            filterScanline2(linebuf, prevline2, linebytes, bestType);
+            memcpy(prevlinebuf, linebuf, linebytes);
+            prevline2 = prevlinebuf;
+          }
+          out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+          if(type) for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x]; /*last attempt is type 0, so no copying necessary*/
+        }
+        if(clean) {
+          free(prevlinebuf);
+          free(linebuf);
+        }
+        deflateEnd(&teststream);
+      }
+      deflateEnd(&stream);
+      for(type = 0; type != 5; ++type) free(attempt[type]);
+
+    } else if(strategy >= LFS_ENTROPY && strategy <= LFS_MINSUM) { /*LFS_ENTROPY, LFS_DISTINCT_BIGRAMS, LFS_DISTINCT_BYTES, LFS_MINSUM*/
+      size_t smallest = 0;
+      unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
+      unsigned char type, bestType = 0;
+      for(type = 0; type != 5; ++type) {
+        attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
+        if(!attempt[type]) error = 83; /*alloc fail*/
+      }
+      if(!error) {
+        for(y = 0; y != h; ++y) {
+          memcpy(rem, &in2[y * linebytes], linebytes * clean);
+          /*try the 5 filter types*/
+          for(type = 0; type != 5; ++type) {
+            if(clean) {
+              filterScanline2(&in2[y * linebytes], prevline, linebytes, type);
+              filterScanline(attempt[type], &in2[y * linebytes], prevline, linebytes, bytewidth, type);
+            } else filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+            size_t sum = 0;
+            if(strategy == LFS_MINSUM) {
+              if(type == 0) for(x = 0; x != linebytes; ++x) sum += (unsigned char)(attempt[type][x]);
+              else {
+                for(x = 0; x != linebytes; ++x) {
+                  /*For differences, each byte should be treated as signed, values above 127 are negative
+                   (converted to signed char). Filtertype 0 isn't a difference though, so use unsigned there.
+                   This means filtertype 0 is almost never chosen, but that is justified.*/
+                  unsigned char s = attempt[type][x];
+                  sum += s < 128 ? s : (255U - s);
+                }
+              }
+            } else if(strategy == LFS_DISTINCT_BYTES ||strategy == LFS_ENTROPY) {
+              unsigned count[256] = { 0 };
+              for(x = 0; x != linebytes; ++x) ++count[attempt[type][x]];
+              ++count[type]; /*the filter type itself is part of the scanline*/
+              if(strategy == LFS_DISTINCT_BYTES) { for(x = 0; x != 256; ++x) if(count[x] != 0) ++sum; }
+              else if(strategy == LFS_ENTROPY) { for(x = 0; x != 256; ++x) sum += ilog2i(count[x]); }
+            } else if(strategy == LFS_DISTINCT_BIGRAMS) {
+              unsigned char count[65536] = { 0 };
+              for(x = 1; x != linebytes; ++x) ++count[(attempt[type][x - 1] << 8) + attempt[type][x]];
+              ++count[type]; /*the filter type itself is part of the scanline*/
+              for(x = 0; x != 65536; ++x) if(count[x]) ++sum;
+              if(type == 0 || sum > smallest) { /*smallest in this case acts as the best sum*/
+                bestType = type;
+                smallest = sum;
+              }
+            }
+
+            /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
+            if(strategy != LFS_DISTINCT_BIGRAMS && (type == 0 || sum < smallest)) {
+              bestType = type;
+              smallest = sum;
+            }
+            if(clean) memcpy(&in2[y * linebytes], rem, linebytes);
+          }
+
+          /*now fill the out values*/
+          out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+          for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
+          if(clean) {
+            filterScanline2(&in2[y * linebytes], prevline, linebytes, bestType);
+            prevline = &in2[y * linebytes];
+          } else prevline = &in[y * linebytes];
         }
       }
-      TUNE
-      stream.next_in = (z_const unsigned char *)out;
-      stream.avail_in = h * (linebytes + 1);
-      stream.avail_out = UINT_MAX;
-      stream.next_out = dummy;
 
-      deflate_nooutput(&stream, Z_FINISH);
-
-      size[g] = stream.total_out;
-      deflateReset(&stream);
-      total_size += size[g];
-      ranking[g] = g;
-    }
-    for(i = 0; strategy == LFS_ALL_CHEAP && i < population_size; i++) {
-      if(size[i] < best_size) {
-        ranking[0] = i;
-        best_size = size[i];
-      }
-    }
-    //ctrl-c signals last iteration
-    for(e = 0; strategy == LFS_GENETIC && e_since_best < 500 && signaled.load() <= 0; ++e) {
-      /*resort rankings*/
-      for(i = 1; i < population_size; ++i) {
-        t = ranking[i];
-        for(j = i - 1; j + 1 > 0 && size[ranking[j]] > size[t]; --j) ranking[j + 1] = ranking[j];
-        ranking[j + 1] = t;
-      }
-      if(size[ranking[0]] < best_size) {
-        best_size = size[ranking[0]];
-        e_since_best = 0;
+      for(type = 0; type != 5; ++type) free(attempt[type]);
+    } else if(strategy == LFS_GENETIC || strategy == LFS_ALL_CHEAP) {
+      if(strategy == LFS_GENETIC) {
         if(!settings->quiet) {
-          printf("Generation %d: %d bytes\n", e, best_size);
-          fflush(stdout);
+          printf("Genetic filtering has been enabled, which may take a long time to finish.\n"
+                 "The current generation and number of bytes are displayed. Genetic filtering\n"
+                 "will stop after 500 generations without progress, or by pressing Ctrl+C.\n");
         }
+        signaled.store(-settings->quiet);
       }
-      else ++e_since_best;
-      /*generate offspring*/
-      for(c = 0; c < 3; ++c) {
-        /*tournament selection*/
-        /*parent 1*/
-        selection_size = UINT_MAX;
-        for(t = 0; t < 2; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
-        size_sum = 0;
-        for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
-        unsigned char* parent1 = &population[ranking[j - 1] * h];
-        /*parent 2*/
-        selection_size = UINT_MAX;
-        for(t = 0; t < 2; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
-        size_sum = 0;
-        for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
-        unsigned char* parent2 = &population[ranking[j - 1] * h];
-        /*two-point crossover*/
-        unsigned char* child = &population[(ranking[last - c]) * h];
-        if(randomDecimal(r) < 0.9)
-        {
-          crossover1 = randomUInt64(r) % h;
-          crossover2 = randomUInt64(r) % h;
-          if(crossover1 > crossover2)
-          {
-            crossover1 ^= crossover2;
-            crossover2 ^= crossover1;
-            crossover1 ^= crossover2;
-          }
-          if(child != parent1)
-          {
-            memcpy(child, parent1, crossover1);
-            memcpy(&child[crossover2], &parent1[crossover2], h - crossover2);
-          }
-          if(child != parent2) memcpy(&child[crossover1], &parent2[crossover1], crossover2 - crossover1);
+
+      unsigned char* prevlinebuf = 0;
+      unsigned char* linebuf;
+      if(clean) {
+        prevlinebuf = (unsigned char*)lodepng_malloc(linebytes);
+        linebuf = (unsigned char*)lodepng_malloc(linebytes);
+      }
+
+      uint64_t r[2];
+      initRandomUInt64(r);
+
+      const int Strategies = strategy == LFS_ALL_CHEAP ? 3 : 0;
+      /*Genetic algorithm filter finder. Attempts to find better filters through mutation and recombination.*/
+      const size_t population_size = strategy == LFS_ALL_CHEAP ? Strategies : 19;
+      const size_t last = population_size - 1;
+      unsigned char* population = (unsigned char*)lodepng_malloc(h * population_size);
+      size_t* size = (size_t*)lodepng_malloc(population_size * sizeof(size_t));
+      unsigned* ranking = (unsigned*)lodepng_malloc(population_size * sizeof(int));
+      unsigned e, i, g, type;
+      unsigned best_size = UINT_MAX;
+      unsigned total_size = 0;
+      unsigned e_since_best = 0;
+
+      z_stream stream;
+      stream.zalloc = 0;
+      stream.zfree = 0;
+      stream.opaque = 0;
+#define TUNE deflateTune(&stream, 16, 258, 258, 200);
+      int err = deflateInit2(&stream, 3, Z_DEFLATED, windowbits(h * (linebytes + 1)), 8, Z_FILTERED);
+      if(err != Z_OK) exit(1);
+      unsigned char* dummy = (unsigned char*)1;
+      size_t popcnt;
+      uint64_t r2[2];
+      initRandomUInt64(r2);
+      signal(SIGINT, sig_handler);
+      for(popcnt = 0; popcnt < h * (population_size - Strategies); ++popcnt) population[popcnt] = randomUInt64(r2) % 5;
+
+      for(g = 0; g <= last; ++g) {
+        if(strategy == LFS_ALL_CHEAP) {
+          settings->filter_strategy = (LodePNGFilterStrategy)(g + 11);
+          filter(out, in, w, h, info, settings);
+          settings->filter_strategy = LFS_ALL_CHEAP;
+          for(size_t k = 0; k < h * (linebytes + 1); k += (linebytes + 1)) population[popcnt++] = out[k];
         }
-        else if(randomUInt64(r) & 1) memcpy(child, parent1, h);
-        else memcpy(child, parent2, h);
-        /*mutation*/
-        for(y = 0; y < h; ++y) {
-          if(randomDecimal(r) < 0.01) child[y] = randomUInt64(r) % 5;
-        }
-        /*evaluate new genome*/
-        total_size -= size[ranking[last - c]];
         prevline = 0;
         for(y = 0; y < h; ++y) {
-          type = child[y];
+          type = population[g * h + y];
           out[y * (linebytes + 1)] = type;
           if(clean) {
             memcpy(linebuf, &in[y * linebytes], linebytes);
@@ -3994,49 +3703,135 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
           }
         }
         TUNE
-
-        stream.next_in = (z_const unsigned char *)out;
+        stream.next_in = (z_const unsigned char*)out;
         stream.avail_in = h * (linebytes + 1);
         stream.avail_out = UINT_MAX;
         stream.next_out = dummy;
 
         deflate_nooutput(&stream, Z_FINISH);
 
-        size[ranking[last - c]] = stream.total_out;
+        size[g] = stream.total_out;
         deflateReset(&stream);
-        total_size += size[ranking[last - c]];
+        total_size += size[g];
+        ranking[g] = g;
       }
-    }
-    /*final choice*/
-    prevline = 0;
-    for(y = 0; y < h; ++y) {
-      type = population[ranking[0] * h + y];
-      out[y * (linebytes + 1)] = type;
-      if(clean) {
-        memcpy(linebuf, &in[y * linebytes], linebytes);
-        filterScanline2(linebuf, prevline, linebytes, type);
-        filterScanline(&out[y * (linebytes + 1) + 1], linebuf, prevline, linebytes, bytewidth, type);
-        memcpy(prevlinebuf, linebuf, linebytes);
-        prevline = prevlinebuf;
-      } else {
-        filterScanline(&out[y * (linebytes + 1) + 1], &in[y * linebytes], prevline, linebytes, bytewidth, type);
-        prevline = &in[y * linebytes];
+      for(i = 0; strategy == LFS_ALL_CHEAP && i < population_size; i++) {
+        if(size[i] < best_size) {
+          ranking[0] = i;
+          best_size = size[i];
+        }
       }
-    }
-    deflateEnd(&stream);
-    free(population);
-    free(size);
-    free(ranking);
-    if(clean) {
-      free(prevlinebuf);
-      free(linebuf);
-    }
-  }
-  else return 88; /* unknown filter strategy */
-    free(rem);
-    free(in2);
-  }
+      /*ctrl-c signals last iteration*/
+      for(e = 0; strategy == LFS_GENETIC && e_since_best < 500 && signaled.load() <= 0; ++e) {
+        /*resort rankings*/
+        unsigned c, j, t;
+        for(i = 1; i < population_size; ++i) {
+          t = ranking[i];
+          for(j = i - 1; j + 1 > 0 && size[ranking[j]] > size[t]; --j) ranking[j + 1] = ranking[j];
+          ranking[j + 1] = t;
+        }
+        if(size[ranking[0]] < best_size) {
+          best_size = size[ranking[0]];
+          e_since_best = 0;
+          if(!settings->quiet) {
+            printf("Generation %d: %d bytes\n", e, best_size);
+            fflush(stdout);
+          }
+        } else ++e_since_best;
+        /*generate offspring*/
+        for(c = 0; c < 3; ++c) {
+          /*tournament selection*/
+          /*parent 1*/
+          unsigned selection_size = UINT_MAX;
+          for(t = 0; t < 2; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
+          unsigned size_sum = 0;
+          for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
+          unsigned char* parent1 = &population[ranking[j - 1] * h];
+          /*parent 2*/
+          selection_size = UINT_MAX;
+          for(t = 0; t < 2; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
+          size_sum = 0;
+          for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
+          unsigned char* parent2 = &population[ranking[j - 1] * h];
+          /*two-point crossover*/
+          unsigned char* child = &population[(ranking[last - c]) * h];
+          if(randomDecimal(r) < 0.9) {
+            unsigned crossover1 = randomUInt64(r) % h;
+            unsigned crossover2 = randomUInt64(r) % h;
+            if(crossover1 > crossover2) {
+              crossover1 ^= crossover2;
+              crossover2 ^= crossover1;
+              crossover1 ^= crossover2;
+            }
+            if(child != parent1) {
+              memcpy(child, parent1, crossover1);
+              memcpy(&child[crossover2], &parent1[crossover2], h - crossover2);
+            }
+            if(child != parent2) memcpy(&child[crossover1], &parent2[crossover1], crossover2 - crossover1);
+          }
+          else if(randomUInt64(r) & 1) memcpy(child, parent1, h);
+          else memcpy(child, parent2, h);
+          /*mutation*/
+          for(y = 0; y < h; ++y) if(randomDecimal(r) < 0.01) child[y] = randomUInt64(r) % 5;
+          /*evaluate new genome*/
+          total_size -= size[ranking[last - c]];
+          prevline = 0;
+          for(y = 0; y < h; ++y) {
+            type = child[y];
+            out[y * (linebytes + 1)] = type;
+            if(clean) {
+              memcpy(linebuf, &in[y * linebytes], linebytes);
+              filterScanline2(linebuf, prevline, linebytes, type);
+              filterScanline(&out[y * (linebytes + 1) + 1], linebuf, prevline, linebytes, bytewidth, type);
+              memcpy(prevlinebuf, linebuf, linebytes);
+              prevline = prevlinebuf;
+            } else {
+              filterScanline(&out[y * (linebytes + 1) + 1], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+              prevline = &in[y * linebytes];
+            }
+          }
+          TUNE
 
+          stream.next_in = (z_const unsigned char*)out;
+          stream.avail_in = h * (linebytes + 1);
+          stream.avail_out = UINT_MAX;
+          stream.next_out = dummy;
+
+          deflate_nooutput(&stream, Z_FINISH);
+
+          size[ranking[last - c]] = stream.total_out;
+          deflateReset(&stream);
+          total_size += size[ranking[last - c]];
+        }
+      }
+      /*final choice*/
+      prevline = 0;
+      for(y = 0; y < h; ++y) {
+        type = population[ranking[0] * h + y];
+        out[y * (linebytes + 1)] = type;
+        if(clean) {
+          memcpy(linebuf, &in[y * linebytes], linebytes);
+          filterScanline2(linebuf, prevline, linebytes, type);
+          filterScanline(&out[y * (linebytes + 1) + 1], linebuf, prevline, linebytes, bytewidth, type);
+          memcpy(prevlinebuf, linebuf, linebytes);
+          prevline = prevlinebuf;
+        } else {
+          filterScanline(&out[y * (linebytes + 1) + 1], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+          prevline = &in[y * linebytes];
+        }
+      }
+      deflateEnd(&stream);
+      free(population);
+      free(size);
+      free(ranking);
+      if(clean) {
+        free(prevlinebuf);
+        free(linebuf);
+      }
+    } else return 88; /*unknown filter strategy*/
+      free(rem);
+      free(in2);
+  }
   return error;
 }
 
