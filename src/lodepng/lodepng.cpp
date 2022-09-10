@@ -1629,11 +1629,9 @@ static unsigned getValueRequiredBits(unsigned char value) {
 
 /*stats must already have been inited. */
 unsigned lodepng_compute_color_stats(LodePNGColorStats* stats,
-                                     const unsigned char* in, unsigned w, unsigned h,
+                                     const unsigned char* in, const size_t numpixels,
                                      const LodePNGColorMode* mode_in) {
   size_t i;
-  ColorTree tree;
-  size_t numpixels = (size_t)w * (size_t)h;
   unsigned error = 0;
 
   /* mark things as done already if it would be impossible to have a more expensive case */
@@ -1706,6 +1704,7 @@ unsigned lodepng_compute_color_stats(LodePNGColorStats* stats,
       }
     }
   } else /* < 16-bit */ {
+    ColorTree tree;
     color_tree_init(&tree);
     unsigned char r = 0, g = 0, b = 0, a = 0;
     for(i = 0; i != numpixels; ++i) {
@@ -1766,6 +1765,8 @@ unsigned lodepng_compute_color_stats(LodePNGColorStats* stats,
       if(alpha_done && numcolors_done && colored_done && bits_done) break;
     }
 
+    color_tree_cleanup(&tree);
+
     if(stats->key && !stats->alpha) {
       for(i = 0; i != numpixels; ++i) {
         getPixelColorRGBA8(&r, &g, &b, &a, in, i, mode_in);
@@ -1783,13 +1784,7 @@ unsigned lodepng_compute_color_stats(LodePNGColorStats* stats,
     stats->key_r += (stats->key_r << 8);
     stats->key_g += (stats->key_g << 8);
     stats->key_b += (stats->key_b << 8);
-    color_tree_cleanup(&tree);
   }
-
-  unsigned char r = 0, g = 0, b = 0, a = 0;
-  getPixelColorRGBA8(&r, &g, &b, &a, in, 0, mode_in);
-  stats->white = stats->numcolors == 1 && stats->colored == 0 && r == 255 && w > 20 && h > 20 && ((w>225 && h > 225) || w*h > 75000 || (w> 250 && w*h > 40000));
-
   return 0;
 }
 
@@ -2093,36 +2088,32 @@ output image, e.g. grey if there are only grayscale pixels, palette if there
 are less than 256 colors, ...
 Updates values of mode with a potentially smaller color model. mode_out should
 contain the user chosen color model, but will be overwritten with the new chosen one.*/
-static unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out,
-                                   const unsigned char* image, unsigned w, unsigned h,
-                                   const LodePNGColorMode* mode_in, unsigned div) {
-  LodePNGColorStats prof;
+static unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out, const LodePNGColorMode* mode_in,
+                                          const LodePNGColorStats* stats, size_t numpixels, unsigned div) {
   unsigned error = 0;
-  unsigned palettebits;
+  unsigned palettebits, palette_ok, gray_ok;
   size_t i, n;
-  lodepng_color_stats_init(&prof);
-  error = lodepng_compute_color_stats(&prof, image, w, h, mode_in);
-  if(error) return error;
-  unsigned palette_ok, gray_ok;
 
-  LodePNGColorStats* stats = &prof;
+  unsigned alpha = stats->alpha;
+  unsigned key = stats->key;
+  unsigned bits = stats->bits;
 
   mode_out->key_defined = 0;
 
-  if(stats->key && (unsigned long long)w * h <= 49) {
-    prof.alpha = 1; /*too few pixels to justify tRNS chunk overhead*/
-    prof.key = 0;
-    if(prof.bits < 8) prof.bits = 8; /*PNG has no alphachannel modes with less than 8-bit per channel*/
+  if(key && numpixels <= 49) {
+    alpha = 1; /*too few pixels to justify tRNS chunk overhead*/
+    key = 0;
+    if(bits < 8) bits = 8; /*PNG has no alphachannel modes with less than 8-bit per channel*/
   }
 
   gray_ok = !stats->colored;
-  if(!gray_ok && prof.bits < 8) prof.bits = 8;
+  if(!gray_ok && bits < 8) bits = 8;
 
   n = stats->numcolors;
   palettebits = n <= 2 ? 1 : (n <= 4 ? 2 : (n <= 16 ? 4 : 8));
-  palette_ok = n <= 256 && prof.bits <= 8;
-  if(8 + n * 4 > (unsigned long long)w * h / div) {palette_ok = 0;} /*don't add palette overhead if image has only a few pixels*/
-  if(gray_ok && !prof.alpha && prof.bits <= palettebits && !prof.white) {palette_ok = 0;}  /*gray is less overhead*/
+  palette_ok = n <= 256 && bits <= 8;
+  if(8 + n * 4 > numpixels / div) palette_ok = 0; /*don't add palette overhead if image has only a few pixels*/
+  if(gray_ok && !alpha && bits <= palettebits && !stats->white) palette_ok = 0; /*gray is less overhead*/
 
   if(palette_ok) {
     const unsigned char* p = stats->palette;
@@ -2135,9 +2126,9 @@ static unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out,
     mode_out->colortype = LCT_PALETTE;
     mode_out->bitdepth = palettebits;
   } else /*8-bit or 16-bit per channel*/ {
-    mode_out->bitdepth = prof.bits;
-    mode_out->colortype = prof.alpha ? (prof.colored ? LCT_RGBA : LCT_GREY_ALPHA)
-                                     : (prof.colored ? LCT_RGB : LCT_GREY);
+    mode_out->bitdepth = bits;
+    mode_out->colortype = alpha ? (stats->colored ? LCT_RGBA : LCT_GREY_ALPHA)
+                                : (stats->colored ? LCT_RGB : LCT_GREY);
 
     if(stats->key) {
       unsigned mask = (1u << mode_out->bitdepth) - 1u; /*stats always uses 16-bit, mask converts it*/
@@ -4298,6 +4289,7 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
                                LodePNGState* state, LodePNGPaletteSettings palset) {
   unsigned char* data = 0; /*uncompressed version of the IDAT chunk data*/
   size_t datasize = 0;
+  size_t numpixels = (size_t)w * (size_t)h;
   ucvector outv = ucvector_init(0, 0);
   LodePNGInfo info;
   const LodePNGInfo* info_png = &state->info_png;
@@ -4330,7 +4322,19 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
   /* color convert and compute scanline filter types */
   lodepng_info_copy(&info, &state->info_png);
   if(state->encoder.auto_convert) {
-    state->error = lodepng_auto_choose_color(&info.color, image, w, h, &state->info_raw, state->div);
+    LodePNGColorStats stats;
+    lodepng_color_stats_init(&stats);
+
+    state->error = lodepng_compute_color_stats(&stats, image, numpixels, &state->info_raw);
+    if(state->error) goto cleanup;
+    else { /*check if image is white only if no error is detected in previous function*/
+      unsigned char r = 0, g = 0, b = 0, a = 0;
+      getPixelColorRGBA8(&r, &g, &b, &a, image, 0, &state->info_raw);
+      stats.white = stats.numcolors == 1 && stats.colored == 0 && r == 255 && w > 20 && h > 20
+                      && ((w > 225 && h > 225) || numpixels > 75000 || (w > 250 && numpixels > 40000));
+    }
+
+    state->error = lodepng_auto_choose_color(&info.color, &state->info_raw, &stats, numpixels, state->div);
     if(state->error) goto cleanup;
     if(info.color.colortype == LCT_PALETTE && palset.order != LPOS_NONE) {
       if (palset._first & 1) {
@@ -4357,7 +4361,7 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
   }
   if(!lodepng_color_mode_equal(&state->info_raw, &info.color)) {
     unsigned char* converted;
-    size_t size = ((size_t)w * (size_t)h * (size_t)lodepng_get_bpp(&info.color) + 7u) / 8u;
+    size_t size = (numpixels * (size_t)lodepng_get_bpp(&info.color) + 7u) / 8u;
 
     converted = (unsigned char*)lodepng_malloc(size);
     if(!converted && size) state->error = 83; /*alloc fail*/
