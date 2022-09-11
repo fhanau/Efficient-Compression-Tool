@@ -103,7 +103,6 @@ void* lodepng_realloc(void* ptr, size_t new_size);
 #define LODEPNG_RESTRICT /* not available */
 #endif
 
-#define LODEPNG_ABS(x) ((x) < 0 ? -(x) : (x))
 #define LODEPNG_MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 #if defined(LODEPNG_COMPILE_PNG) || defined(LODEPNG_COMPILE_DECODER)
@@ -228,7 +227,7 @@ static char* alloc_string(const char* in) {
 #if defined(LODEPNG_COMPILE_DECODER) || defined(LODEPNG_COMPILE_PNG)
 static unsigned lodepng_read32bitInt(const unsigned char* buffer) {
   return (((unsigned)buffer[0] << 24u) | ((unsigned)buffer[1] << 16u) |
-          ((unsigned)buffer[2] << 8u)  |  (unsigned)buffer[3]);
+         ((unsigned)buffer[2] << 8u) | (unsigned)buffer[3]);
 }
 #endif /*defined(LODEPNG_COMPILE_DECODER) || defined(LODEPNG_COMPILE_PNG)*/
 
@@ -664,11 +663,11 @@ static unsigned checkColorValidity(LodePNGColorType colortype, unsigned bd) {
 
 static unsigned getNumColorChannels(LodePNGColorType colortype) {
   switch(colortype) {
-    case LCT_GREY:            return 1;
-    case LCT_RGB:             return 3;
-    case LCT_PALETTE:         return 1;
-    case LCT_GREY_ALPHA:      return 2;
-    case LCT_RGBA:            return 4;
+    case LCT_GREY: return 1;
+    case LCT_RGB: return 3;
+    case LCT_PALETTE: return 1;
+    case LCT_GREY_ALPHA: return 2;
+    case LCT_RGBA: return 4;
     case LCT_MAX_OCTET_VALUE: return 0; /* invalid color type */
     default: return 0; /*invalid color type*/
   }
@@ -1612,11 +1611,10 @@ static unsigned getValueRequiredBits(unsigned char value) {
 }
 
 /*stats must already have been inited. */
-unsigned lodepng_compute_color_stats(LodePNGColorStats* stats,
-                                     const unsigned char* in, const size_t numpixels,
-                                     const LodePNGColorMode* mode_in) {
+void lodepng_compute_color_stats(LodePNGColorStats* stats,
+                                 const unsigned char* in, const size_t numpixels,
+                                 const LodePNGColorMode* mode_in) {
   size_t i;
-  unsigned error = 0;
 
   /* mark things as done already if it would be impossible to have a more expensive case */
   unsigned colored_done = lodepng_is_greyscale_type(mode_in) ? 1 : 0;
@@ -1769,7 +1767,6 @@ unsigned lodepng_compute_color_stats(LodePNGColorStats* stats,
     stats->key_g += (stats->key_g << 8);
     stats->key_b += (stats->key_b << 8);
   }
-  return 0;
 }
 
 static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
@@ -2047,9 +2044,9 @@ The parameters are of type short, but should come from unsigned chars, the short
 are only needed to make the paeth calculation correct.
 */
 static unsigned char paethPredictor(short a, short b, short c) {
-  short pa = LODEPNG_ABS(b - c);
-  short pb = LODEPNG_ABS(a - c);
-  short pc = LODEPNG_ABS(a + b - c - c);
+  short pa = abs(b - c);
+  short pb = abs(a - c);
+  short pc = abs(a + b - c - c);
   /* return input value associated with smallest of pa, pb, pc (with certain priority if equal) */
   if(pb < pa) { a = b; pa = pb; }
   return (pc < pa) ? c : a;
@@ -3179,7 +3176,7 @@ static void filterScanline(unsigned char* out, const unsigned char* scanline, co
       break;
     case 1: { /*Sub*/
       size_t j = 0;
-      memcpy(out, scanline, bytewidth);
+      for(i = 0; i != bytewidth; ++i) out[i] = scanline[i];
       for(i = bytewidth; i != length; ++i, ++j) out[i] = scanline[i] - scanline[j];
       break;
     }
@@ -3196,7 +3193,7 @@ static void filterScanline(unsigned char* out, const unsigned char* scanline, co
         for(i = 0; i != bytewidth; ++i) out[i] = scanline[i] - (prevline[i] >> 1u);
         for(i = bytewidth; i < length; ++i, ++j) out[i] = scanline[i] - ((scanline[j] + prevline[i]) >> 1u);
       } else {
-        memcpy(out, scanline, bytewidth);
+        for(i = 0; i != bytewidth; ++i) out[i] = scanline[i];
         for(i = bytewidth; i < length; ++i, ++j) out[i] = scanline[i] - (scanline[j] >> 1u);
       }
       break;
@@ -3210,7 +3207,7 @@ static void filterScanline(unsigned char* out, const unsigned char* scanline, co
           out[i] = scanline[i] - paethPredictor(scanline[j], prevline[i], prevline[j]);
         }
       } else {
-        memcpy(out, scanline, bytewidth);
+        for(i = 0; i != bytewidth; ++i) out[i] = scanline[i];
         /*paethPredictor(scanline[i - bytewidth], 0, 0) is always scanline[i - bytewidth]*/
         for(i = bytewidth; i != length; ++i, ++j) out[i] = scanline[i] - scanline[j];
       }
@@ -4039,9 +4036,8 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
     LodePNGColorStats stats;
     lodepng_color_stats_init(&stats);
 
-    state->error = lodepng_compute_color_stats(&stats, image, numpixels, &state->info_raw);
-    if(state->error) goto cleanup;
-    else { /*check if image is white only if no error is detected in previous function*/
+    lodepng_compute_color_stats(&stats, image, numpixels, &state->info_raw);
+    /* check if image is fully white */ {
       unsigned char r = 0, g = 0, b = 0, a = 0;
       getPixelColorRGBA8(&r, &g, &b, &a, image, 0, &state->info_raw);
       stats.white = stats.numcolors == 1 && stats.colored == 0 && r == 255 && w > 20 && h > 20
