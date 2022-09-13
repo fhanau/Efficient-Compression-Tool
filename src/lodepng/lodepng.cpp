@@ -521,11 +521,7 @@ void lodepng_chunk_type(char type[5], const unsigned char* chunk) {
 
 unsigned char lodepng_chunk_type_equals(const unsigned char* chunk, const char* type) {
   if(strlen(type) != 4) return 0;
-  return (chunk[4] == type[0] && chunk[5] == type[1] && chunk[6] == type[2] && chunk[7] == type[3]);
-}
-
-unsigned char lodepng_chunk_ancillary(const unsigned char* chunk) {
-  return((chunk[4] & 32) != 0);
+  else return (chunk[4] == type[0] && chunk[5] == type[1] && chunk[6] == type[2] && chunk[7] == type[3]);
 }
 
 const unsigned char* lodepng_chunk_data_const(const unsigned char* chunk) {
@@ -1123,7 +1119,7 @@ static int color_tree_get(ColorTree* tree, unsigned char r, unsigned char g, uns
   return tree ? tree->index : -1;
 }
 
-static int color_tree_inc(ColorTree* tree,
+static bool color_tree_inc(ColorTree* tree,
                           unsigned char r, unsigned char g, unsigned char b, unsigned char a) {
   int bit;
   for(bit = 0; bit < 8; ++bit) {
@@ -1134,7 +1130,7 @@ static int color_tree_inc(ColorTree* tree,
     }
     tree = tree->children[i];
   }
-  return ++(tree->index);
+  return (++(tree->index) != 0);
 }
 
 #ifdef LODEPNG_COMPILE_ENCODER
@@ -1778,9 +1774,9 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
   size_t i, count = 0;
   ColorTree tree;
   color_tree_init(&tree);
-  for(i = 0; i < w * h; ++i) {
+  for(i = 0; i != (size_t)w * (size_t)h; ++i) {
     const unsigned char* c = (unsigned char*)&image[i];
-    if(color_tree_inc(&tree, c[0], c[1], c[2], c[3]) == 0) ++count;
+    count = count + !color_tree_inc(&tree, c[0], c[1], c[2], c[3]);
   }
   if(count == 0) return; //Silence clang static analyzer warnings
 
@@ -1796,19 +1792,20 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
   for(i = 0; i != count; ++i) { /*all priority values will run through this for loop*/
     const unsigned char* c = (unsigned char*)&palette_in[i];
     if(priority == LPPS_POPULARITY) sortfield[i] |= (color_tree_get(&tree, c[0], c[1], c[2], c[3]) + 1) << 8;
-    else if(priority == LPPS_RGB) sortfield[i] |= uint64_t(c[0]) << 32 | uint64_t(c[1]) << 24 | uint64_t(c[2]) << 16;
-    else if(priority == LPPS_YUV || priority == LPPS_LAB) {
-      const double r = c[0];
-      const double g = c[1];
-      const double b = c[2];
+    else if(priority == LPPS_RGB)   sortfield[i] |= uint64_t(c[0]) << 32 | uint64_t(c[1]) << 24 | uint64_t(c[2]) << 16;
+    else { /*LPPS_YUV, LPPS_LAB, LPPS_MSB*/
+      const uint64_t r = c[0];
+      const uint64_t g = c[1];
+      const uint64_t b = c[2];
       if(priority == LPPS_YUV) {
-        sortfield[i] |= uint64_t(0.299 * r + 0.587 * g + 0.114 * b) << 32
-        | uint64_t((-0.14713 * r - 0.28886 * g + 0.436 * b + 111.18) / 0.872) << 24
-        | uint64_t((0.615 * r - 0.51499 * g - 0.10001 * b + 156.825) / 1.23) << 16;
-      } else { /*LPPS_LAB*/
-        double vx = (0.4124564 * r + 0.3575761 * g + 0.1804375 * b) / 255 / 95.047;
-        double vy = (0.2126729 * r + 0.7151522 * g + 0.0721750 * b) / 255 / 100;
-        double vz = (0.0193339 * r + 0.1191920 * g + 0.9503041 * b) / 255 / 108.883;
+        sortfield[i] |=
+          uint64_t(0.299 * (double)r + 0.587 * (double)g + 0.114 * (double)b) << 32
+        | uint64_t((-0.14713 * (double)r - 0.28886 * (double)g + 0.436 * (double)b + 111.18) / 0.872) << 24
+        | uint64_t((0.615 * (double)r - 0.51499 * (double)g - 0.10001 * (double)b + 156.825) / 1.23) << 16;
+      } else if(priority == LPPS_LAB) {
+        double vx = (0.4124564 * (double)r + 0.3575761 * (double)g + 0.1804375 * (double)b) / 255 / 95.047;
+        double vy = (0.2126729 * (double)r + 0.7151522 * (double)g + 0.0721750 * (double)b) / 255 / 100;
+        double vz = (0.0193339 * (double)r + 0.1191920 * (double)g + 0.9503041 * (double)b) / 255 / 108.883;
         const double ep = 216. / 24389.;
         const double ka = 24389. / 27.;
         const double ex = 1. / 3.;
@@ -1816,22 +1813,21 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
         vx = vx > ep ? pow(vx, ex) : ka * vx + de;
         vy = vy > ep ? pow(vy, ex) : ka * vy + de;
         vz = vz > ep ? pow(vz, ex) : ka * vz + de;
-        sortfield[i] |= uint64_t((vy * 116 - 16) / 100 * 255) << 32
+        sortfield[i] |=
+          uint64_t((vy * 116 - 16) / 100 * 255) << 32
         | uint64_t((vx - vy) * 500 + 256) << 24
         | uint64_t((vy - vz) * 200 + 256) << 16;
+      } else { /*LPPS_MSB*/
+        sortfield[i] |=
+          (r & 128) << 39 | (g & 128) << 38 | (b & 128) << 37
+        | (r & 64)  << 35 | (g & 64)  << 34 | (b & 64)  << 33
+        | (r & 32)  << 31 | (g & 32)  << 30 | (b & 32)  << 29
+        | (r & 16)  << 27 | (g & 16)  << 26 | (b & 16)  << 25
+        | (r & 8)   << 23 | (g & 8)   << 22 | (b & 8)   << 21
+        | (r & 4)   << 19 | (g & 4)   << 18 | (b & 4)   << 17
+        | (r & 2)   << 15 | (g & 2)   << 14 | (b & 2)   << 13
+        | (r & 1)   << 11 | (g & 1)   << 10 | (b & 1)   << 9;
       }
-    } else { /*LPPS_MSB*/
-      const uint64_t r = c[0];
-      const uint64_t g = c[1];
-      const uint64_t b = c[2];
-      sortfield[i] |= (r & 128) << 39 | (g & 128) << 38 | (b & 128) << 37
-      | (r & 64) << 35 | (g & 64) << 34 | (b & 64) << 33
-      | (r & 32) << 31 | (g & 32) << 30 | (b & 32) << 29
-      | (r & 16) << 27 | (g & 16) << 26 | (b & 16) << 25
-      | (r & 8) << 23  | (g & 8) << 22  | (b & 8) << 21
-      | (r & 4) << 19  | (g & 4) << 18  | (b & 4) << 17
-      | (r & 2) << 15  | (g & 2) << 14  | (b & 2) << 13
-      | (r & 1) << 11  | (g & 1) << 10  | (b & 1) << 9;
     }
   }
   switch(transparency) {
@@ -1869,7 +1865,7 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
           best = i;
         }
       }
-    } else {
+    } else { /*LPDS_ASCENDING*/
       uint64_t value = UINT64_MAX;
       for(i = 1; i != count; ++i) {
         if((sortfield[i] & 0x7FFFFFFFFFFFFFFFULL) < value) {
@@ -2808,7 +2804,7 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
     } else /*it's not an implemented chunk type, so ignore it: skip over the data*/ {
       /*error: unknown critical chunk (5th bit of first byte of chunk type is 0)*/
-      if(!lodepng_chunk_ancillary(chunk)) CERROR_BREAK(state->error, 69);
+      if((chunk[4] & 32) == 0) CERROR_BREAK(state->error, 69);
 
       unknown = 1;
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
@@ -3417,7 +3413,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       prevline = &in[inindex];
     }
   } else {
-    const unsigned clean = settings->clean_alpha && color->colortype == LCT_RGBA && color->bitdepth == 8 && !color->key_defined;
+    const bool clean = settings->clean_alpha && color->colortype == LCT_RGBA && color->bitdepth == 8 && !color->key_defined;
     unsigned char* in2 = 0;
     unsigned char* rem = 0;
     if(clean) {
@@ -3428,20 +3424,20 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     }
     if(strategy == LFS_BRUTE_FORCE || (strategy >= LFS_INCREMENTAL && strategy <= LFS_INCREMENTAL3)) {
       unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
-      size_t smallest = 0;
-      unsigned type, bestType = 0;
-
+      unsigned type;
       for(type = 0; type != 5; ++type) {
         attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
         if(!attempt[type]) error = 83; /*alloc fail*/
       }
 
-      z_stream stream;
-      stream.zalloc = 0;
-      stream.zfree = 0;
-      stream.opaque = 0;
-
       if(!error) {
+        size_t smallest = 0;
+        unsigned char bestType = 0;
+
+        z_stream stream;
+        stream.zalloc = 0;
+        stream.zfree = 0;
+        stream.opaque = 0;
         if(strategy == LFS_BRUTE_FORCE) {
           /*brute force filter chooser.
           deflate the scanline after every filter attempt to see which one deflates best.*/
@@ -3472,7 +3468,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         
               /*check if this is smallest size (or if type == 0 it's the first case so always store the values)*/
               if(type == 0 || size < smallest) {
-                bestType = type;
+                bestType = (unsigned char)type;
                 smallest = size;
               }
               if(clean) memcpy(&in2[y * linebytes], rem, linebytes);
@@ -3529,7 +3525,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         
               /*check if this is smallest size (or if type == 4 it's the first case so always store the values)*/
               if(type == 4 || size < smallest) {
-                bestType = type;
+                bestType = (unsigned char)type;
                 smallest = size;
               }
             }
@@ -3565,19 +3561,21 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
           }
           deflateEnd(&teststream);
         }
+        deflateEnd(&stream);
       }
-      deflateEnd(&stream);
       for(type = 0; type != 5; ++type) free(attempt[type]);
-
     } else if(strategy >= LFS_ENTROPY && strategy <= LFS_MINSUM) { /*LFS_ENTROPY, LFS_DISTINCT_BIGRAMS, LFS_DISTINCT_BYTES, LFS_MINSUM*/
-      size_t smallest = 0;
       unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
-      unsigned char type, bestType = 0;
+      unsigned char type;
       for(type = 0; type != 5; ++type) {
         attempt[type] = (unsigned char*)lodepng_malloc(linebytes);
         if(!attempt[type]) error = 83; /*alloc fail*/
       }
+
       if(!error) {
+        size_t smallest = 0;
+        unsigned char bestType = 0;
+        const size_t countsize = strategy != LFS_DISTINCT_BIGRAMS ? 256 : 65536;
         for(y = 0; y != h; ++y) {
           memcpy(rem, &in2[y * linebytes], linebytes * clean);
           /*try the 5 filter types*/
@@ -3598,30 +3596,32 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
                   sum += s < 128 ? s : (255U - s);
                 }
               }
-            } else if(strategy == LFS_DISTINCT_BYTES ||strategy == LFS_ENTROPY) {
-              unsigned count[256] = { 0 };
-              for(x = 0; x != linebytes; ++x) ++count[attempt[type][x]];
-              ++count[type]; /*the filter type itself is part of the scanline*/
-              if(strategy == LFS_DISTINCT_BYTES) {
-                for(x = 0; x != 256; ++x) sum = sum + (count[x] != 0);
-              } else if(strategy == LFS_ENTROPY) {
-                for(x = 0; x != 256; ++x) sum += ilog2i(count[x]);
+            } else {
+              unsigned count[65536] = { 0 };
+              if(strategy == LFS_DISTINCT_BYTES ||strategy == LFS_ENTROPY) {
+                for(x = 0; x != linebytes; ++x) ++count[attempt[type][x]];
+              } else { /*LFS_DISTINCT_BIGRAMS*/
+                for(x = 1; x != linebytes; ++x) ++count[(attempt[type][x - 1] << 8) + attempt[type][x]];
               }
-            } else if(strategy == LFS_DISTINCT_BIGRAMS) {
-              unsigned char count[65536] = { 0 };
-              for(x = 1; x != linebytes; ++x) ++count[(attempt[type][x - 1] << 8) + attempt[type][x]];
               ++count[type]; /*the filter type itself is part of the scanline*/
-              for(x = 0; x != 65536; ++x) if(count[x]) ++sum;
-              if(type == 0 || sum > smallest) { /*smallest in this case acts as the best sum*/
-                bestType = type;
-                smallest = sum;
+              if(strategy == LFS_DISTINCT_BYTES || strategy == LFS_DISTINCT_BIGRAMS) {
+                for(x = 0; x != countsize; ++x) sum += (count[x] != 0);
+              } else { /*LFS_ENTROPY*/
+                for(x = 0; x != countsize; ++x) sum += ilog2i(count[x]);
               }
             }
 
             /*check if this is smallest sum (or if type == 0 it's the first case so always store the values)*/
-            if(strategy != LFS_DISTINCT_BIGRAMS && (type == 0 || sum < smallest)) {
-              bestType = type;
-              smallest = sum;
+            if(strategy != LFS_DISTINCT_BIGRAMS) {
+              if(type == 0 || sum < smallest) {
+                bestType = type;
+                smallest = sum;
+              }
+            } else { /*smallest acts as the best sum when the strategy is LFS_DISTINCT_BIGRAMS*/
+              if(type == 0 || sum > smallest) {
+                bestType = type;
+                smallest = sum;
+              }
             }
             if(clean) memcpy(&in2[y * linebytes], rem, linebytes);
           }
@@ -3646,7 +3646,6 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         }
         signaled.store(-settings->quiet);
       }
-
       unsigned char* prevlinebuf = 0;
       unsigned char* linebuf;
       if(clean) {
@@ -3667,7 +3666,6 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       unsigned e, i, g, type;
       unsigned best_size = UINT_MAX;
       unsigned total_size = 0;
-      unsigned e_since_best = 0;
 
       z_stream stream;
       stream.zalloc = 0;
@@ -3724,6 +3722,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
           best_size = size[i];
         }
       }
+      unsigned e_since_best = 0;
       /*ctrl-c signals last iteration*/
       for(e = 0; strategy == LFS_GENETIC && e_since_best < 500 && signaled.load() <= 0; ++e) {
         /*resort rankings*/
@@ -4004,7 +4003,6 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
   ucvector outv = ucvector_init(0, 0);
   LodePNGInfo info;
   const LodePNGInfo* info_png = &state->info_png;
-  lodepng_info_init(&info);
 
   /*provide some proper output values if error will happen*/
   *out = 0;
@@ -4031,6 +4029,7 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
   if(state->error) goto cleanup; /*error: invalid color type given*/
 
   /* color convert and compute scanline filter types */
+  lodepng_info_init(&info);
   lodepng_info_copy(&info, &state->info_png);
   if(state->encoder.auto_convert) {
     LodePNGColorStats stats;
@@ -4056,16 +4055,12 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
       }
 
       unsigned crc = crc32(0, info.color.palette, info.color.palettesize);
-      if(color_tree_inc(&ct, crc & 0xFF, crc & 0xFF00, crc & 0xFF0000, crc & 0xFF000000)) {
-        if(palset._first & 2) {
-          color_tree_cleanup(&ct);
-        }
-        state->error = 96;
-        goto cleanup;
-      }
+      /* error is set to 96 if color_tree_inc returns true, otherwise proceed */
+      state->error = 96 * color_tree_inc(&ct, crc & 0xFF, crc & 0xFF00, crc & 0xFF0000, crc & 0xFF000000);
       if(palset._first & 2) {
         color_tree_cleanup(&ct);
       }
+      if(state->error) goto cleanup;
     }
     lodepng_color_mode_init(&state->out_mode);
     lodepng_color_mode_copy(&state->out_mode, &info.color);

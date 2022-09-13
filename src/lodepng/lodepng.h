@@ -604,9 +604,6 @@ void lodepng_chunk_type(char type[5], const unsigned char* chunk);
 /*check if the type is the given type*/
 unsigned char lodepng_chunk_type_equals(const unsigned char* chunk, const char* type);
 
-/*0: it's one of the critical chunk types, 1: it's an ancillary chunk (see PNG standard)*/
-unsigned char lodepng_chunk_ancillary(const unsigned char* chunk);
-
 /*get pointer to the data of the chunk, where the input points to the header of the chunk*/
 const unsigned char* lodepng_chunk_data_const(const unsigned char* chunk);
 
