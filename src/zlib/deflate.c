@@ -819,7 +819,7 @@ static void lm_init (deflate_state* s)
 /* longest_match() with minor change to improve performance (in terms of
  * execution time).
  *
- * The pristine longest_match() function is sketched bellow (strip the
+ * The pristine longest_match() function is sketched below (strip the
  * then-clause of the "#ifdef UNALIGNED_OK"-directive)
  *
  * ------------------------------------------------------------
@@ -863,7 +863,7 @@ static void lm_init (deflate_state* s)
  *       lot easier for compiler to promote this quantity to register and keep
  *       its value throughout the entire small loop.
  *
- * 2) Transfrom s3 such that it examines sizeof(long)-byte-match at a time.
+ * 2) Transform s3 such that it examines sizeof(long)-byte-match at a time.
  *    This is done by:
  *        ------------------------------------------------
  *        v1 = load from "scan" by sizeof(long) bytes
@@ -1192,7 +1192,7 @@ deflate_state *s;
            *    o. the pointer advance forward, and
            *    o. demote the variable 'm' to be static to the loop, and
            *       choose type "Pos" (instead of 'unsigned int') for the
-           *       variable to avoid unncessary zero-extension.
+           *       variable to avoid unnecessary zero-extension.
            */
           {
             Pos *q = p - n;

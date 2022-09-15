@@ -351,7 +351,7 @@ size_t Zip::Leanify(const ECTOptions& Options, size_t* files) {
       p_write += local_header->compressed_size;
       continue;
     }
-    //Allocate 16 more bytes to accomodate optimized deflate match finder
+    //Allocate 16 more bytes to accommodate optimized deflate match finder
     decompress_buf = (uint8_t*)realloc(decompress_buf, decompressed_size + 16);
 
     // Leanify uncompressed file

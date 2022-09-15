@@ -209,7 +209,7 @@ static void string_cleanup(char** out) {
 
 /*also appends null termination character*/
 static char* alloc_string_sized(const char* in, size_t insize) {
-  //Allocate 16 more bytes to accomodate optimized deflate match finder
+  //Allocate 16 more bytes to accommodate optimized deflate match finder
   char* out = (char*)lodepng_malloc(insize + 1 + 16);
   if(out) {
     memcpy(out, in, insize);
@@ -4412,7 +4412,7 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
     }
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
     /*IDAT (multiple IDAT chunks must be consecutive)*/
-    //Allocate 16 more bytes to accomodate optimized deflate match finder
+    //Allocate 16 more bytes to accommodate optimized deflate match finder
     data = (unsigned char*)realloc(data, datasize + 16);
     state->error = addChunk_IDAT(&outv, data, datasize, &state->encoder.zlibsettings);
     if(state->error) goto cleanup;

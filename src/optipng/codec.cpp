@@ -65,7 +65,7 @@ int opng_is_image_chunk(const png_byte *chunk_type)
         return 1;
     /* Although tRNS is listed as ancillary in the PNG specification, it stores
      * alpha samples, which is critical information. For example, tRNS cannot
-     * be generally ignored when rendering overlayed images or animations.
+     * be generally ignored when rendering overlaid images or animations.
      * Lossless operations must treat tRNS as a critical chunk.
      */
     if (memcmp(chunk_type, opng_sig_tRNS, 4) == 0)
