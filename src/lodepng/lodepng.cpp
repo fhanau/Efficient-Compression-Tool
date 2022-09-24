@@ -1069,39 +1069,38 @@ static void color_tree_cleanup(ColorTree* tree) {
 /*returns -1 if color not present, its index otherwise*/
 static int color_tree_get(ColorTree* tree, unsigned char r, unsigned char g, unsigned char b, unsigned char a) {
   static const unsigned colortable[256] = {
-    0U,
-    1U,16U,17U,256U,257U,272U,273U,4096U,
-    4097U,4112U,4113U,4352U,4353U,4368U,4369U,65536U,
-    65537U,65552U,65553U,65792U,65793U,65808U,65809U,69632U,
-    69633U,69648U,69649U,69888U,69889U,69904U,69905U,1048576U,
-    1048577U,1048592U,1048593U,1048832U,1048833U,1048848U,1048849U,1052672U,
-    1052673U,1052688U,1052689U,1052928U,1052929U,1052944U,1052945U,1114112U,
-    1114113U,1114128U,1114129U,1114368U,1114369U,1114384U,1114385U,1118208U,
-    1118209U,1118224U,1118225U,1118464U,1118465U,1118480U,1118481U,16777216U,
-    16777217U,16777232U,16777233U,16777472U,16777473U,16777488U,16777489U,16781312U,
-    16781313U,16781328U,16781329U,16781568U,16781569U,16781584U,16781585U,16842752U,
-    16842753U,16842768U,16842769U,16843008U,16843009U,16843024U,16843025U,16846848U,
-    16846849U,16846864U,16846865U,16847104U,16847105U,16847120U,16847121U,17825792U,
-    17825793U,17825808U,17825809U,17826048U,17826049U,17826064U,17826065U,17829888U,
-    17829889U,17829904U,17829905U,17830144U,17830145U,17830160U,17830161U,17891328U,
-    17891329U,17891344U,17891345U,17891584U,17891585U,17891600U,17891601U,17895424U,
-    17895425U,17895440U,17895441U,17895680U,17895681U,17895696U,17895697U,268435456U,
-    268435457U,268435472U,268435473U,268435712U,268435713U,268435728U,268435729U,268439552U,
-    268439553U,268439568U,268439569U,268439808U,268439809U,268439824U,268439825U,268500992U,
-    268500993U,268501008U,268501009U,268501248U,268501249U,268501264U,268501265U,268505088U,
-    268505089U,268505104U,268505105U,268505344U,268505345U,268505360U,268505361U,269484032U,
-    269484033U,269484048U,269484049U,269484288U,269484289U,269484304U,269484305U,269488128U,
-    269488129U,269488144U,269488145U,269488384U,269488385U,269488400U,269488401U,269549568U,
-    269549569U,269549584U,269549585U,269549824U,269549825U,269549840U,269549841U,269553664U,
-    269553665U,269553680U,269553681U,269553920U,269553921U,269553936U,269553937U,285212672U,
-    285212673U,285212688U,285212689U,285212928U,285212929U,285212944U,285212945U,285216768U,
-    285216769U,285216784U,285216785U,285217024U,285217025U,285217040U,285217041U,285278208U,
-    285278209U,285278224U,285278225U,285278464U,285278465U,285278480U,285278481U,285282304U,
-    285282305U,285282320U,285282321U,285282560U,285282561U,285282576U,285282577U,286261248U,
-    286261249U,286261264U,286261265U,286261504U,286261505U,286261520U,286261521U,286265344U,
-    286265345U,286265360U,286265361U,286265600U,286265601U,286265616U,286265617U,286326784U,
-    286326785U,286326800U,286326801U,286327040U,286327041U,286327056U,286327057U,286330880U,
-    286330881U,286330896U,286330897U,286331136U,286331137U,286331152U,286331153U
+    0U,        1U,        16U,       17U,       256U,      257U,      272U,      273U,
+    4096U,     4097U,     4112U,     4113U,     4352U,     4353U,     4368U,     4369U,
+    65536U,    65537U,    65552U,    65553U,    65792U,    65793U,    65808U,    65809U,
+    69632U,    69633U,    69648U,    69649U,    69888U,    69889U,    69904U,    69905U,
+    1048576U,  1048577U,  1048592U,  1048593U,  1048832U,  1048833U,  1048848U,  1048849U,
+    1052672U,  1052673U,  1052688U,  1052689U,  1052928U,  1052929U,  1052944U,  1052945U,
+    1114112U,  1114113U,  1114128U,  1114129U,  1114368U,  1114369U,  1114384U,  1114385U,
+    1118208U,  1118209U,  1118224U,  1118225U,  1118464U,  1118465U,  1118480U,  1118481U,
+    16777216U, 16777217U, 16777232U, 16777233U, 16777472U, 16777473U, 16777488U, 16777489U,
+    16781312U, 16781313U, 16781328U, 16781329U, 16781568U, 16781569U, 16781584U, 16781585U,
+    16842752U, 16842753U, 16842768U, 16842769U, 16843008U, 16843009U, 16843024U, 16843025U,
+    16846848U, 16846849U, 16846864U, 16846865U, 16847104U, 16847105U, 16847120U, 16847121U,
+    17825792U, 17825793U, 17825808U, 17825809U, 17826048U, 17826049U, 17826064U, 17826065U,
+    17829888U, 17829889U, 17829904U, 17829905U, 17830144U, 17830145U, 17830160U, 17830161U,
+    17891328U, 17891329U, 17891344U, 17891345U, 17891584U, 17891585U, 17891600U, 17891601U,
+    17895424U, 17895425U, 17895440U, 17895441U, 17895680U, 17895681U, 17895696U, 17895697U,
+    268435456U,268435457U,268435472U,268435473U,268435712U,268435713U,268435728U,268435729U,
+    268439552U,268439553U,268439568U,268439569U,268439808U,268439809U,268439824U,268439825U,
+    268500992U,268500993U,268501008U,268501009U,268501248U,268501249U,268501264U,268501265U,
+    268505088U,268505089U,268505104U,268505105U,268505344U,268505345U,268505360U,268505361U,
+    269484032U,269484033U,269484048U,269484049U,269484288U,269484289U,269484304U,269484305U,
+    269488128U,269488129U,269488144U,269488145U,269488384U,269488385U,269488400U,269488401U,
+    269549568U,269549569U,269549584U,269549585U,269549824U,269549825U,269549840U,269549841U,
+    269553664U,269553665U,269553680U,269553681U,269553920U,269553921U,269553936U,269553937U,
+    285212672U,285212673U,285212688U,285212689U,285212928U,285212929U,285212944U,285212945U,
+    285216768U,285216769U,285216784U,285216785U,285217024U,285217025U,285217040U,285217041U,
+    285278208U,285278209U,285278224U,285278225U,285278464U,285278465U,285278480U,285278481U,
+    285282304U,285282305U,285282320U,285282321U,285282560U,285282561U,285282576U,285282577U,
+    286261248U,286261249U,286261264U,286261265U,286261504U,286261505U,286261520U,286261521U,
+    286265344U,286265345U,286265360U,286265361U,286265600U,286265601U,286265616U,286265617U,
+    286326784U,286326785U,286326800U,286326801U,286327040U,286327041U,286327056U,286327057U,
+    286330880U,286330881U,286330896U,286330897U,286331136U,286331137U,286331152U,286331153U
   };
 
   unsigned x = 0;
@@ -1119,7 +1118,7 @@ static int color_tree_get(ColorTree* tree, unsigned char r, unsigned char g, uns
   return tree ? tree->index : -1;
 }
 
-static bool color_tree_inc(ColorTree* tree,
+static unsigned char color_tree_inc(ColorTree* tree,
                           unsigned char r, unsigned char g, unsigned char b, unsigned char a) {
   int bit;
   for(bit = 0; bit < 8; ++bit) {
@@ -1595,8 +1594,8 @@ void lodepng_color_stats_init(LodePNGColorStats* stats) {
 static unsigned getValueRequiredBits(unsigned char value) {
   if(value == 0 || value == 255) return 1;
   /*The scaling of 2-bit and 4-bit values uses multiples of 85 and 17*/
-  if(value % 17 == 0) return value % 85 == 0 ? 2 : 4;
-  return 8;
+  else if(value % 17 == 0) return value % 85 == 0 ? 2 : 4;
+  else return 8;
 }
 
 /*stats must already have been inited. */
@@ -1606,13 +1605,13 @@ void lodepng_compute_color_stats(LodePNGColorStats* stats,
   size_t i;
 
   /* mark things as done already if it would be impossible to have a more expensive case */
-  unsigned colored_done = lodepng_is_greyscale_type(mode_in) ? 1 : 0;
-  unsigned alpha_done = lodepng_can_have_alpha(mode_in) ? 0 : 1;
-  unsigned numcolors_done = 0;
+  unsigned char colored_done = lodepng_is_greyscale_type(mode_in) ? 1 : 0;
+  unsigned char alpha_done = lodepng_can_have_alpha(mode_in) ? 0 : 1;
+  unsigned char numcolors_done = 0;
   unsigned bpp = lodepng_get_bpp(mode_in);
-  unsigned bits_done = bpp == 1 ? 1 : 0;
-  unsigned sixteen = 0; /* whether the input image is 16 bit */
-  unsigned maxnumcolors = 257;
+  unsigned char bits_done = bpp == 1 ? 1 : 0;
+  unsigned char sixteen = 0; /* whether the input image is 16 bit */
+  unsigned short maxnumcolors = 257;
   if(bpp <= 8) maxnumcolors = bpp == 1 ? 2 : (bpp == 2 ? 4 : (bpp == 4 ? 16 : 256));
 
   /*Check if the 16-bit input is truly 16-bit*/
@@ -1643,7 +1642,7 @@ void lodepng_compute_color_stats(LodePNGColorStats* stats,
       }
 
       if(!alpha_done) {
-        unsigned matchkey = (r == stats->key_r && g == stats->key_g && b == stats->key_b);
+        unsigned char matchkey = (r == stats->key_r && g == stats->key_g && b == stats->key_b);
         if(a != 65535 && (a != 0 || (stats->key && !matchkey))) {
           stats->alpha = 1;
           stats->key = 0;
@@ -1697,7 +1696,7 @@ void lodepng_compute_color_stats(LodePNGColorStats* stats,
       }
 
       if(!alpha_done) {
-        unsigned matchkey = (r == stats->key_r && g == stats->key_g && b == stats->key_b);
+        unsigned char matchkey = (r == stats->key_r && g == stats->key_g && b == stats->key_b);
         if(a != 255 && (a != 0 || (stats->key && !matchkey))) {
           stats->alpha = 1;
           stats->key = 0;
@@ -1769,7 +1768,7 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
   color_tree_init(&tree);
   for(i = 0; i != (size_t)w * (size_t)h; ++i) {
     const unsigned char* c = (unsigned char*)&image[i];
-    count = count + !color_tree_inc(&tree, c[0], c[1], c[2], c[3]);
+    count += !color_tree_inc(&tree, c[0], c[1], c[2], c[3]);
   }
   if(count == 0) return; //Silence clang static analyzer warnings
 
@@ -1787,14 +1786,14 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
     if(priority == LPPS_POPULARITY) sortfield[i] |= (color_tree_get(&tree, c[0], c[1], c[2], c[3]) + 1) << 8;
     else if(priority == LPPS_RGB)   sortfield[i] |= uint64_t(c[0]) << 32 | uint64_t(c[1]) << 24 | uint64_t(c[2]) << 16;
     else { /*LPPS_YUV, LPPS_LAB, LPPS_MSB*/
-      const uint64_t r = c[0];
-      const uint64_t g = c[1];
-      const uint64_t b = c[2];
+      const unsigned char r = c[0];
+      const unsigned char g = c[1];
+      const unsigned char b = c[2];
       if(priority == LPPS_YUV) {
         sortfield[i] |=
-          uint64_t(0.299 * (double)r + 0.587 * (double)g + 0.114 * (double)b) << 32
-        | uint64_t((-0.14713 * (double)r - 0.28886 * (double)g + 0.436 * (double)b + 111.18) / 0.872) << 24
-        | uint64_t((0.615 * (double)r - 0.51499 * (double)g - 0.10001 * (double)b + 156.825) / 1.23) << 16;
+          uint64_t(  0.299   * (double)r + 0.587   * (double)g + 0.114   * (double)b                    ) << 32
+        | uint64_t((-0.14713 * (double)r - 0.28886 * (double)g + 0.436   * (double)b  + 111.18)  / 0.872) << 24
+        | uint64_t(( 0.615   * (double)r - 0.51499 * (double)g - 0.10001 * (double)b  + 156.825) / 1.23 ) << 16;
       } else if(priority == LPPS_LAB) {
         double vx = (0.4124564 * (double)r + 0.3575761 * (double)g + 0.1804375 * (double)b) / 255 / 95.047;
         double vy = (0.2126729 * (double)r + 0.7151522 * (double)g + 0.0721750 * (double)b) / 255 / 100;
@@ -1812,14 +1811,14 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
         | uint64_t((vy - vz) * 200 + 256) << 16;
       } else { /*LPPS_MSB*/
         sortfield[i] |=
-          (r & 128) << 39 | (g & 128) << 38 | (b & 128) << 37
-        | (r & 64)  << 35 | (g & 64)  << 34 | (b & 64)  << 33
-        | (r & 32)  << 31 | (g & 32)  << 30 | (b & 32)  << 29
-        | (r & 16)  << 27 | (g & 16)  << 26 | (b & 16)  << 25
-        | (r & 8)   << 23 | (g & 8)   << 22 | (b & 8)   << 21
-        | (r & 4)   << 19 | (g & 4)   << 18 | (b & 4)   << 17
-        | (r & 2)   << 15 | (g & 2)   << 14 | (b & 2)   << 13
-        | (r & 1)   << 11 | (g & 1)   << 10 | (b & 1)   << 9;
+          ((uint64_t)r & 128) << 39 | ((uint64_t)g & 128) << 38 | ((uint64_t)b & 128) << 37
+        | ((uint64_t)r & 64)  << 35 | ((uint64_t)g & 64)  << 34 | ((uint64_t)b & 64)  << 33
+        | ((uint64_t)r & 32)  << 31 | ((uint64_t)g & 32)  << 30 | ((uint64_t)b & 32)  << 29
+        | ((uint64_t)r & 16)  << 27 | ((uint64_t)g & 16)  << 26 | ((uint64_t)b & 16)  << 25
+        | ((uint64_t)r & 8)   << 23 | ((uint64_t)g & 8)   << 22 | ((uint64_t)b & 8)   << 21
+        | ((uint64_t)r & 4)   << 19 | ((uint64_t)g & 4)   << 18 | ((uint64_t)b & 4)   << 17
+        | ((uint64_t)r & 2)   << 15 | ((uint64_t)g & 2)   << 14 | ((uint64_t)b & 2)   << 13
+        | ((uint64_t)r & 1)   << 11 | ((uint64_t)g & 1)   << 10 | ((uint64_t)b & 1)   << 9;
       }
     }
   }
@@ -1966,19 +1965,24 @@ static void optimize_palette(LodePNGColorMode* mode_out, const uint32_t* image,
   color_tree_cleanup(&tree);
 }
 
-/*Automatically chooses color type that gives smallest amount of bits in the
-output image, e.g. grey if there are only grayscale pixels, palette if there
-are less than 256 colors, ...
-Updates values of mode with a potentially smaller color model. mode_out should
-contain the user chosen color model, but will be overwritten with the new chosen one.*/
-static unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out, const LodePNGColorMode* mode_in,
-                                          const LodePNGColorStats* stats, size_t numpixels, unsigned div) {
+/*Computes a minimal PNG color model that can contain all colors as indicated by the stats.
+The stats should be computed with lodepng_compute_color_stats.
+mode_in is raw color profile of the image the stats were computed on, to copy palette order from when relevant.
+Minimal PNG color model means the color type and bit depth that gives smallest amount of bits in the output image,
+e.g. gray if only grayscale pixels, palette if less than 256 colors, color key if only single transparent color, ...
+This is used if auto_convert is enabled (it is by default).
+*/
+static unsigned auto_choose_color(LodePNGColorMode* mode_out,
+                                  const LodePNGColorMode* mode_in,
+                                  const LodePNGColorStats* stats, size_t numpixels, unsigned div) {
   unsigned error = 0;
-  unsigned palettebits, palette_ok, gray_ok;
+  unsigned palettebits;
   size_t i, n;
 
-  unsigned alpha = stats->alpha;
-  unsigned key = stats->key;
+  unsigned char palette_ok, gray_ok;
+
+  unsigned char alpha = stats->alpha;
+  unsigned char key = stats->key;
   unsigned bits = stats->bits;
 
   mode_out->key_defined = 0;
@@ -3216,11 +3220,11 @@ static void filterScanline2(unsigned char* scanline, const unsigned char* prevli
     }
   }
   /*else if(filterType == 1) {
-    if (!scanline[3]) {
+    if(!scanline[3]) {
       *(unsigned*)scanline = 0;
     }
     for(int i = 4; i < length; i+=4) {
-      if (!scanline[i + 3]) {
+      if(!scanline[i + 3]) {
         scanline[i] = scanline[i - 4];
         scanline[i + 1] = scanline[i - 3];
         scanline[i + 2] = scanline[i - 2];
@@ -3344,7 +3348,7 @@ static char windowbits(unsigned long len) {
 
   result++;
   if(result < 9) return -9;
-  else if (result > 15) return -15;
+  else if(result > 15) return -15;
   else return -(char)result;
 }
 
@@ -3406,7 +3410,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       prevline = &in[inindex];
     }
   } else {
-    const bool clean = settings->clean_alpha && color->colortype == LCT_RGBA && color->bitdepth == 8 && !color->key_defined;
+    const unsigned char clean = settings->clean_alpha && color->colortype == LCT_RGBA && color->bitdepth == 8 && !color->key_defined;
     unsigned char* in2 = 0;
     unsigned char* rem = 0;
     if(clean) {
@@ -3484,8 +3488,8 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
           Now implemented with streaming, which reduces complexity to O(n)
           This is slow.*/
           z_stream teststream;
-          size_t testsize = linebytes + 1;
-          int err = deflateInit2(&stream, strategy == LFS_INCREMENTAL3 ? 1 : 2, Z_DEFLATED, windowbits(testsize * h), 8, Z_FILTERED);
+          size_t filterbytes = linebytes + 1;
+          int err = deflateInit2(&stream, strategy == LFS_INCREMENTAL3 ? 1 : 2, Z_DEFLATED, windowbits(filterbytes * h), 8, Z_FILTERED);
           if(err != Z_OK) {
             if(clean) { free(in2); free(rem); }
             for(type = 0; type != 5; ++type) free(attempt[type]);
@@ -3517,8 +3521,8 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
               for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[type][x];
 
               deflateCopy(&teststream, &stream, 0);
-              teststream.next_in = (z_const unsigned char*)(out + y * testsize);
-              teststream.avail_in = testsize;
+              teststream.next_in = (z_const unsigned char*)(out + y * filterbytes);
+              teststream.avail_in = filterbytes;
               teststream.avail_out = UINT_MAX;
               teststream.next_out = dummy;
               deflate_nooutput(&teststream, Z_FINISH);
@@ -3541,8 +3545,8 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
             out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
             for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
 
-            stream.next_in = (z_const unsigned char*)(out + y * testsize);
-            stream.avail_in = testsize;
+            stream.next_in = (z_const unsigned char*)(out + y * filterbytes);
+            stream.avail_in = filterbytes;
             stream.avail_out = UINT_MAX;
             stream.next_out = dummy;
             deflate_nooutput(&stream, Z_NO_FLUSH);
@@ -3648,6 +3652,16 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         }
         signaled.store(-settings->quiet);
       }
+      z_stream stream;
+      stream.zalloc = 0;
+      stream.zfree = 0;
+      stream.opaque = 0;
+      int err = deflateInit2(&stream, 3, Z_DEFLATED, windowbits(h * (linebytes + 1)), 8, Z_FILTERED);
+      if(err != Z_OK) {
+        if(clean) { free(in2); free(rem); }
+        return 83; /*alloc fail*/
+      }
+
       unsigned char* prevlinebuf = 0;
       unsigned char* linebuf;
       if(clean) {
@@ -3655,43 +3669,28 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         linebuf = (unsigned char*)lodepng_malloc(linebytes);
       }
 
-      uint64_t r[2];
-      initRandomUInt64(r);
-
-      const int Strategies = strategy == LFS_ALL_CHEAP ? 3 : 0;
       /*Genetic algorithm filter finder. Attempts to find better filters through mutation and recombination.*/
-      const size_t population_size = strategy == LFS_ALL_CHEAP ? Strategies : 19;
-      const size_t last = population_size - 1;
+      const unsigned char population_size = strategy == LFS_GENETIC ? 19 : 3;
       unsigned char* population = (unsigned char*)lodepng_malloc(h * population_size);
       size_t* size = (size_t*)lodepng_malloc(population_size * sizeof(size_t));
       unsigned* ranking = (unsigned*)lodepng_malloc(population_size * sizeof(int));
-      unsigned e, i, g, type;
-      unsigned best_size = UINT_MAX;
-      unsigned total_size = 0;
-
-      z_stream stream;
-      stream.zalloc = 0;
-      stream.zfree = 0;
-      stream.opaque = 0;
-#define TUNE deflateTune(&stream, 16, 258, 258, 200);
-      int err = deflateInit2(&stream, 3, Z_DEFLATED, windowbits(h * (linebytes + 1)), 8, Z_FILTERED);
-      if(err != Z_OK) {
-        if(clean) { free(in2); free(rem); }
-        return 83; /*alloc fail*/
-      }
+      unsigned i, g;
+      unsigned best_size = UINT_MAX, total_size = 0;
+      unsigned char type;
       unsigned char* dummy = (unsigned char*)1;
       size_t popcnt;
-      uint64_t r2[2];
-      initRandomUInt64(r2);
-      signal(SIGINT, sig_handler);
-      for(popcnt = 0; popcnt < h * (population_size - Strategies); ++popcnt) population[popcnt] = randomUInt64(r2) % 5;
+      if(strategy == LFS_GENETIC) { /*fill population with random values from 0-4*/
+        uint64_t r[2];
+        initRandomUInt64(r);
+        for(popcnt = 0; popcnt < h * population_size; ++popcnt) population[popcnt] = randomUInt64(r) % 5;
+      }
 
-      for(g = 0; g <= last; ++g) {
+      for(g = 0; g != population_size; ++g) {
         if(strategy == LFS_ALL_CHEAP) {
           settings->filter_strategy = (LodePNGFilterStrategy)(g + 11);
           filter(out, in, w, h, color, settings);
           settings->filter_strategy = LFS_ALL_CHEAP;
-          for(size_t k = 0; k < h * (linebytes + 1); k += (linebytes + 1)) population[popcnt++] = out[k];
+          for(size_t k = 0; k != h * (linebytes + 1); k += (linebytes + 1)) population[popcnt++] = out[k];
         }
         prevline = 0;
         for(y = 0; y < h; ++y) {
@@ -3708,7 +3707,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
             prevline = &in[y * linebytes];
           }
         }
-        TUNE
+        deflateTune(&stream, 16, 258, 258, 200);
         stream.next_in = (z_const unsigned char*)out;
         stream.avail_in = h * (linebytes + 1);
         stream.avail_out = UINT_MAX;
@@ -3721,99 +3720,104 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         total_size += size[g];
         ranking[g] = g;
       }
-      for(i = 0; strategy == LFS_ALL_CHEAP && i < population_size; i++) {
-        if(size[i] < best_size) {
-          ranking[0] = i;
-          best_size = size[i];
+      if(strategy == LFS_ALL_CHEAP) {
+        for(i = 0; i != population_size; i++) {
+          if(size[i] < best_size) {
+            ranking[0] = i;
+            best_size = size[i];
+          }
         }
-      }
-      unsigned e_since_best = 0;
-      /*ctrl-c signals last iteration*/
-      for(e = 0; strategy == LFS_GENETIC && e_since_best < 500 && signaled.load() <= 0; ++e) {
-        /*resort rankings*/
-        unsigned c, j, t;
-        for(i = 1; i < population_size; ++i) {
-          t = ranking[i];
-          for(j = i - 1; j + 1 > 0 && size[ranking[j]] > size[t]; --j) ranking[j + 1] = ranking[j];
-          ranking[j + 1] = t;
-        }
-        if(size[ranking[0]] < best_size) {
-          best_size = size[ranking[0]];
-          e_since_best = 0;
-          if(!settings->quiet) {
-            printf("Generation %d: %d bytes\n", e, best_size);
-            fflush(stdout);
+      } else { /*LFS_GENETIC, ctrl-c signals last iteration*/
+        signal(SIGINT, sig_handler);
+        uint64_t r[2];
+        initRandomUInt64(r);
+        unsigned e, e_since_best = 0;
+        for(e = 0; e_since_best != 500 && signaled.load() <= 0; ++e) {
+          /*resort rankings*/
+          unsigned char c, t;
+          unsigned j;
+          for(i = 1; i != population_size; ++i) {
+            t = ranking[i];
+            for(j = i - 1; j + 1 > 0 && size[ranking[j]] > size[t]; --j) ranking[j + 1] = ranking[j];
+            ranking[j + 1] = t;
           }
-        } else ++e_since_best;
-        /*generate offspring*/
-        for(c = 0; c < 3; ++c) {
-          /*tournament selection*/
-          /*parent 1*/
-          unsigned selection_size = UINT_MAX;
-          for(t = 0; t < 2; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
-          unsigned size_sum = 0;
-          for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
-          unsigned char* parent1 = &population[ranking[j - 1] * h];
-          /*parent 2*/
-          selection_size = UINT_MAX;
-          for(t = 0; t < 2; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
-          size_sum = 0;
-          for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
-          unsigned char* parent2 = &population[ranking[j - 1] * h];
-          /*two-point crossover*/
-          unsigned char* child = &population[(ranking[last - c]) * h];
-          if(randomDecimal(r) < 0.9) {
-            unsigned crossover1 = randomUInt64(r) % h;
-            unsigned crossover2 = randomUInt64(r) % h;
-            if(crossover1 > crossover2) {
-              crossover1 ^= crossover2;
-              crossover2 ^= crossover1;
-              crossover1 ^= crossover2;
+          if(size[ranking[0]] < best_size) {
+            best_size = size[ranking[0]];
+            e_since_best = 0;
+            if(!settings->quiet) {
+              printf("Generation %d: %d bytes\n", e, best_size);
+              fflush(stdout);
             }
-            if(child != parent1) {
-              memcpy(child, parent1, crossover1);
-              memcpy(&child[crossover2], &parent1[crossover2], h - crossover2);
+          } else ++e_since_best;
+          /*generate offspring*/
+          for(c = 0; c != 3; ++c) {
+            /*tournament selection*/
+            /*parent 1*/
+            unsigned selection_size = UINT_MAX;
+            for(t = 0; t != 2; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
+            unsigned size_sum = 0;
+            for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
+            unsigned char* parent1 = &population[ranking[j - 1] * h];
+            /*parent 2*/
+            selection_size = UINT_MAX;
+            for(t = 0; t != 2; ++t) selection_size = std::min(unsigned(randomDecimal(r) * total_size), selection_size);
+            size_sum = 0;
+            for(j = 0; size_sum <= selection_size; ++j) size_sum += size[ranking[j]];
+            unsigned char* parent2 = &population[ranking[j - 1] * h];
+            /*two-point crossover*/
+            unsigned char* child = &population[(ranking[(population_size - 1) - c]) * h];
+            if(randomDecimal(r) < 0.9) {
+              unsigned crossover1 = randomUInt64(r) % h;
+              unsigned crossover2 = randomUInt64(r) % h;
+              if(crossover1 > crossover2) {
+                crossover1 ^= crossover2;
+                crossover2 ^= crossover1;
+                crossover1 ^= crossover2;
+              }
+              if(child != parent1) {
+                memcpy(child, parent1, crossover1);
+                memcpy(&child[crossover2], &parent1[crossover2], h - crossover2);
+              }
+              if(child != parent2) memcpy(&child[crossover1], &parent2[crossover1], crossover2 - crossover1);
             }
-            if(child != parent2) memcpy(&child[crossover1], &parent2[crossover1], crossover2 - crossover1);
+            else if(randomUInt64(r) & 1) memcpy(child, parent1, h);
+            else memcpy(child, parent2, h);
+            /*mutation*/
+            for(y = 0; y != h; ++y) if(randomDecimal(r) < 0.01) child[y] = randomUInt64(r) % 5;
+            /*evaluate new genome*/
+            total_size -= size[ranking[(population_size - 1) - c]];
+            prevline = 0;
+            for(y = 0; y != h; ++y) {
+              type = child[y];
+              out[y * (linebytes + 1)] = type;
+              if(clean) {
+                memcpy(linebuf, &in[y * linebytes], linebytes);
+                filterScanline2(linebuf, prevline, linebytes, type);
+                filterScanline(&out[y * (linebytes + 1) + 1], linebuf, prevline, linebytes, bytewidth, type);
+                memcpy(prevlinebuf, linebuf, linebytes);
+                prevline = prevlinebuf;
+              } else {
+                filterScanline(&out[y * (linebytes + 1) + 1], &in[y * linebytes], prevline, linebytes, bytewidth, type);
+                prevline = &in[y * linebytes];
+              }
+            }
+            deflateTune(&stream, 16, 258, 258, 200);
+            stream.next_in = (z_const unsigned char*)out;
+            stream.avail_in = h * (linebytes + 1);
+            stream.avail_out = UINT_MAX;
+            stream.next_out = dummy;
+        
+            deflate_nooutput(&stream, Z_FINISH);
+        
+            size[ranking[(population_size - 1) - c]] = stream.total_out;
+            deflateReset(&stream);
+            total_size += size[ranking[(population_size - 1) - c]];
           }
-          else if(randomUInt64(r) & 1) memcpy(child, parent1, h);
-          else memcpy(child, parent2, h);
-          /*mutation*/
-          for(y = 0; y < h; ++y) if(randomDecimal(r) < 0.01) child[y] = randomUInt64(r) % 5;
-          /*evaluate new genome*/
-          total_size -= size[ranking[last - c]];
-          prevline = 0;
-          for(y = 0; y < h; ++y) {
-            type = child[y];
-            out[y * (linebytes + 1)] = type;
-            if(clean) {
-              memcpy(linebuf, &in[y * linebytes], linebytes);
-              filterScanline2(linebuf, prevline, linebytes, type);
-              filterScanline(&out[y * (linebytes + 1) + 1], linebuf, prevline, linebytes, bytewidth, type);
-              memcpy(prevlinebuf, linebuf, linebytes);
-              prevline = prevlinebuf;
-            } else {
-              filterScanline(&out[y * (linebytes + 1) + 1], &in[y * linebytes], prevline, linebytes, bytewidth, type);
-              prevline = &in[y * linebytes];
-            }
-          }
-          TUNE
-
-          stream.next_in = (z_const unsigned char*)out;
-          stream.avail_in = h * (linebytes + 1);
-          stream.avail_out = UINT_MAX;
-          stream.next_out = dummy;
-
-          deflate_nooutput(&stream, Z_FINISH);
-
-          size[ranking[last - c]] = stream.total_out;
-          deflateReset(&stream);
-          total_size += size[ranking[last - c]];
         }
       }
       /*final choice*/
       prevline = 0;
-      for(y = 0; y < h; ++y) {
+      for(y = 0; y != h; ++y) {
         type = population[ranking[0] * h + y];
         out[y * (linebytes + 1)] = type;
         if(clean) {
@@ -4048,7 +4052,7 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
                       && ((w > 225 && h > 225) || numpixels > 75000 || (w > 250 && numpixels > 40000));
     }
 
-    state->error = lodepng_auto_choose_color(&info.color, &state->info_raw, &stats, numpixels, state->div);
+    state->error = auto_choose_color(&info.color, &state->info_raw, &stats, numpixels, state->div);
     if(state->error) goto cleanup;
     if(info.color.colortype == LCT_PALETTE && palset.order != LPOS_NONE) {
       if(palset._first & 1) {
