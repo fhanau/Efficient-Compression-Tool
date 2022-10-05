@@ -18,6 +18,10 @@ add_library(optipng::optipng ALIAS optipng)
 #make sure that we are using custom zlib and custom libpng options
 set(PNG_BUILD_ZLIB ON CACHE BOOL "use custom zlib within libpng" FORCE)
 set(ZLIB_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../zlib/ CACHE FILEPATH "custom zlib directory" FORCE)
+#TODO: temporary workaround for https://github.com/glennrp/libpng/pull/439
+#remove this again when the issue is fixed in upstream libpng
+set(ZLIB_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../zlib/ CACHE FILEPATH "custom zlib directory" FORCE)
+
 if(NOT WIN32)
 	add_compile_options(-Wno-macro-redefined)
 endif()
