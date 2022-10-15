@@ -135,7 +135,7 @@ local gzFile gz_open(path, mode)
     }
 
 #if !defined(NO_snprintf) && !defined(NO_vsnprintf)
-        snprintf(state->path, len + 1, "%s", (const char *)path);
+        (void)snprintf(state->path, len + 1, "%s", (const char *)path);
 #else
         strcpy(state->path, path);
 #endif
@@ -245,6 +245,6 @@ void ZLIB_INTERNAL gz_error(state, err, msg)
         state->err = Z_MEM_ERROR;
         return;
     }
-    snprintf(state->msg, strlen(state->path) + strlen(msg) + 3,
+    (void)snprintf(state->msg, strlen(state->path) + strlen(msg) + 3,
              "%s%s%s", state->path, ": ", msg);
 }

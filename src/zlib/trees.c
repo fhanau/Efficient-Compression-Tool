@@ -532,8 +532,8 @@ static int build_bl_tree(deflate_state* s) {
 
     /* Build the bit length tree: */
     build_tree(s, (tree_desc *)(&(s->bl_desc)));
-    /* opt_len now includes the length of the tree representations, except
-     * the lengths of the bit lengths codes and the 5+5+4 bits for the counts.
+    /* opt_len now includes the length of the tree representations, except the
+     * lengths of the bit lengths codes and the 5 + 5 + 4 bits for the counts.
      */
 
     /* Determine the number of bit length codes to send. The pkzip format
@@ -744,8 +744,8 @@ static void compress_block(s, ltree, dtree)
       /* Here, lc is the match length - MIN_MATCH */
       code = _length_code[lc];
 
-      val = ltree[code+LITERALS+1].Code;
-      len = ltree[code+LITERALS+1].Len;
+      val = ltree[code + LITERALS + 1].Code;
+      len = ltree[code + LITERALS + 1].Len;
       bit_buf ^= (val << filled);
       filled += len;
       if(filled >= 64) {
