@@ -1,0 +1,32 @@
+name: mac
+
+on: [push, pull_request]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with: 
+        submodules: 'true'
+      
+    - name: Set up NASM
+      run: brew install nasm
+        
+    - name: cmake
+      working-directory: src
+      run: cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    
+    - name: build
+      working-directory: src/build
+      run: make
+
+    - uses: actions/upload-artifact@v1
+      with:
+        name: ect-mac-x86-64
+        path: src/build/ect
+

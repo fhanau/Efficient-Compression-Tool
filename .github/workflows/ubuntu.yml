@@ -1,0 +1,26 @@
+name: ubuntu
+
+on: [push, pull_request]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with: 
+        submodules: 'true'
+      
+    - name: Set up NASM
+      uses: ilammy/setup-nasm@v1.4.0
+    
+    - name: cmake
+      working-directory: src
+      run: cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    
+    - name: build
+      working-directory: src/build
+      run: make
