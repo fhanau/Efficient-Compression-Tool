@@ -489,9 +489,9 @@ void lodepng_color_stats_init(LodePNGColorStats* stats);
 
 /*Get a LodePNGColorStats of the image. The stats must already have been inited.
 Returns error code (e.g. alloc fail) or 0 if ok.*/
-unsigned lodepng_compute_color_stats(LodePNGColorStats* stats,
-                                     const unsigned char* image, unsigned w, unsigned h,
-                                     const LodePNGColorMode* mode_in);
+void lodepng_compute_color_stats(LodePNGColorStats* stats,
+                                 const unsigned char* image, const size_t numpixels,
+                                 const LodePNGColorMode* mode_in);
 
 /*Settings for the encoder.*/
 typedef struct LodePNGEncoderSettings {
@@ -603,9 +603,6 @@ void lodepng_chunk_type(char type[5], const unsigned char* chunk);
 
 /*check if the type is the given type*/
 unsigned char lodepng_chunk_type_equals(const unsigned char* chunk, const char* type);
-
-/*0: it's one of the critical chunk types, 1: it's an ancillary chunk (see PNG standard)*/
-unsigned char lodepng_chunk_ancillary(const unsigned char* chunk);
 
 /*get pointer to the data of the chunk, where the input points to the header of the chunk*/
 const unsigned char* lodepng_chunk_data_const(const unsigned char* chunk);
