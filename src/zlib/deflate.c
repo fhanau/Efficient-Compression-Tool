@@ -1005,7 +1005,7 @@ IPos cur_match;                             /* current match */
       unsigned scan_start24 = scan_start32 & 0xFFFFFF;
       uint8_t * win = s->window;
       for (;;) {
-        if (((*(unsigned*)(win + cur_match)) & 0xFFFFFF) == scan_start24) break;
+        if (unlikely(((*(unsigned*)(win + cur_match)) & 0xFFFFFF) == scan_start24)) break;
         NEXT_CHAIN;
       }
     }
@@ -1018,9 +1018,8 @@ IPos cur_match;                             /* current match */
          * matched, and NEXT_CHAIN to try different place.
          */
         uint8_t * win = s->window;
-      if (best_len < MIN_MATCH) {
-        }
-      else if (best_len >= 7) {
+        if (best_len < MIN_MATCH) {
+        } else if (best_len >= 7) {
           /* current len >= 7 (looking for 8+ bytes); compare first and last 8 bytes */
           for (;;) {
             IPos cur_match2 = cur_match - OFF;
@@ -1051,19 +1050,17 @@ IPos cur_match;                             /* current match */
                           scan += (__builtin_ctzll(xor) >> 3);
                           break;
                       }
-                      scan += 8;
-                      match += 8;
 
-                      sv = *(uint64_t*)(void*)scan;
-                      mv = *(uint64_t*)(void*)match;
+                      sv = *(uint64_t*)(void*)(scan + 8);
+                      mv = *(uint64_t*)(void*)(match + 8);
                       xor = sv ^ mv;
                       if (xor) {
-                          scan += (__builtin_ctzll(xor) >> 3);
+                          scan += 8 + (__builtin_ctzll(xor) >> 3);
                           break;
                       }
-                      scan += 8;
-                      match += 8;
-                  } while (scan < strend);
+                      scan += 16;
+                      match += 16;
+                  } while (likely(scan < strend));
 
         Assert(scan <= s->window+(uint32_t)(s->window_size-1), "wild scan");
 
