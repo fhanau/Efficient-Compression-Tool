@@ -1,5 +1,5 @@
 /*
-LodePNG version 20220717
+LodePNG version 20221108
 
 Copyright (c) 2005-2022 Lode Vandevenne
 
@@ -482,6 +482,7 @@ typedef struct LodePNGColorStats {
   unsigned numcolors; /*amount of colors, up to 257. Not valid if bits == 16 or allow_palette is disabled.*/
   unsigned char palette[1024]; /*Remembers up to the first 256 RGBA colors, in no particular order, only valid when numcolors is valid*/
   unsigned bits; /*bits per channel (not for palette). 1,2 or 4 for grayscale only. 16 if 16-bit per channel required.*/
+  size_t numpixels;
   unsigned white; /* All pixels are white*/
 } LodePNGColorStats;
 
