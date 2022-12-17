@@ -205,17 +205,15 @@ static void LoadGzip(const char* filename, unsigned char** out, long long* outsi
   size_t out_size = 0;
   do {
     int bytes = gzread(r, (*out) + out_size, GZIP_READ_SIZE);
-    if (bytes) {
+    if (bytes > 0) {
       out_size += bytes;
       if (alloc_size - out_size < GZIP_READ_SIZE) {
         alloc_size *= 2;
         (*out) = (unsigned char*)realloc(*out, alloc_size + 16);
       }
-    }
-    else if (bytes == 0) {
+    } else if (bytes == 0) {
       break;
-    }
-    else if (bytes < 0) {
+    } else {  // bytes < 0
       fprintf(stderr, "%s: gzip decompression error\n", filename);
       gzclose_r(r);
       *outsize_p = -1;
