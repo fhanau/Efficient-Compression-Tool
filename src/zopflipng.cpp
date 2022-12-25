@@ -485,7 +485,6 @@ static unsigned TryOptimize(unsigned char* image, size_t imagesize, unsigned w, 
     }
   }
   if (error) {
-    printf("Encoding error %u: %s\n", error, lodepng_error_text(error));
     return error;
   }
   if(best_filter != 6){
@@ -494,7 +493,7 @@ static unsigned TryOptimize(unsigned char* image, size_t imagesize, unsigned w, 
   return 0;
 }
 
-static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter,
+static unsigned ZopfliPNGOptimize(const char * Infile, const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter,
                                   std::vector<unsigned char> filters, unsigned palette_filter) {
   unsigned char* image = 0;
   size_t imagesize = 0;
@@ -503,32 +502,28 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
 
   unsigned error = lodepng::decode(&image, imagesize, w, h, inputstate, &origpng[0], origpng.size());
 
-  if (error) {
-    printf("Decoding error %i: %s\n", error, lodepng_error_text(error));
-
-    return error;
-  }
-
   bool bit16 = false;  // Using 16-bit per channel raw image
-  if (inputstate.info_png.color.bitdepth == 16 && !png_options.lossy_8bit) {
+  if (!error && inputstate.info_png.color.bitdepth == 16 && !png_options.lossy_8bit) {
     // Decode as 16-bit
     free(image);
-    image = 0;
     error = lodepng::decode(&image, imagesize, w, h, &origpng[0], origpng.size(), LCT_RGBA, 16);
     bit16 = true;
   }
-  if (!error) {
-    // If lossy_transparent, remove RGB information from pixels with alpha=0
-    if (png_options.lossy_transparent && !bit16) {
-      LossyOptimizeTransparent(&inputstate, image, w, h, best_filter < 5 ? best_filter : 1);
-    }
+
+  if (error) {
+    fprintf(stderr, "%s decoding error %i: %s\n", Infile, error, lodepng_error_text(error));
+    return error;
   }
-  std::vector<unsigned char> temp;
-  error = TryOptimize(image, imagesize, w, h, bit16, inputstate, &png_options, &temp, best_filter, filters, palette_filter);
+  // If lossy_transparent, remove RGB information from pixels with alpha=0
+  if (png_options.lossy_transparent && !bit16) {
+    LossyOptimizeTransparent(&inputstate, image, w, h, best_filter < 5 ? best_filter : 1);
+  }
+
+  error = TryOptimize(image, imagesize, w, h, bit16, inputstate, &png_options, resultpng, best_filter, filters, palette_filter);
   free(image);
-  image = 0;
-  if (!error) {
-    (*resultpng).swap(temp);  // Store best result so far in the output.
+  if (error) {
+    fprintf(stderr, "%s encoding error %u: %s\n", Infile, error, lodepng_error_text(error));
+    return error;
   }
   if (!png_options.strip) {
     std::vector<std::string> names[3];
@@ -536,7 +531,7 @@ static unsigned ZopfliPNGOptimize(const std::vector<unsigned char>& origpng, con
     lodepng::getChunks(names, chunks, origpng);
     lodepng::insertChunks(*resultpng, chunks);
   }
-  return error;
+  return 0;
 }
 
 int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int filter, unsigned multithreading, unsigned quiet) {
@@ -559,12 +554,12 @@ int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int f
   if (filter == 6){
     lodepng::getFilterTypes(filters, origpng);
     if(!filters.size()){
-      fprintf(stderr, "Could not load PNG filters\n");
+      fprintf(stderr, "%s: Could not load PNG filters\n", Infile);
       return -1;
     }
   }
   std::vector<unsigned char> resultpng;
-  if (ZopfliPNGOptimize(origpng, png_options, &resultpng, filter, filters, palette_filter)) {return -1;}
+  if (ZopfliPNGOptimize(Infile, origpng, png_options, &resultpng, filter, filters, palette_filter)) {return -1;}
   if (resultpng.size() >= origpng.size()) {return 1;}
   if (lodepng::save_file(resultpng, Infile) != 0) {
     fprintf(stderr, "Failed to write to file %s\n", Infile);
