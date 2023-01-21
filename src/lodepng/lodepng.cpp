@@ -4244,12 +4244,11 @@ static unsigned lodepng_encode(unsigned char** out, size_t* outsize,
       unsigned crc = crc32(0, info.color.palette, info.color.palettesize);
       /* error is set to 96 if color_tree_inc returns true, otherwise proceed */
       if(color_tree_inc(&ct, crc & 0xFF, crc & 0xFF00, crc & 0xFF0000, crc & 0xFF000000)) {
-        state->error = 96;
+        state->error = 96; goto cleanup;
       }
       if(palset._first & 2) {
         color_tree_cleanup(&ct);
       }
-      if(state->error) goto cleanup;
     }
     lodepng_color_mode_init(&state->out_mode);
     lodepng_color_mode_copy(&state->out_mode, &info.color);

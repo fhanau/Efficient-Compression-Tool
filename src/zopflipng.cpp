@@ -382,9 +382,11 @@ static unsigned TryOptimize(unsigned char* image, size_t imagesize, unsigned w, 
   p.order = LPOS_NONE;
   state.div = png_options->Mode == 2 ? 6 : png_options->Mode < 8 ? 3 : 2;
   unsigned error = lodepng::encode(*out, image, imagesize, w, h, state, p);
-  // For very small output, also try without palette, it may be smaller thanks
-  // to no palette storage overhead.
+  LodePNGColorMode ref_color;
+  lodepng_color_mode_init(&ref_color);
+  lodepng_color_mode_copy(&ref_color, &state.out_mode);
 
+  // Try different ways to sort palette
   if (!error && state.out_mode.colortype == LCT_PALETTE && palette_filter && state.out_mode.palettesize > 1) {
     p._first = 1;
     std::vector<unsigned char> out2;
@@ -418,11 +420,13 @@ static unsigned TryOptimize(unsigned char* image, size_t imagesize, unsigned w, 
         }
       }
     }
- }
+  }
 
+  // For very small output, also try without palette, it may be smaller thanks
+  // to no palette storage overhead.
   unsigned long testboth = out->size();
   if (!error && testboth < 3800 && w * h < 100000 && best_filter != 6 && state.out_mode.colortype == LCT_PALETTE) {
-    LodePNGColorMode& color = state.out_mode;
+    LodePNGColorMode& color = ref_color;
     unsigned ux = color.palettesize;
     int wh_ok = (ux + 2) * 390 + 370;
     int size_ok = (ux + 2) * 40;
