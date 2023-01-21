@@ -21,6 +21,7 @@
 
 #include <cstdio>
 #include <cassert>
+#include <set>
 #include <unordered_set>
 #include <vector>
 #include <string>
@@ -76,19 +77,50 @@ static unsigned ColorIndex(const unsigned char* color) {
 // Counts amount of colors in the image, up to 257. If transparent_counts_as_one
 // is enabled, any color with alpha channel 0 is treated as a single color with
 // index 0.
-static void CountColors(std::unordered_set<unsigned>* unique, const unsigned char* image, unsigned w, unsigned h, bool transparent_counts_as_one) {
-  unique->clear();
+static void CountColors(std::unordered_set<unsigned>* unique, const unsigned char* image, unsigned w, unsigned h) {
   unique->reserve(512);
-  unsigned prev = ~*(unsigned*)(image);
+  unsigned prev = ColorIndex(image) + 1;
   for (size_t i = 0; i < w * h; i++) {
     unsigned index = ColorIndex(&image[i * 4]);
-    if (transparent_counts_as_one && image[i * 4 + 3] == 0) index = 0;
-    if(prev!=index) {
+    if (image[i * 4 + 3] == 0) index = 0;
+    if(prev != index) {
       unique->insert(index);
+      prev = index;
+      if (unique->size() > 256) break;
     }
-    prev = index;
-    if (unique->size() > 256) break;
   }
+}
+
+static unsigned FindUnusedColor(unsigned char* image, unsigned w, unsigned h) {
+  std::set<unsigned> opaque;
+  unsigned prev = 0xFFFFFFFF;
+   for (size_t i = 0; i < w * h; i++) {
+     if(image[i * 4 + 3] == 0) {continue;}
+     unsigned index = ColorIndex(&image[i * 4]) & 0xFFFFFF;
+     if(prev != index) {
+       opaque.insert(index);
+       prev = index;
+     }
+   }
+
+   // Try greyscale colors first, might also be easier to compress
+   for (unsigned i = 0; i <= 0xFFFFFF; i += 0x010101) {
+     if (!opaque.count(i)) {
+       return i;
+     }
+   }
+
+   // Find first unused color
+   unsigned expected = 0;
+   for(unsigned p : opaque) {
+     if (p != expected) {
+       return expected;
+     }
+     expected++;
+   }
+
+   // only reachable if every possible color is used, forego key in that case
+   return 0xFF000000;
 }
 
 // Remove RGB information from pixels with alpha=0
@@ -98,27 +130,39 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
 
   // If true, means palette is possible so avoid using different RGB values for
   // the transparent color.
-  CountColors(&count, image, w, h, true);
+  CountColors(&count, image, w, h);
   unsigned long colors = count.size();
-  bool palette = colors <= 256 && w * h < colors * 2;
+  bool palette_possible = colors <= 256;
+  if(12 + colors * 4 > w * h / 2) palette_possible = false;
 
   // First check if we want to preserve potential color-key background color,
   // or instead use the last encountered RGB value all the time to save bytes.
-  bool key = true;
-  // Makes no difference if palette
-  if (!palette){
-    for (size_t i = 0; i < w * h; i++) {
-      if (image[i * 4 + 3] > 0 && image[i * 4 + 3] < 255) {
-        key = false;
-        break;
-      }
+  bool key_possible = true;
+  for (size_t i = 0; i < w * h; i++) {
+    if (image[i * 4 + 3] > 0 && image[i * 4 + 3] < 255) {
+      key_possible = false;
+      break;
     }
   }
 
-  if (!palette && !key) {
+  unsigned unused_color = 0xFF000000;
+  if (key_possible && (unused_color = FindUnusedColor(image, w, h)) != 0xFF000000) {
+    unsigned char* uc = (unsigned char*)&unused_color;
+    unsigned char r = uc[0];
+    unsigned char g = uc[1];
+    unsigned char b = uc[2];
+
+    for (size_t i = 0; i < w * h; i++) {
+      if (image[i * 4 + 3] == 0) {
+        image[i * 4] = r;
+        image[i * 4 + 1] = g;
+        image[i * 4 + 2] = b;
+      }
+    }
+  } else {
     int pre = 0, pgr = 0, pbl = 0;
 
-    if (!filter){
+    if (!filter || palette_possible){
       for (size_t i = 0; i < w * h; i++) {
         // if alpha is 0, alter the RGB values to 0.
         if (image[i * 4 + 3] == 0) {
@@ -306,73 +350,6 @@ static void LossyOptimizeTransparent(lodepng::State* inputstate, unsigned char* 
       }
     }
   }
-  else {
-    unsigned char r = 0, g = 0, b = 0;
-    if (palette && !filter){
-      // Use RGB value of first encountered pixel. This can be
-      // used as a valid color key, or in case of palette ensures a color
-      // existing in the input image palette is used.
-      r = image[0];
-      g = image[1];
-      b = image[2];
-    }
-    else if (key || palette){
-      for (size_t i = 0; i < w * h; i++) {
-        if (image[i * 4 + 3] == 0) {
-          // Use RGB value of first encountered transparent pixel. This can be
-          // used as a valid color key, or in case of palette ensures a color
-          // existing in the input image palette is used.
-          r = image[i * 4];
-          g = image[i * 4 + 1];
-          b = image[i * 4 + 2];
-          break;
-        }
-      }
-    }
-    for (size_t i = 0; i < w * h; i++) {
-      // if alpha is 0, alter the RGB value to a possibly more efficient one.
-      if (!palette && !key && i % w == 0){
-        r = 0;
-        g = 0;
-        b = 0;
-      }
-      if (image[i * 4 + 3] == 0) {
-        image[i * 4] = r;
-        image[i * 4 + 1] = g;
-        image[i * 4 + 2] = b;
-      }
-      else {
-        if (!key && !palette){
-          // Use the last encountered RGB value if no key or palette is used: that
-          // way more values can be 0 thanks to the PNG filter types.
-          r = image[i * 4];
-          g = image[i * 4 + 1];
-          b = image[i * 4 + 2];
-        }
-      }
-    }
-  }
-
-  // If there are now less colors, update palette of input image to match this.
-  if (palette && inputstate->info_png.color.palettesize > 0) {
-    CountColors(&count, image, w, h, false);
-    if (count.size() < inputstate->info_png.color.palettesize) {
-      std::vector<unsigned char> palette_out;
-      unsigned char* palette_in = inputstate->info_png.color.palette;
-      for (size_t i = 0; i < inputstate->info_png.color.palettesize; i++) {
-        if (count.count(ColorIndex(&palette_in[i * 4])) != 0) {
-          palette_out.push_back(palette_in[i * 4]);
-          palette_out.push_back(palette_in[i * 4 + 1]);
-          palette_out.push_back(palette_in[i * 4 + 2]);
-          palette_out.push_back(palette_in[i * 4 + 3]);
-        }
-      }
-      inputstate->info_png.color.palettesize = palette_out.size() / 4;
-      for (size_t i = 0; i < palette_out.size(); i++) {
-        palette_in[i] = palette_out[i];
-      }
-    }
-  }
 }
 
 // Tries to optimize given a single PNG filter strategy.
@@ -458,7 +435,7 @@ static unsigned TryOptimize(unsigned char* image, size_t imagesize, unsigned w, 
       std::vector<unsigned char> out2;
       state.encoder.auto_convert = 0;
       bool grey = true;
-      unsigned has_alpha=lodepng_has_palette_alpha(&color);
+      unsigned has_alpha = lodepng_has_palette_alpha(&color);
       for (size_t i = 0; i < color.palettesize; i++) {
         if (color.palette[i * 4] != color.palette[i * 4 + 2]
             || color.palette[i * 4 + 1] != color.palette[i * 4 + 2]) {
@@ -466,16 +443,10 @@ static unsigned TryOptimize(unsigned char* image, size_t imagesize, unsigned w, 
           break;
         }
       }
-      if (grey){
-        if (has_alpha){state.info_png.color.colortype = LCT_GREY_ALPHA;}
-        else{state.info_png.color.colortype = LCT_GREY;}
-      }
-
-      else if (has_alpha) {
-        state.info_png.color.colortype = LCT_RGBA;
-      }
-      else{
-        state.info_png.color.colortype = LCT_RGB;
+      if (grey) {
+        state.info_png.color.colortype = has_alpha ? LCT_GREY_ALPHA : LCT_GREY;
+      } else{
+        state.info_png.color.colortype = has_alpha ? LCT_RGBA : LCT_RGB;
       }
       error = lodepng::encode(out2, image, imagesize, w, h, state, p);
       if (out2.size() < out->size()){
@@ -515,7 +486,7 @@ static unsigned ZopfliPNGOptimize(const char * Infile, const std::vector<unsigne
     return error;
   }
   // If lossy_transparent, remove RGB information from pixels with alpha=0
-  if (png_options.lossy_transparent && !bit16) {
+  if (png_options.lossy_transparent && !bit16 && lodepng_can_have_alpha(&inputstate.info_png.color)) {
     LossyOptimizeTransparent(&inputstate, image, w, h, best_filter < 5 ? best_filter : 1);
   }
 
