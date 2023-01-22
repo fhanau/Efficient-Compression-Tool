@@ -383,6 +383,11 @@ static unsigned TryOptimize(unsigned char* image, size_t imagesize, unsigned w, 
   state.div = png_options->Mode == 2 ? 6 : png_options->Mode < 8 ? 3 : 2;
   unsigned error = lodepng::encode(*out, image, imagesize, w, h, state, p);
   LodePNGColorMode ref_color;
+
+  // No need for palette sort or compressing without palette when reusing color.
+  if (best_filter == 6 || error){
+    return error;
+  }
   lodepng_color_mode_init(&ref_color);
   lodepng_color_mode_copy(&ref_color, &state.out_mode);
 
@@ -391,6 +396,11 @@ static unsigned TryOptimize(unsigned char* image, size_t imagesize, unsigned w, 
     p._first = 1;
     std::vector<unsigned char> out2;
     unsigned tries = 0;
+
+    // TODO: Using (LodePNGPaletteOrderStrategy)3 (LodePNGPalettePriorityStrategy)0 (LodePNGPaletteTransparencyStrategy)0 (LodePNGPaletteDirectionStrategy)1 should be a better default search strategy.
+    // Can also do both the order produced by lodepng and the one described above
+    // TODO: The subset (LodePNGPaletteOrderStrategy) (0, 2, 3) (LodePNGPalettePriorityStrategy) (0,2) (LodePNGPaletteTransparencyStrategy)0 (LodePNGPaletteDirectionStrategy) 1 performs almost as good as trying all 120 filter strategies, change order in which we go through the different sortings and
+    // consider removing the worse-performing options – always having LodePNGPaletteTransparencyStrategy 0 looks like a cheap win
     for (int k4 = 0; k4 < 4; k4++){
       p.order = (LodePNGPaletteOrderStrategy)k4;
       for (int k3 = 0; k3 < 5; k3++){
@@ -425,7 +435,7 @@ static unsigned TryOptimize(unsigned char* image, size_t imagesize, unsigned w, 
   // For very small output, also try without palette, it may be smaller thanks
   // to no palette storage overhead.
   unsigned long testboth = out->size();
-  if (!error && testboth < 3800 && w * h < 100000 && best_filter != 6 && state.out_mode.colortype == LCT_PALETTE) {
+  if (!error && testboth < 3800 && w * h < 100000 && state.out_mode.colortype == LCT_PALETTE) {
     LodePNGColorMode& color = ref_color;
     unsigned ux = color.palettesize;
     int wh_ok = (ux + 2) * 390 + 370;
@@ -459,13 +469,12 @@ static unsigned TryOptimize(unsigned char* image, size_t imagesize, unsigned w, 
 
     }
   }
-  if (error) {
-    return error;
-  }
-  if(best_filter != 6){
+
+  if(!error){
+    lodepng_color_mode_cleanup(&ref_color);
     lodepng_color_mode_cleanup(&state.out_mode);
   }
-  return 0;
+  return error;
 }
 
 static unsigned ZopfliPNGOptimize(const char * Infile, const std::vector<unsigned char>& origpng, const ZopfliPNGOptions& png_options, std::vector<unsigned char>* resultpng, int best_filter,
