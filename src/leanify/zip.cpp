@@ -13,7 +13,6 @@
 #include <Windows.h>
 #else
 #include <unistd.h>
-#include <sys/param.h>
 #endif
 
 #include "../miniz/miniz.h"
@@ -154,11 +153,11 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
     return size;
   }
 
+  char tempname[32];
+  memcpy(tempname, "tmpXXXXXX", 10);
 #ifdef _WIN32
-  char tempname[13];
-  memcpy(tempname, "fXXXXXX", 8);
 #ifdef _MSC_VER
-  _mktemp_s(tempname, 8);
+  _mktemp_s(tempname, 10);
 #else
   int descriptor = mkstemp(tempname);
   close(descriptor);
@@ -166,25 +165,20 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
   unlink(tempname);
 #endif
 
-  memcpy(&(tempname[7]), extension.c_str(), extension.length());
-  tempname[7 + extension.length()] = '\0';
-  const char* temp = tempname;
-  if (exists(temp)) {
+  memcpy(tempname + 9, extension.c_str(), extension.length() + 1);
+  if (exists(tempname)) {
     printf("Error: Can't create temp file\n");
     return size;
   }
-  FILE* stream = fopen(temp, "wb");
+  FILE* stream = fopen(tempname, "wb");
 #else
-  char* t0 = getcwd(0, MAXPATHLEN - 7 - extension.length());
-  if(!t0){
-    printf("Error: Can't get working directory\n");
+  memcpy(tempname + 9, extension.c_str(), extension.length() + 1);
+
+  int fd = mkstemps(tempname, extension.size());
+  if (fd < 0) {
+    perror("Can't create temp file");
     return size;
   }
-  string tmp = (std::string)t0 + "/XXXXXX" + extension;
-  free(t0);
-  char* temp = strdup(tmp.c_str());
-
-  int fd = mkstemps(temp, extension.size());
   FILE* stream = fdopen(fd, "wb");
 #endif
   fwrite(data, 1, size, stream);
@@ -194,15 +188,15 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
     std::vector<int> args;
     args.push_back(0);
     const char * v[1];
-    v[0] = temp;
+    v[0] = tempname;
     zipHandler(args, v, 1, Options);
   } else {
-    fileHandler(temp, Options, 1);
+    fileHandler(tempname, Options, 1);
   }
-  long long new_size = filesize(temp);
+  long long new_size = filesize(tempname);
 
   if(new_size < size && new_size >= 0){
-    stream = fopen(temp, "rb");
+    stream = fopen(tempname, "rb");
     if(fread(data - size_leanified, 1, new_size, stream) < new_size){
       printf("Error: Read error\n");
     }
@@ -212,10 +206,7 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
     fclose(stream);
   }
 
-  unlink(temp);
-#ifndef _WIN32
-  free(temp);
-#endif
+  unlink(tempname);
   return size;
 }
 

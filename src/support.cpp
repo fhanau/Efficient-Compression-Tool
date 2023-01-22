@@ -8,6 +8,9 @@
 
 #include "support.h"
 #include <sys/stat.h>
+#ifdef _WIN32
+#include <Windows.h>
+#endif
 #ifdef _MSC_VER
 #include <sys/utime.h>
 #include <io.h>
@@ -34,6 +37,14 @@ bool exists(const char * Infile) {
 
 bool writepermission (const char * Infile) {
     return !access (Infile, W_OK);
+}
+
+void RenameAndReplace(const char * Infile, const char * Outfile) {
+#ifdef _WIN32
+    MoveFileExA(Infile, Outfile, MOVEFILE_REPLACE_EXISTING);
+#else
+    rename(Infile, Outfile);
+#endif
 }
 
 bool isDirectory(const char *path) {

@@ -84,14 +84,6 @@ static void Usage() {
             );
 }
 
-static void RenameAndReplace(const char * Infile, const char * Outfile){
-#ifdef _WIN32
-    MoveFileExA(Infile, Outfile, MOVEFILE_REPLACE_EXISTING);
-#else
-    rename(Infile, Outfile);
-#endif
-}
-
 static void ECT_ReportSavings(){
     size_t localProcessedFiles = processedfiles.load(std::memory_order_seq_cst);
     size_t localBytes = bytes.load(std::memory_order_seq_cst);
@@ -244,14 +236,6 @@ static unsigned char OptimizePNG(const char * Infile, const ECTOptions& Options)
             if(x < 0){
                 return 1;
             }
-        }
-    }
-    else {
-        if (filesize(Infile) <= size){
-            unlink(((std::string)Infile).append(".bak").c_str());
-        }
-        else {
-            RenameAndReplace(((std::string)Infile).append(".bak").c_str(), Infile);
         }
     }
 

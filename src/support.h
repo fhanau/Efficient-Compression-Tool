@@ -21,6 +21,8 @@ bool exists(const char * Infile);
 
 bool writepermission (const char * Infile);
 
+void RenameAndReplace(const char * Infile, const char * Outfile);
+
 bool isDirectory(const char *path);
 
 time_t get_file_time(const char* Infile);

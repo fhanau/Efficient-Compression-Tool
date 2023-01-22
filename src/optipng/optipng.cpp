@@ -24,7 +24,12 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
-#ifndef _WIN32
+#ifdef _WIN32
+#ifdef _MSC_VER
+#include <io.h>
+#endif
+#include <Windows.h>
+#else
 #include <unistd.h>
 #endif
 
@@ -124,7 +129,7 @@ static int opng_read_file(struct opng_session *session, FILE *stream, bool force
     const struct opng_options *options = session->options;
     // Choose the applicable image reductions.
     int reductions = OPNG_REDUCE_ALL;
-    if (options->nz || stats->flags & OPNG_HAS_DIGITAL_SIGNATURE || stats->flags & OPNG_HAS_MULTIPLE_IMAGES)
+    if (options->nz || (stats->flags & (OPNG_HAS_DIGITAL_SIGNATURE | OPNG_HAS_MULTIPLE_IMAGES)))
     {
         // Do not reduce files with PNG datastreams under -nz, signed files or files with APNG chunks.
         reductions = OPNG_REDUCE_NONE;
@@ -175,6 +180,7 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
         return -1;
     }
     int result = opng_read_file(session, fstream, force_no_palette);
+    long orig_size = ftell(fstream);
     fclose(fstream);
     if (result < 0)
         return result;
@@ -182,20 +188,17 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
     session->flags = session->in_stats.flags;
 
     // Check the error flag. This must be the first check.
-    if (session->flags & OPNG_HAS_ERRORS)
-    {
-      if (!options->fix){
+    if ((session->flags & OPNG_HAS_ERRORS) && !options->fix) {
         return -1;
-      }
     }
-    
+
     // Check the digital signature flag.
     if (session->flags & OPNG_HAS_DIGITAL_SIGNATURE)
     {
         opng_error(Infile,"This file is digitally signed and can't be processed");
         return -1;
     }
-    if (options->nz && !(session->flags & OPNG_HAS_SNIPPED_IMAGES) && !(session->flags & OPNG_HAS_STRIPPED_METADATA)){
+    if (options->nz && !(session->flags & (OPNG_HAS_SNIPPED_IMAGES | OPNG_HAS_STRIPPED_METADATA))) {
         return 0;
     }
 
@@ -204,34 +207,55 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
         opng_error(Infile, "Can't write file");
         return -1;
     }
-    // Check the backup file.
-    if (exists(((std::string)Infile).append(".bak").c_str()) > 0 || (!options->nz && (exists(((std::string)Infile).append(".bak2").c_str()) > 0)))
-    {   opng_error(Infile, "Can't back up the output file");
-        return -1;
-    }
-    // Todo: check backup write perms
+    // Find a valid backup file descriptor.
+    FILE* backup_stream;
+    char backup_fname[32];
+
     if (options->optim_level < 2) {
-    rename(Infile, (((std::string)Infile).append(".bak")).c_str());
+#ifdef _WIN32
+      memcpy(backup_fname, "tmpXXXXXX", 10);
+#ifdef _MSC_VER
+      _mktemp_s(backup_fname, 10);
+#else
+      int descriptor = mkstemp(backup_fname);
+      close(descriptor);
+      //Just in case
+      unlink(backup_fname);
+#endif
+      memcpy(backup_fname + 9, ".png", 5);
+      if (exists(backup_fname)) {
+        opng_error(Infile, "Can't back up the output file");
+        return -1;
+      }
+      backup_stream = fopen(backup_fname, "wb");
+#else
+      memcpy(backup_fname, "tmpXXXXXX.png", strlen("tmpXXXXXX.png") + 1);
+
+      int fd = mkstemps(backup_fname, 4);
+      if (fd < 0) {
+        perror("Can't back up the output file");
+        return -1;
+      }
+      backup_stream = fdopen(fd, "wb");
+#endif
     }
+
     int optimal_filter = -1;
-    if (options->nz){
-        fstream = fopen((((std::string)Infile).append(".bak")).c_str(), "rb");
-        if (!fstream)
-        {opng_error(Infile, "Can't reopen file");}
-        else if (fseek(fstream, session->in_stats.datastream_offset, SEEK_SET) != 0){
-            opng_error(Infile, "Can't reposition file");
-            fclose(fstream);
-        }
-        else {
-            FILE * out_stream = fopen(Infile, "wb");
-            if (!out_stream)
-            {
+    if (options->nz) {
+        // TODO: May be able to skip previous operation of reading the file or fold
+        // the nz pass into regular optimization
+        fstream = fopen(Infile, "rb");
+        if (!fstream) {
+            opng_error(Infile, "Can't reopen file");
+        } else {
+            if (!backup_stream) {
                 opng_error(Infile, "Can't open file for writing");
-            }
-            else {opng_copy_file(session, fstream, out_stream);
+            } else {
+                opng_copy_file(session, fstream, backup_stream);
                 fclose(fstream);
-                fclose(out_stream);
-                unlink((((std::string)Infile).append(".bak")).c_str());}
+                fclose(backup_stream);
+                RenameAndReplace(backup_fname, Infile);
+            }
         }
         return 0;
     }
@@ -263,10 +287,15 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
         optimal_filter = options->optim_level == 2 ? 8 : options->optim_level > 3 ? 11 : 5;
       }
 
-        if (options->optim_level == 1){
-            fstream = fopen(Infile, "wb");
-            opng_write_file(session, fstream, optimal_filter == 5, 1, false);
-            fclose(fstream);
+        if (options->optim_level == 1) {
+            opng_write_file(session, backup_stream, optimal_filter == 5, 1, false);
+            long new_size = ftell(backup_stream);
+            fclose(backup_stream);
+            if (new_size <= orig_size) {
+                RenameAndReplace(backup_fname, Infile);
+            } else {
+                unlink(backup_fname);
+            }
         }
     return optimal_filter;
 }
