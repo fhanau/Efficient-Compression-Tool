@@ -29,6 +29,7 @@
 #include <io.h>
 #endif
 #include <Windows.h>
+#include <fcntl.h>
 #else
 #include <unistd.h>
 #endif
