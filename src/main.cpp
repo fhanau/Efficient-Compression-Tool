@@ -1,7 +1,7 @@
 //  main.cpp
 //  Efficient Compression Tool
 //  Created by Felix Hanau on 12/19/14.
-//  Copyright (c) 2014-2022 Felix Hanau.
+//  Copyright (c) 2014-2023 Felix Hanau.
 
 #include "main.h"
 #include "support.h"
@@ -31,8 +31,8 @@ static std::atomic<long long> savings;
 static void Usage() {
     printf (
             "Efficient Compression Tool\n"
-            "(c) 2014-2022 Felix Hanau.\n"
-            "Version 0.9.3"
+            "(c) 2014-2023 Felix Hanau.\n"
+            "Version 0.9.4"
 #ifdef __DATE__
             " compiled on %s\n"
 #endif
