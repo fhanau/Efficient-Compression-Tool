@@ -24,7 +24,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-uint32_t crc32(uint32_t crc, uint8_t *buf, size_t len) {
+uLong crc32(uLong crc, const Bytef *buf, uInt len) {
     crc = ~crc;
 
     while (len >= 8) {

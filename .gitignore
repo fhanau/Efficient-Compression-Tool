@@ -1,3 +1,7 @@
+# Ignore built objects and build output
 *.o
 *.a
+build/
+
+# MacOS junk files
 .DS_Store
