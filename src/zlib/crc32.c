@@ -9,8 +9,6 @@
  * factor of two increase in speed on a Power PC G4 (PPC7455) using gcc -O3.
  */
 
-#include "crc32_simd.h"
-
 #ifdef HAS_PCLMUL
  #ifndef _MSC_VER
   #include <cpuid.h>
@@ -49,6 +47,8 @@ uint32_t crc32(uint32_t crc, uint8_t *buf, size_t len) {
 }
 
 #else
+
+#include "crc32_simd.h"
 
 /* Definitions for doing the crc four data bytes at a time. */
 #define BYFOUR
