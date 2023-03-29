@@ -533,7 +533,6 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
   }
 
   unsigned match_type = 0;
-  unsigned dist_258 = inend + 1;
   for (i = instart; i < inend; i++) {
     size_t j = i - instart;  /* Index in the costs array and length_array. */
 
@@ -576,18 +575,12 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
           }
         i += match;
       }
-      match_type = i + ZOPFLI_MAX_MATCH < inend;
+      match_type = 0;
     }
 
     int numPairs;
     if (!storeincache){
-      if (!match_type) {
-        numPairs = Bt3Zip_MatchFinder_GetMatches(&p, matches);
-      } else if (match_type == RLE) {
-        numPairs = Bt3Zip_MatchFinder_GetMatches2(&p, matches); match_type = 0;
-      } else {
-        numPairs = Bt3Zip_MatchFinder_GetMatches3(&p, matches, dist_258); match_type = 0;
-      }
+      numPairs = Bt3Zip_MatchFinder_GetMatches(&p, matches);
     }
     else {
         if (c->size < c->pointer + (ZOPFLI_MAX_MATCH - ZOPFLI_MIN_MATCH + 1) * 2 + 1){
@@ -598,15 +591,12 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
         numPairs = Bt3Zip_MatchFinder_GetMatches(&p, matches);
         *(matches - 1) = numPairs;
         c->pointer += numPairs + 1;
-        match_type = 0;
     }
     if (numPairs){
       const unsigned short * mend = matches + numPairs;
       //It would be really nice to get this faster, but that seems impossible. Using AVX1 is slower.
       if (matches[0] == ZOPFLI_MAX_MATCH) {
-        dist_258 = matches[1];
-        if (dist_258 == 1) {match_type = ML_RLE;}
-        else if (i + ZOPFLI_MAX_MATCH < inend && in[i + ZOPFLI_MAX_MATCH] == in[i + ZOPFLI_MAX_MATCH - dist_258]) {match_type = ML_MATCH;}
+        if (matches[1] == 1) {match_type = ML_RLE;}
         unsigned dist = matches[1];
         costs[j + ZOPFLI_MAX_MATCH] = costs[j] + disttable[dist] + litlentable[ZOPFLI_MAX_MATCH];
         length_array[j + ZOPFLI_MAX_MATCH] = ZOPFLI_MAX_MATCH + (dist << 9);
@@ -619,8 +609,6 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
       }
 #endif
       else{
-        if (*(mend - 2) == ZOPFLI_MAX_MATCH && i + ZOPFLI_MAX_MATCH < inend && in[i + ZOPFLI_MAX_MATCH] == in[i + ZOPFLI_MAX_MATCH - *(mend - 1)]){match_type = ML_MATCH; dist_258 = *(mend - 1);}
-        else if (matches[1] == 1 && matches[0] > 3 && i + ZOPFLI_MAX_MATCH < inend) {match_type = RLE;}
         float price = costs[j];
         unsigned short* mp = matches;
 
