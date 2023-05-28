@@ -378,7 +378,7 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
             if (!realpath(argv[args[0]], abs_path)) {
 #else
             char abs_path[MAX_PATH];
-            if (!GetFullPathNameA(zipfilename, MAX_PATH, abs_path, 0)) {
+            if (!GetFullPathNameA(argv[args[0]], MAX_PATH, abs_path, 0)) {
 #endif
                 printf("Error: Could not find directory\n");
                 return 1;
