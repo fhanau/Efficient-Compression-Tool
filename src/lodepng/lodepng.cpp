@@ -3481,7 +3481,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
           stream.avail_out = UINT_MAX;
           stream.next_out = (unsigned char *)1;
 
-          deflate_nooutput(&stream, Z_FINISH);
+          //deflate_nooutput(&stream, Z_FINISH);
 
           size = stream.total_out;
           deflateReset(&stream);
@@ -3535,7 +3535,6 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     } else if(strategy == LFS_INCREMENTAL2) {
       deflateTune(&stream, 50, 258, 258, 1100);
     }
-    deflateCopy(&teststream, &stream, 1);
 
     unsigned char* dummy = (unsigned char*)1; //Not used, but must not be 0
     unsigned char* prevline2 = 0;
@@ -3565,12 +3564,11 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         out[y * (linebytes + 1)] = type; /*the first byte of a scanline will be the filter type*/
         for(x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[type][x];
 
-        deflateCopy(&teststream, &stream, 0);
         teststream.next_in = (z_const unsigned char *)(out + y * testsize);
         teststream.avail_in = testsize;
         teststream.avail_out = UINT_MAX;
         teststream.next_out = dummy;
-        deflate_nooutput(&teststream, Z_FINISH);
+        //deflate_nooutput(&teststream, Z_FINISH);
 
         size = teststream.total_out;
 
@@ -3596,7 +3594,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       stream.avail_in = testsize;
       stream.avail_out = UINT_MAX;
       stream.next_out = dummy;
-      deflate_nooutput(&stream, Z_NO_FLUSH);
+      //deflate_nooutput(&stream, Z_NO_FLUSH);
 
       prevline = &in[y * linebytes];
       if(clean) {
@@ -3905,7 +3903,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       stream.avail_out = UINT_MAX;
       stream.next_out = dummy;
 
-      deflate_nooutput(&stream, Z_FINISH);
+      //deflate_nooutput(&stream, Z_FINISH);
 
       size[g] = stream.total_out;
       deflateReset(&stream);
@@ -3996,7 +3994,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         stream.avail_out = UINT_MAX;
         stream.next_out = dummy;
 
-        deflate_nooutput(&stream, Z_FINISH);
+        //deflate_nooutput(&stream, Z_FINISH);
 
         size[ranking[last - c]] = stream.total_out;
         deflateReset(&stream);

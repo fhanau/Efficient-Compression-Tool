@@ -289,7 +289,7 @@ static int opng_optimize_impl(struct opng_session *session, const char *Infile, 
       }
 
         if (options->optim_level == 1) {
-            opng_write_file(session, backup_stream, optimal_filter == 5, 1, false);
+            opng_write_file(session, backup_stream, optimal_filter == 5, 9, false);
             long new_size = ftell(backup_stream);
             fclose(backup_stream);
             if (new_size <= orig_size) {

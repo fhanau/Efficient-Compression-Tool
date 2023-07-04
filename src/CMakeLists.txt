@@ -140,7 +140,7 @@ target_link_libraries(ect
 	miniz::miniz
 	optipng::optipng
 	zopfli::zopfli
-	zlib::zlib
+	zlib
 	jpeg-static)
 
 # mozjpeg generates some header files that we need to be able to include
