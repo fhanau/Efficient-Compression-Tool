@@ -308,7 +308,7 @@ unsigned fileHandler(const char * Infile, const ECTOptions& Options, int interna
             return 1;
         }
         int statcompressedfile = 0;
-        if (size < 1200000000) {//completely random value
+        if (size <= UINT_MAX) {
             if (x == "PNG" || x == "png"){
                 error = OptimizePNG(Infile, Options);
             }
