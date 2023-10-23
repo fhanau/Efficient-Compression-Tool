@@ -309,17 +309,15 @@ unsigned fileHandler(const char * Infile, const ECTOptions& Options, int interna
         }
         int statcompressedfile = 0;
         if (size < 1200000000) {//completely random value
-            if (x == "PNG" || x == "png"){
-                error = OptimizePNG(Infile, Options);
-            }
-            else if (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg"){
-                error = OptimizeJPEG(Infile, Options);
-            }
-            else if (Options.Gzip && !internal){
+            if (Options.Gzip && !internal) {
                 statcompressedfile = ECTGzip(Infile, Options.Mode, Options.DeflateMultithreading, size, Options.Zip, Options.Strict);
                 if (statcompressedfile == 2){
                     return 1;
                 }
+            } else if (x == "PNG" || x == "png") {
+                error = OptimizePNG(Infile, Options);
+            } else if (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg") {
+                error = OptimizeJPEG(Infile, Options);
             }
             if(Options.SavingsCounter && !internal){
                 processedfiles.fetch_add(1);
