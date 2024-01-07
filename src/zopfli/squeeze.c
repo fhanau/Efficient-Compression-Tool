@@ -568,7 +568,7 @@ static void GetBestLengths(const ZopfliOptions* options, const unsigned char* in
               memset(p.hash, 0, LZFIND_HASH_SIZE * sizeof(unsigned));
               p.cyclicBufferPos = 0;
               p.pos = ZOPFLI_WINDOW_SIZE;
-              Bt3Zip_MatchFinder_Skip2(&p, 1);
+              Bt3Zip_MatchFinder_Skip(&p, 1);
             }
             else {
               Bt3Zip_MatchFinder_Skip2(&p, match);

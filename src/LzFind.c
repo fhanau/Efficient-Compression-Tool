@@ -377,7 +377,9 @@ void Bt3Zip_MatchFinder_Skip(CMatchFinder* p, UInt32 num)
   }
 }
 
-//Same as above, but optimized for case where there is a ZOPFLI_MAX_MATCH len match at distance 1.
+// Same as above, but optimized for case where there is a ZOPFLI_MAX_MATCH len match at distance 1.
+// This implies that the match finder has processed at least one byte so far – otherwise there
+// can't be available matches.
 void Bt3Zip_MatchFinder_Skip2(CMatchFinder* p, UInt32 num)
 {
   const Byte *cur = p->buffer;
