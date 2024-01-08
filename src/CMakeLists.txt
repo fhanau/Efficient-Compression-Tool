@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
-project(ect VERSION 0.9.4 LANGUAGES CXX C)
+project(ect VERSION 0.9.5 LANGUAGES CXX C)
 cmake_policy(SET CMP0048 NEW)
 
 include(GNUInstallDirs)
