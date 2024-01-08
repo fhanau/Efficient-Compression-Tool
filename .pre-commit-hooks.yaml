@@ -1,0 +1,6 @@
+- id: optimize-files
+  name: Optimize Images and Zips
+  description: Losslessly optimize newly-added GZIP, ZIP, JPEG, and PNG files
+  entry: /app/ect
+  language: docker
+  files: '.*\.(png|jpe?g|zip|gz)$'
