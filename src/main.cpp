@@ -58,8 +58,8 @@ static void Usage() {
 #ifdef FS_SUPPORTED
             " -recurse          Recursively search directories\n"
 #endif
-            " -zip              Compress file(s) with  ZIP algorithm\n"
-            " -gzip             Compress file with GZIP algorithm\n"
+            " -zip              Compress file(s) with ZIP algorithm\n"
+            " -gzip             Compress file(s) with GZIP algorithm\n"
             " -quiet            Print only error messages\n"
             " -help             Print this help\n"
             " -keep             Keep modification time\n"
