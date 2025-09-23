@@ -38,6 +38,10 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "../LzFind.h"
 #include "../threadLocal.h"
 
+#ifdef __SSE2__
+#include <immintrin.h>
+#endif
+
 static void CopyStats(const SymbolStats* source, SymbolStats* dest) {
   memcpy(dest->litlens, source->litlens, 288 * sizeof(dest->litlens[0]));
   memcpy(dest->dists, source->dists, 32 * sizeof(dest->dists[0]));
@@ -370,6 +374,42 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
           unsigned dist = *mp++;
           float price2 = price + disttable[dist];
           dist <<=9;
+#if defined(__AVX__)
+          for (; curr + 8 < len; curr+=8) {
+            __m256 x8 = _mm256_add_ps(_mm256_set1_ps(price2), _mm256_loadu_ps(&litlentable[curr]));
+            __m256 vcost = _mm256_loadu_ps(&costs[j + curr]);
+            _mm256_storeu_ps(&costs[j + curr], _mm256_min_ps(x8, vcost));
+#if defined(__AVX2__)
+            __m256i vlength = _mm256_add_epi32(_mm256_set1_epi32(curr + dist), _mm256_setr_epi32(0,1,2,3,4,5,6,7));
+            vlength = _mm256_blendv_epi8(_mm256_loadu_si256((__m256i*)&length_array[j + curr]), vlength, cmp_mask);
+#else
+            __m128i vlength_low = _mm_add_epi32(_mm_set1_epi32(curr + dist), _mm_setr_epi32(0, 1, 2, 3));
+            __m128i vlength_high = _mm_add_epi32(_mm_set1_epi32(curr + dist), _mm_setr_epi32(4, 5, 6, 7));
+            __m256i vlength = _mm256_set_m128i(vlength_high, vlength_low);
+            vlength = _mm256_castps_si256(_mm256_blendv_ps(_mm256_castsi256_ps(_mm256_loadu_si256((__m256i*)&length_array[j + curr])),
+                                                                               _mm256_castsi256_ps(vlength), _mm256_cmp_ps(x8, vcost, _CMP_LT_OQ)));
+#endif
+            _mm256_storeu_si256((__m256i*)&length_array[j + curr], vlength);
+          }
+#endif
+#if defined(__SSE2__)
+          for (; curr + 4 < len; curr += 4) {
+            __m128 x4 = _mm_add_ps(_mm_set1_ps(price2), _mm_loadu_ps(&litlentable[curr]));
+            __m128 vcost = _mm_loadu_ps(&costs[j + curr]);
+            _mm_storeu_ps(&costs[j + curr], _mm_min_ps(x4, vcost));
+            __m128i vlength = _mm_add_epi32(_mm_set1_epi32(curr + dist), _mm_setr_epi32(0, 1, 2, 3));
+            __m128i cmp_mask = _mm_castps_si128(_mm_cmplt_ps(x4, vcost));
+#if defined(__SSE4_1__)
+            vlength = _mm_blendv_epi8(_mm_loadu_si128((__m128i*)&length_array[j + curr]), vlength, cmp_mask);
+#else
+            vlength = _mm_or_si128(_mm_and_si128(vlength, cmp_mask), _mm_andnot_si128(cmp_mask, old_vlength));
+#endif
+            _mm_storeu_si128((__m128i*)&length_array[j + curr], vlength);
+          }
+#ifdef __GNUC__
+#pragma GCC unroll 1 /* no unroll */
+#endif
+#endif
           for (; curr <= len; curr++) {
             float x = price2 + litlentable[curr];
             if (x < costs[j + curr]){
