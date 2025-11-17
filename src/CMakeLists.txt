@@ -63,6 +63,17 @@ if(NOT MSVC)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-sign-compare -Wno-unused -Wno-unused-parameter")
 endif()
 
+if(WIN32)
+  # Add a manifest. On Windows, this will enable proper handling of Unicode paths,
+  # as well as paths longer than 260 characters. It also configures UAC handling.
+  target_sources(ect PRIVATE ect.manifest.rc)
+
+  # Disable CMake's automatic manifest generation on MSVC since we provide our own.
+  if(MSVC)
+    target_link_options(ect PRIVATE "/MANIFEST:NO")
+  endif()
+endif()
+
 # Use -Ofast in release builds
 # TODO: This is now deprecated in clang and likely makes little difference, switch back to -O3.
 foreach(var CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELWITHDEBINFO)
