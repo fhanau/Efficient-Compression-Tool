@@ -51,6 +51,11 @@ add_executable(ect::ect ALIAS ect)
 if(MINGW)
   add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-mno-ms-bitfields>)
   add_compile_options($<$<COMPILE_LANGUAGE:C>:-mno-ms-bitfields>)
+
+  # Ensure static linkage.
+  target_link_options(ect PRIVATE -static -static-libgcc -static-libstdc++)
+  set(CMAKE_LINK_SEARCH_START_STATIC TRUE)
+  set(CMAKE_LINK_SEARCH_END_STATIC TRUE)
 endif()
 
 if(NOT MSVC)
