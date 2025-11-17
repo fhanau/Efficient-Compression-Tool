@@ -173,7 +173,8 @@ static unsigned short * GetMatches2(UInt32 lenLimit, UInt32 curMatch, UInt32 pos
     len0 = rle_len;
   }
   unsigned char ref_byte = *cur;
-  unsigned starter = *(unsigned*)(cur - 1);
+  uint32_t starter;
+  memcpy(&starter, cur - 1, sizeof(starter));
   uint64_t starter_full = (uint64_t)starter + (((uint64_t)starter) << 32);
 
   const unsigned char* min = pos > 65535 ? cur - 32767 : cur - (pos - 32768);
@@ -229,7 +230,10 @@ static unsigned short * GetMatches2(UInt32 lenLimit, UInt32 curMatch, UInt32 pos
     const unsigned char* _min = min;
     unsigned cnt = 0;
     if (_min < pb - (rle_len - len)) {_min = pb - (rle_len - len);}
-    while (rle_pos > _min && *(uint64_t*)(rle_pos - 8) == starter_full) {rle_pos-=8; cnt+=8;}
+    while (rle_pos > _min && memcmp(rle_pos - 8, &starter_full, sizeof(starter_full)) == 0) {
+      rle_pos-=8;
+      cnt+=8;
+    }
     if (cnt) {
       if (cnt + len > rle_len - 1) {cnt = rle_len - 1 - len;}
       curMatch_rle -= cnt;
@@ -314,7 +318,7 @@ static void SkipMatches2(UInt32 *son, UInt32 _cyclicBufferPos)
 
 #ifdef __SSE4_2__
 #include "nmmintrin.h"
-#define HASH(cur) unsigned v = 0xffffff & *(const unsigned*)cur; UInt32 hashValue = _mm_crc32_u32(0, v) & LZFIND_HASH_MASK;
+#define HASH(cur) unsigned v; memcpy(&v, cur, sizeof(v)); v &= 0xffffff; UInt32 hashValue = _mm_crc32_u32(0, v) & LZFIND_HASH_MASK;
 #else
 #define HASH(cur) UInt32 hashValue = ((cur[2] | ((UInt32)cur[0] << 8)) ^ crc[cur[1]]) & LZFIND_HASH_MASK;
 #endif
