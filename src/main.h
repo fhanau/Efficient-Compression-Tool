@@ -13,9 +13,11 @@
 #include <vector>
 
 //Compile support for folder input. Requires std::filesystem introduced in C++17.
-#if __cplusplus >= 201703L
+#if __cplusplus >= 201703L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L && _MSC_VER >= 1913)
+#if __has_include(<filesystem>)
 #define FS_SUPPORTED
 #include <filesystem>
+#endif
 #endif
 
 struct ECTOptions{
