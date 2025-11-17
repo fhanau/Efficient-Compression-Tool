@@ -18,6 +18,19 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/../.git" AND NOT EXISTS "${CMAKE_SOURCE_DIR}/../s
     message (FATAL_ERROR "Submodules are not initialized. Run \n\tgit submodule update --init --recursive\n within the repository")
 endif()
 
+# Enable LTO for release builds
+if(NOT CMAKE_BUILD_TYPE MATCHES Debug)
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT IPO_ERROR)
+
+  if(IPO_SUPPORTED)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+    message(STATUS "IPO / LTO enabled")
+  else()
+    message(STATUS "IPO / LTO not supported: <${IPO_ERROR}>")
+  endif()
+endif()
+
 add_executable(ect
   main.cpp
   gztools.cpp
@@ -38,11 +51,27 @@ add_executable(ect::ect ALIAS ect)
 if(MINGW)
   add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-mno-ms-bitfields>)
   add_compile_options($<$<COMPILE_LANGUAGE:C>:-mno-ms-bitfields>)
+
+  # Ensure static linkage.
+  target_link_options(ect PRIVATE -static -static-libgcc -static-libstdc++)
+  set(CMAKE_LINK_SEARCH_START_STATIC TRUE)
+  set(CMAKE_LINK_SEARCH_END_STATIC TRUE)
 endif()
 
 if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-sign-compare -Wno-unused -Wno-unused-parameter")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-sign-compare -Wno-unused -Wno-unused-parameter")
+endif()
+
+if(WIN32)
+  # Add a manifest. On Windows, this will enable proper handling of Unicode paths,
+  # as well as paths longer than 260 characters. It also configures UAC handling.
+  target_sources(ect PRIVATE ect.manifest.rc)
+
+  # Disable MSVC's automatic manifest generation since we provide our own.
+  if(MSVC)
+    target_link_options(ect PRIVATE "/MANIFEST:NO")
+  endif()
 endif()
 
 # Use -Ofast in release builds
@@ -124,9 +153,16 @@ endif()
 # Enable ZLIB_CONST for everything
 add_definitions(-DZLIB_CONST)
 
-# Ensure that zlib target points to our custom zlib zlib
-set(ZLIB_ROOT "zlib/")
-find_package(ZLIB)
+# Set CMake variables so that other libraries like libpng and mozjpeg
+# can find our custom zlib when calling find_package(ZLIB REQUIRED).
+# find_package() fails (at configuration time) otherwise because the
+# zlib static library object doesn't exist until build time.
+set(ZLIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/zlib/")
+set(ZLIB_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/zlib")
+# ZLIB_LIBRARY needs to be set to where the built library will end up
+set(ZLIB_LIBRARY "zlib/${CMAKE_STATIC_LIBRARY_PREFIX}zlib${CMAKE_STATIC_LIBRARY_SUFFIX}")
+# Now this check should pass
+find_package(ZLIB REQUIRED)
 
 option(ECT_MULTITHREADING "Enable multithreaded processing support" ON)
 option(ECT_MP3_SUPPORT "Enable MP3 support (not currently working)" OFF)

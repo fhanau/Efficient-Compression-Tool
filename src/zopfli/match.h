@@ -17,13 +17,24 @@
  */
 #include <stdint.h>
 
+#if defined(__GNUC__) || defined(__clang__)
+  #define _RESTRICT __restrict__
+#elif defined(_MSC_VER)
+  #define _RESTRICT __restrict
+#else
+  #define _RESTRICT
+#endif
+
 #ifdef __GNUC__
 __attribute__ ((always_inline, hot))
+#elif defined(_MSC_VER)
+__forceinline
 #endif
-static inline const unsigned char* GetMatch(const unsigned char* __restrict__ scan,
-                                            const unsigned char* __restrict__ match,
-                                            const unsigned char* __restrict__ end
+static inline const unsigned char* GetMatch(const unsigned char* _RESTRICT scan,
+                                            const unsigned char* _RESTRICT match,
+                                            const unsigned char* _RESTRICT end
                                             , const unsigned char* safe_end) {
+#undef _RESTRICT
 #ifdef __GNUC__
   /* Optimized Function based on cloudflare's zlib fork.
    * Note that this may read up to 15 bytes beyond end,

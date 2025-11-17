@@ -549,9 +549,11 @@ int main(int argc, const char * argv[]) {
     std::vector<int> args;
     int files = 0;
     if (argc >= 2){
+        bool positional_only_mode = false;
         for (int i = 1; i < argc; i++) {
             int strlen = strnlen(argv[i], 64);  //File names may be longer and are unaffected by this check
-            if (strncmp(argv[i], "-", 1) != 0){
+            if (!positional_only_mode && strcmp(argv[i], "--") == 0) {positional_only_mode = true;}
+            else if (positional_only_mode || strncmp(argv[i], "-", 1) != 0){
                 args.push_back(i);
                 files++;
             }
