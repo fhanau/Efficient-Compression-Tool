@@ -142,9 +142,16 @@ endif()
 # Enable ZLIB_CONST for everything
 add_definitions(-DZLIB_CONST)
 
-# Ensure that zlib target points to our custom zlib zlib
-set(ZLIB_ROOT "zlib/")
-find_package(ZLIB)
+# Set CMake variables so that other libraries like libpng and mozjpeg
+# can find our custom zlib when calling find_package(ZLIB REQUIRED).
+# find_package() fails (at configuration time) otherwise because the
+# zlib static library object doesn't exist until build time.
+set(ZLIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/zlib/")
+set(ZLIB_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/zlib")
+# ZLIB_LIBRARY needs to be set to where the built library will end up
+set(ZLIB_LIBRARY "zlib/${CMAKE_STATIC_LIBRARY_PREFIX}zlib${CMAKE_STATIC_LIBRARY_SUFFIX}")
+# Now this check should pass
+find_package(ZLIB REQUIRED)
 
 option(ECT_MULTITHREADING "Enable multithreaded processing support" ON)
 option(ECT_MP3_SUPPORT "Enable MP3 support (not currently working)" OFF)
