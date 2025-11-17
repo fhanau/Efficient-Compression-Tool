@@ -24,7 +24,7 @@ void MatchFinder_Create(CMatchFinder *p)
   }
   p->son = p->hash + LZFIND_HASH_SIZE;
 
-  memset(p->hash, 0, LZFIND_HASH_SIZE * sizeof(unsigned));
+  memset(p->hash, 0, LZFIND_HASH_SIZE * sizeof(UInt32));
   p->cyclicBufferPos = 0;
   p->pos = ZOPFLI_WINDOW_SIZE;
 }
