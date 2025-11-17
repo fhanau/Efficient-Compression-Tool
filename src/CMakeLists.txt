@@ -18,6 +18,19 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/../.git" AND NOT EXISTS "${CMAKE_SOURCE_DIR}/../s
     message (FATAL_ERROR "Submodules are not initialized. Run \n\tgit submodule update --init --recursive\n within the repository")
 endif()
 
+# Enable LTO for release builds
+if(NOT CMAKE_BUILD_TYPE MATCHES Debug)
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT IPO_ERROR)
+
+  if(IPO_SUPPORTED)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+    message(STATUS "IPO / LTO enabled")
+  else()
+    message(STATUS "IPO / LTO not supported: <${IPO_ERROR}>")
+  endif()
+endif()
+
 add_executable(ect
   main.cpp
   gztools.cpp
