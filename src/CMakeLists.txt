@@ -68,7 +68,7 @@ if(WIN32)
   # as well as paths longer than 260 characters. It also configures UAC handling.
   target_sources(ect PRIVATE ect.manifest.rc)
 
-  # Disable CMake's automatic manifest generation on MSVC since we provide our own.
+  # Disable MSVC's automatic manifest generation since we provide our own.
   if(MSVC)
     target_link_options(ect PRIVATE "/MANIFEST:NO")
   endif()
