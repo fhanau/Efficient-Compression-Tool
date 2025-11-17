@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <string>
 #include <cstring>
+#include <cstdint>
 #include <vector>
 
 //Compile support for folder input. Requires std::filesystem introduced in C++17.
