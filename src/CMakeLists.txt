@@ -6,7 +6,7 @@ cmake_policy(SET CMP0074 NEW)
 
 include(GNUInstallDirs)
 
-#Note that C++11 is still supported, but using it will cause the directory support to be disabled.
+# C++17 is required for <filesystem>/directory support.
 set (CMAKE_CXX_STANDARD 17)
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -45,11 +45,10 @@ if(NOT MSVC)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-sign-compare -Wno-unused -Wno-unused-parameter")
 endif()
 
-# Use -Ofast in release builds
-# TODO: This is now deprecated in clang and likely makes little difference, switch back to -O3.
+# Use -O3 in release builds
 foreach(var CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-  if(${var} MATCHES "-O(2|3)")
-    string(REGEX REPLACE "-O(2|3)" "-Ofast" ${var} "${${var}}")
+  if(${var} MATCHES "-O2")
+    string(REGEX REPLACE "-O2" "-O3" ${var} "${${var}}")
   endif()
 endforeach()
 

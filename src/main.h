@@ -12,10 +12,9 @@
 #include <vector>
 
 //Compile support for folder input. Requires std::filesystem introduced in C++17.
-#if __cplusplus >= 201703L
+// TODO(cleanup): This is now supported unconditionally, we can clean up the define.
 #define FS_SUPPORTED
 #include <filesystem>
-#endif
 
 struct ECTOptions{
   unsigned Mode;
