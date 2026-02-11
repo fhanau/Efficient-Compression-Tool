@@ -7,20 +7,31 @@ extern "C" {
 
 #include <stddef.h>
 
+typedef enum {
+  ECT_JPEG_AUTOROTATE_OFF = 0,
+  ECT_JPEG_AUTOROTATE_FORCE = 1,
+  ECT_JPEG_AUTOROTATE_PERFECT = 2
+} ECTJPEGAutorotateMode;
+
+typedef enum {
+  ECT_PNG_ALL_FILTERS_OFF = 0,
+  ECT_PNG_ALL_FILTERS_NORMAL = 1,
+  ECT_PNG_ALL_FILTERS_BRUTEFORCE = 2
+} ECTPNGAllFiltersMode;
+
 typedef struct {
-	int compression_level;
-	int strip;
-	int jpeg_progressive_encoding;
-	int jpeg_autorotate_mode;
-	int jpeg_arithmetic_encoding;
-	int keep_modification_time;
-	int strict_losslessness;
-	int png_reuse_filter_color_types;
-	int png_allfilters;
-	int png_allfilters_brute_force;
-	int palette_sort;
-    unsigned char deflate_threads;
-    unsigned char file_threads;
+  int compression_level;
+  int strip;
+  int jpeg_progressive_encoding;
+  int jpeg_autorotate_mode;
+  int jpeg_arithmetic_encoding;
+  int keep_modification_time;
+  int strict_losslessness;
+  int png_reuse_filter_color_types;
+  int png_all_filters_mode;
+  int palette_sort;
+  unsigned char deflate_threads;
+  unsigned char file_threads;
 } LibECTOptions;
 
 void ect_init_options(LibECTOptions* options);
