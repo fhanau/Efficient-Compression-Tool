@@ -18,8 +18,9 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/../.git" AND NOT EXISTS "${CMAKE_SOURCE_DIR}/../s
     message (FATAL_ERROR "Submodules are not initialized. Run \n\tgit submodule update --init --recursive\n within the repository")
 endif()
 
-add_executable(ect
-  main.cpp
+add_library(ect_static STATIC
+  ect_core.cpp
+  libect.cpp
   gztools.cpp
   jpegtran.cpp
   LzFind.c
@@ -33,7 +34,7 @@ add_executable(ect
   support.h
   mozjpeg/transupp.c)
 
-add_executable(ect::ect ALIAS ect)
+add_executable(ect main.cpp)
 
 if(MINGW)
   add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-mno-ms-bitfields>)
@@ -174,3 +175,10 @@ if(ECT_MP3_SUPPORT)
 endif()
 
 install(TARGETS ect RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+target_link_libraries(ect ect_static)
+
+target_include_directories(ect_static
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+  PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/mozjpeg
+)
