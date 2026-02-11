@@ -6,7 +6,7 @@ extern "C" {
 
 void ect_init_options(LibECTOptions* options) {
   memset(options, 0, sizeof(LibECTOptions));
-  options->compression_level = 3;
+  options->compression_level = ECT_COMPRESSION_LEVEL_DEFAULT;
 }
 
 static void ect_options_to_internal(const LibECTOptions* options, struct ECTOptions* internal) {
