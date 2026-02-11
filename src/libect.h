@@ -12,6 +12,7 @@ typedef struct {
 	int strip;
 	int jpeg_progressive_encoding;
 	int jpeg_autorotate_mode;
+	int jpeg_arithmetic_encoding;
 	int keep_modification_time;
 	int strict_losslessness;
 	int png_reuse_filter_color_types;

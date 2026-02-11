@@ -20,7 +20,7 @@ static void ect_options_to_internal(const LibECTOptions* options, struct ECTOpti
     internal->palette_sort = options->palette_sort << 8;
     internal->Progressive = options->jpeg_progressive_encoding;
     internal->Autorotate = options->jpeg_autorotate_mode;
-    internal->Arithmetic = options->arithmetic;
+    internal->Arithmetic = options->jpeg_arithmetic_encoding;
     internal->DeflateMultithreading = options->deflate_threads;
     internal->FileMultithreading = options->file_threads;
     internal->keep = options->keep_modification_time;
