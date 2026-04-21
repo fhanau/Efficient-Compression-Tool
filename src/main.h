@@ -25,6 +25,7 @@ struct ECTOptions{
   unsigned Autorotate;
   bool JPEG_ACTIVE;
   bool PNG_ACTIVE;
+  bool WEBP_ACTIVE;
   bool SavingsCounter;
   bool Strict;
   bool Arithmetic;

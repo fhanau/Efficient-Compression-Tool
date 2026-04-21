@@ -136,6 +136,7 @@ find_package(ZLIB)
 
 option(ECT_MULTITHREADING "Enable multithreaded processing support" ON)
 option(ECT_MP3_SUPPORT "Enable MP3 support (not currently working)" OFF)
+option(ECT_WEBP_SUPPORT "Enable WebP optimization support" ON)
 
 add_subdirectory(leanify EXCLUDE_FROM_ALL)
 add_subdirectory(lodepng EXCLUDE_FROM_ALL)
@@ -157,6 +158,19 @@ target_link_libraries(ect
   zlib::zlib
   jpeg-static
 )
+
+if(ECT_WEBP_SUPPORT)
+  find_path(WEBP_INCLUDE_DIR webp/decode.h)
+  find_library(WEBP_LIBRARY NAMES webp libwebp)
+  find_library(WEBPMUX_LIBRARY NAMES webpmux libwebpmux)
+  if(WEBP_INCLUDE_DIR AND WEBP_LIBRARY AND WEBPMUX_LIBRARY)
+    target_include_directories(ect PRIVATE ${WEBP_INCLUDE_DIR})
+    target_link_libraries(ect ${WEBP_LIBRARY} ${WEBPMUX_LIBRARY})
+    target_compile_definitions(ect PRIVATE WEBP_SUPPORTED=1)
+  else()
+    message(WARNING "WebP development libraries not found. Building without WebP optimization support.")
+  endif()
+endif()
 
 # mozjpeg generates some header files that we need to be able to include
 target_include_directories(ect

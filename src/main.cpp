@@ -10,6 +10,13 @@
 #include <limits.h>
 #include <atomic>
 #include <cctype>
+#include <vector>
+
+#ifdef WEBP_SUPPORTED
+#include <webp/decode.h>
+#include <webp/encode.h>
+#include <webp/mux.h>
+#endif
 
 #ifndef NOMULTI
 #include <thread>
@@ -130,6 +137,7 @@ static void Usage() {
             "Advanced Options:\n"
             " --disable-png     Disable PNG optimization\n"
             " --disable-jpg     Disable JPEG optimization\n"
+            " --disable-webp    Disable WebP optimization\n"
             " --strict          Enable strict losslessness\n"
             " --reuse           Keep PNG filter and colortype\n"
             " --allfilters      Try all PNG filter modes\n"
@@ -313,6 +321,136 @@ static unsigned char OptimizeJPEG(const char * Infile, const ECTOptions& Options
     return res == 2;
 }
 
+#ifdef WEBP_SUPPORTED
+static unsigned char OptimizeWebP(const char * Infile, const ECTOptions& Options){
+    (void)Options;
+    long long input_size = filesize(Infile);
+    if (input_size <= 0) {
+        fprintf(stderr, "%s: can't read from file\n", Infile);
+        return 1;
+    }
+
+    std::vector<uint8_t> input((size_t)input_size);
+    FILE* stream = fopen(Infile, "rb");
+    if (!stream) {
+        fprintf(stderr, "%s: can't open for reading\n", Infile);
+        return 1;
+    }
+    if (fread(input.data(), 1, input.size(), stream) != input.size()) {
+        fclose(stream);
+        fprintf(stderr, "%s: can't read file\n", Infile);
+        return 1;
+    }
+    fclose(stream);
+
+    WebPBitstreamFeatures features;
+    if (WebPGetFeatures(input.data(), input.size(), &features) != VP8_STATUS_OK) {
+        fprintf(stderr, "%s: invalid WebP bitstream\n", Infile);
+        return 1;
+    }
+    if (features.has_animation) {
+        if (Options.SavingsCounter) {
+            printf("%s: animated WebP skipped\n", Infile);
+        }
+        return 0;
+    }
+
+    int width = 0;
+    int height = 0;
+    uint8_t* rgba = WebPDecodeRGBA(input.data(), input.size(), &width, &height);
+    if (!rgba || width <= 0 || height <= 0) {
+        if (rgba) {
+            WebPFree(rgba);
+        }
+        fprintf(stderr, "%s: failed to decode WebP\n", Infile);
+        return 1;
+    }
+
+    uint8_t* bitstream = nullptr;
+    size_t bitstream_size = WebPEncodeLosslessRGBA(rgba, width, height, width * 4, &bitstream);
+    WebPFree(rgba);
+    if (!bitstream || !bitstream_size) {
+        if (bitstream) {
+            WebPFree(bitstream);
+        }
+        fprintf(stderr, "%s: failed to encode WebP lossless bitstream\n", Infile);
+        return 1;
+    }
+
+    WebPData input_data;
+    input_data.bytes = input.data();
+    input_data.size = input.size();
+
+    WebPData image_data;
+    image_data.bytes = bitstream;
+    image_data.size = bitstream_size;
+
+    WebPMux* source_mux = WebPMuxCreate(&input_data, 0);
+    WebPMux* out_mux = WebPMuxNew();
+    if (!out_mux || WebPMuxSetImage(out_mux, &image_data, 1) != WEBP_MUX_OK) {
+        if (source_mux) {
+            WebPMuxDelete(source_mux);
+        }
+        if (out_mux) {
+            WebPMuxDelete(out_mux);
+        }
+        WebPFree(bitstream);
+        fprintf(stderr, "%s: failed to create muxed WebP\n", Infile);
+        return 1;
+    }
+
+    if (source_mux) {
+        static const char* kChunkNames[] = {"ICCP", "EXIF", "XMP "};
+        for (size_t i = 0; i < (sizeof(kChunkNames) / sizeof(kChunkNames[0])); i++) {
+            WebPData chunk;
+            chunk.bytes = nullptr;
+            chunk.size = 0;
+            if (WebPMuxGetChunk(source_mux, kChunkNames[i], &chunk) == WEBP_MUX_OK) {
+                WebPMuxSetChunk(out_mux, kChunkNames[i], &chunk, 1);
+            }
+        }
+    }
+
+    WebPData assembled;
+    WebPDataInit(&assembled);
+    const WebPMuxError mux_status = WebPMuxAssemble(out_mux, &assembled);
+    WebPMuxDelete(out_mux);
+    if (source_mux) {
+        WebPMuxDelete(source_mux);
+    }
+    WebPFree(bitstream);
+
+    if (mux_status != WEBP_MUX_OK) {
+        fprintf(stderr, "%s: failed to assemble optimized WebP\n", Infile);
+        return 1;
+    }
+
+    unsigned char error = 0;
+    if (assembled.size < (size_t)input_size) {
+        stream = fopen(Infile, "wb");
+        if (!stream) {
+            fprintf(stderr, "%s: can't open for writing\n", Infile);
+            error = 1;
+        } else if (fwrite(assembled.bytes, 1, assembled.size, stream) != assembled.size) {
+            fprintf(stderr, "%s: can't write optimized WebP\n", Infile);
+            error = 1;
+        }
+        if (stream) {
+            fclose(stream);
+        }
+    }
+
+    WebPDataClear(&assembled);
+    return error;
+}
+#else
+static unsigned char OptimizeWebP(const char * Infile, const ECTOptions& Options){
+    (void)Infile;
+    (void)Options;
+    return 1;
+}
+#endif
+
 #ifdef MP3_SUPPORTED
 #error MP3 code may corrupt metadata and has been disabled.
 static void OptimizeMP3(const char * Infile, const ECTOptions& Options){
@@ -353,10 +491,15 @@ unsigned fileHandler(const char * Infile, const ECTOptions& Options, int interna
     const FileType detected_type = DetectFileType(Infile);
     const bool handle_png = Options.PNG_ACTIVE && (detected_type == FileType::PNG || (detected_type == FileType::UNKNOWN && ext == "png"));
     const bool handle_jpeg = Options.JPEG_ACTIVE && (detected_type == FileType::JPEG || (detected_type == FileType::UNKNOWN && (ext == "jpg" || ext == "jpeg")));
+#ifdef WEBP_SUPPORTED
+    const bool handle_webp = Options.WEBP_ACTIVE && (detected_type == FileType::WEBP || (detected_type == FileType::UNKNOWN && ext == "webp"));
+#else
+    const bool handle_webp = false;
+#endif
     time_t t = 0;
     unsigned error = 0;
 
-    if (handle_png || handle_jpeg || (Options.Gzip && !internal)){
+    if (handle_png || handle_jpeg || handle_webp || (Options.Gzip && !internal)){
         if(Options.keep){
             t = get_file_time(Infile);
         }
@@ -376,6 +519,8 @@ unsigned fileHandler(const char * Infile, const ECTOptions& Options, int interna
                 error = OptimizePNG(Infile, Options);
             } else if (handle_jpeg) {
                 error = OptimizeJPEG(Infile, Options);
+            } else if (handle_webp) {
+                error = OptimizeWebP(Infile, Options);
             }
             if(Options.SavingsCounter && !internal){
                 processedfiles.fetch_add(1);
@@ -584,6 +729,7 @@ int main(int argc, const char * argv[]) {
 #endif
     Options.PNG_ACTIVE = true;
     Options.JPEG_ACTIVE = true;
+    Options.WEBP_ACTIVE = true;
     Options.Arithmetic = false;
     Options.Gzip = false;
     Options.Zip = 0;
@@ -628,6 +774,7 @@ int main(int argc, const char * argv[]) {
             else if (strncmp(argv[i], "-keep", strlen) == 0) {Options.keep = true;}
             else if (strcmp(argv[i], "--disable-jpeg") == 0 || strcmp(argv[i], "--disable-jpg") == 0 ){Options.JPEG_ACTIVE = false;}
             else if (strcmp(argv[i], "--disable-png") == 0){Options.PNG_ACTIVE = false;}
+            else if (strcmp(argv[i], "--disable-webp") == 0){Options.WEBP_ACTIVE = false;}
 #ifdef FS_SUPPORTED
             else if (strncmp(argv[i], "-recurse", strlen) == 0)  {Options.Recurse = 1;}
 #endif

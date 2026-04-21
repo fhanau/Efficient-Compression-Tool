@@ -5,6 +5,7 @@
 #include <vector>
 #include <fcntl.h>
 #include <algorithm>
+#include <cctype>
 #ifdef _WIN32
 #ifdef _MSC_VER
 #define NOMINMAX
@@ -149,7 +150,8 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
     return size;
   }
   string extension = filename.substr(filename.find_last_of('.'));
-  if(!(extension == ".PNG" || extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".JPEG" || extension == ".JPG" || isZIP)){
+  std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+  if(!(extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".webp" || isZIP)){
     return size;
   }
 
