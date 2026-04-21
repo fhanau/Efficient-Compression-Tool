@@ -140,6 +140,32 @@ bool GetCDHeaders(const uint8_t* fp, size_t size, const EOCD& eocd, size_t zip_o
   return true;
 }
 
+bool CreateTempFilePath(std::string* out_path) {
+#ifdef _WIN32
+  char temp_path[MAX_PATH];
+  if (!GetTempPathA(MAX_PATH, temp_path)) {
+    return false;
+  }
+  char temp_file[MAX_PATH];
+  if (!GetTempFileNameA(temp_path, "ect", 0, temp_file)) {
+    return false;
+  }
+  *out_path = temp_file;
+  return true;
+#else
+  std::string tmpl = (std::filesystem::temp_directory_path() / "ectXXXXXX").string();
+  std::vector<char> temp_path(tmpl.begin(), tmpl.end());
+  temp_path.push_back('\0');
+  int fd = mkstemp(temp_path.data());
+  if (fd < 0) {
+    return false;
+  }
+  close(fd);
+  *out_path = temp_path.data();
+  return true;
+#endif
+}
+
 }  // namespace
 
 uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_leanified, string filename, const ECTOptions& Options){
@@ -155,34 +181,17 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
     return size;
   }
 
-  char tempname[32];
-  memcpy(tempname, "tmpXXXXXX", 10);
-#ifdef _WIN32
-#ifdef _MSC_VER
-  _mktemp_s(tempname, 10);
-#else
-  int descriptor = mkstemp(tempname);
-  close(descriptor);
-  //Just in case
-  unlink(tempname);
-#endif
-
-  memcpy(tempname + 9, extension.c_str(), extension.length() + 1);
-  if (exists(tempname)) {
-    printf("Error: Can't create temp file\n");
+  std::string tempname;
+  if (!CreateTempFilePath(&tempname)) {
+    fprintf(stderr, "Error: Can't create temp file for archive entry '%s'\n", filename.c_str());
     return size;
   }
-  FILE* stream = fopen(tempname, "wb");
-#else
-  memcpy(tempname + 9, extension.c_str(), extension.length() + 1);
-
-  int fd = mkstemps(tempname, extension.size());
-  if (fd < 0) {
-    perror("Can't create temp file");
+  FILE* stream = fopen(tempname.c_str(), "wb");
+  if (!stream) {
+    fprintf(stderr, "Error: Can't create temp file for archive entry '%s'\n", filename.c_str());
+    unlink(tempname.c_str());
     return size;
   }
-  FILE* stream = fdopen(fd, "wb");
-#endif
   fwrite(data, 1, size, stream);
   fclose(stream);
 
@@ -190,17 +199,26 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
     std::vector<int> args;
     args.push_back(0);
     const char * v[1];
-    v[0] = tempname;
-    zipHandler(args, v, 1, Options);
+    v[0] = tempname.c_str();
+    if (zipHandler(args, v, 1, Options)) {
+      fprintf(stderr, "Error: Failed to optimize nested archive entry '%s'\n", filename.c_str());
+    }
   } else {
-    fileHandler(tempname, Options, 1);
+    if (fileHandler(tempname.c_str(), Options, 1)) {
+      fprintf(stderr, "Error: Failed to optimize archive entry '%s'\n", filename.c_str());
+    }
   }
-  long long new_size = filesize(tempname);
+  long long new_size = filesize(tempname.c_str());
 
   if(new_size < size && new_size >= 0){
-    stream = fopen(tempname, "rb");
+    stream = fopen(tempname.c_str(), "rb");
+    if (!stream) {
+      fprintf(stderr, "Error: Can't reopen temp file for archive entry '%s'\n", filename.c_str());
+      unlink(tempname.c_str());
+      return size;
+    }
     if(fread(data - size_leanified, 1, new_size, stream) < new_size){
-      printf("Error: Read error\n");
+      fprintf(stderr, "Error: Read error for archive entry '%s'\n", filename.c_str());
     }
     else{
       size = new_size;
@@ -208,7 +226,7 @@ uint32_t Zip::RecompressFile(unsigned char* data, uint32_t size, uint32_t size_l
     fclose(stream);
   }
 
-  unlink(tempname);
+  unlink(tempname.c_str());
   return size;
 }
 
@@ -301,18 +319,38 @@ size_t Zip::Leanify(const ECTOptions& Options, size_t* files) {
     }
 
     // If the method is store, just Leanify the embedded file
-    // don't try to change it to deflate, it might break some file.
+    // and try deflate recompression in non-strict mode.
     if (local_header->compression_method == 0) {
-      // method is store
       if (local_header->compressed_size) {
-        uint32_t new_size = Options.Strict ? local_header->compressed_size : RecompressFile(p_read, local_header->compressed_size, p_read - p_write, filename, Options);
-        if(new_size == local_header->compressed_size){
+        uint32_t new_uncomp_size = Options.Strict ? local_header->compressed_size : RecompressFile(p_read, local_header->compressed_size, p_read - p_write, filename, Options);
+        if(new_uncomp_size == local_header->compressed_size){
           memmove(p_write, p_read, local_header->compressed_size);
         }
-        cd_header.crc32 = local_header->crc32 = crc32(0, p_write, new_size);
-        cd_header.compressed_size = local_header->compressed_size = new_size;
-        cd_header.uncompressed_size = local_header->uncompressed_size = new_size;
-        p_write += local_header->compressed_size;
+        cd_header.crc32 = local_header->crc32 = crc32(0, p_write, new_uncomp_size);
+
+        bool stored_as_deflate = false;
+        uint8_t* compress_buf = nullptr;
+        size_t new_comp_size = 0;
+        if (!Options.Strict && new_uncomp_size) {
+          ZopfliBuffer(Options.Mode, Options.DeflateMultithreading, p_write, new_uncomp_size, &compress_buf, &new_comp_size);
+          if (new_comp_size < new_uncomp_size) {
+            cd_header.compression_method = local_header->compression_method = 8;
+            cd_header.compressed_size = local_header->compressed_size = new_comp_size;
+            cd_header.uncompressed_size = local_header->uncompressed_size = new_uncomp_size;
+            memcpy(p_write, compress_buf, new_comp_size);
+            p_write += new_comp_size;
+            stored_as_deflate = true;
+          }
+        }
+        if (compress_buf) {
+          delete[] compress_buf;
+        }
+        if (!stored_as_deflate) {
+          cd_header.compression_method = local_header->compression_method = 0;
+          cd_header.compressed_size = local_header->compressed_size = new_uncomp_size;
+          cd_header.uncompressed_size = local_header->uncompressed_size = new_uncomp_size;
+          p_write += local_header->compressed_size;
+        }
       }
       continue;
     }
