@@ -139,10 +139,20 @@ static void Usage() {
             " --disable-jpg     Disable JPEG optimization\n"
             " --disable-webp    Disable WebP optimization\n"
             " --strict          Enable strict losslessness\n"
+            " --                Treat all following arguments as input paths\n"
             " --reuse           Keep PNG filter and colortype\n"
             " --allfilters      Try all PNG filter modes\n"
             " --allfilters-b    Try all PNG filter modes, including brute force strategies\n"
             " --pal_sort=i      Try i different PNG palette filtering strategies (up to 120)\n"
+            "\n"
+            "ZIP behavior:\n"
+            "  ZIP stored entries are recompressed with Deflate by default when beneficial.\n"
+            "  In --strict mode, stored entries remain stored.\n"
+            "  Zip64 single-disk archives are supported.\n"
+            "  Multi-disk Zip64 archives are not supported.\n"
+            "\n"
+            "Type detection:\n"
+            "  File signatures (magic bytes) are used before extensions.\n"
 #ifndef NOMULTI
             " --mt-deflate      Use per block multithreading in Deflate\n"
             " --mt-deflate=i    Use per block multithreading in Deflate with i threads\n"
@@ -247,7 +257,7 @@ static unsigned char OptimizePNG(const char * Infile, const ECTOptions& Options)
     int x = 1;
     long long size = filesize(Infile);
     if(size < 0){
-        printf("Can't read from %s\n", Infile);
+        fprintf(stderr, "Can't read from %s\n", Infile);
         return 1;
     }
     if(mode == 9 && !Options.Reuse && !Options.Allfilters){
@@ -581,7 +591,7 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
             char abs_path[MAX_PATH];
             if (!GetFullPathNameA(argv[args[0]], MAX_PATH, abs_path, 0)) {
 #endif
-                printf("Error: Could not find directory\n");
+                fprintf(stderr, "Error: Could not find directory\n");
                 return 1;
             }
             zipfilename = abs_path;
@@ -591,7 +601,7 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
         }
         zipfilename += ".zip";
         if(exists(zipfilename.c_str())){
-            printf("Error: ZIP file for chosen file/folder already exists, but is not listed.\n");
+            fprintf(stderr, "Error: ZIP file for chosen file/folder already exists, but is not listed.\n");
             return 1;
         }
     }
@@ -620,7 +630,7 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
                         }
                     }
                     if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), (((std::string)name) + "/").c_str(), 0, 0, 0, 0, file_path)) {
-                        printf("can't add directory '%s'\n", file_path);
+                        fprintf(stderr, "can't add directory '%s'\n", file_path);
                     }
                 }
                 else{
@@ -654,11 +664,11 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
             }
             if(!paths.size()){
                 if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), (fold.erase(0, substr) + "/").c_str(), 0, 0, 0, 0, argv[args[i]])) {
-                    printf("can't add directory '%s'\n", argv[args[i]]);
+                    fprintf(stderr, "can't add directory '%s'\n", argv[args[i]]);
                 }
             }
 #else
-            printf("%s: Zipping folders is not supported\n", argv[args[i]]);
+            fprintf(stderr, "%s: Zipping folders is not supported\n", argv[args[i]]);
 #endif
         }
         else{
@@ -810,10 +820,10 @@ int main(int argc, const char * argv[]) {
             }
 #endif
             else if (strcmp(argv[i], "--arithmetic") == 0) {Options.Arithmetic = true;}
-            else {printf("Unknown flag: %s\n", argv[i]); return 0;}
+            else {fprintf(stderr, "Unknown flag: %s\n", argv[i]); return 0;}
         }
         if(Options.Autorotate > 0) {
-            if (!Options.strip) {printf("Flag -autorotate requires -strip\n"); return 0;}
+            if (!Options.strip) {fprintf(stderr, "Flag -autorotate requires -strip\n"); return 0;}
         }
         if(Options.Reuse){
             Options.Allfilters = 0;

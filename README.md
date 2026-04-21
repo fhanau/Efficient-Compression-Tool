@@ -2,7 +2,19 @@ Efficient Compression Tool
 ============================
 
 Efficient Compression Tool (or ECT) is a C++ file optimizer.  
-It supports PNG, JPEG, GZIP and ZIP files.
+It supports PNG, JPEG, WebP (non-animated lossless optimization), GZIP and ZIP files.
+
+## Behavior Notes (2026-04-21)
+- Type detection uses file signatures (magic bytes) before file extensions.
+- ZIP stored entries are recompressed with Deflate by default if this makes output smaller.
+- `--strict` keeps ZIP stored entries as stored (no stored->deflate conversion).
+- Zip64 single-disk archives are supported for reading and writing.
+- Multi-disk ZIP/Zip64 archives are not supported and fail safely.
+- Animated WebP files are skipped (not treated as an error).
+
+## CLI Notes
+- `--disable-webp`: disable WebP optimization.
+- `--`: treat all following arguments as positional paths, even if they start with `-`.
 
 Performance (v0.9.2)
 -------------------------
