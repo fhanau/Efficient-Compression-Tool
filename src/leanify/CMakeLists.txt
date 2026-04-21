@@ -12,4 +12,4 @@ add_library(leanify::leanify ALIAS leanify)
 
 target_compile_features(leanify
 	PRIVATE
-		cxx_std_11)
+		cxx_std_17)
