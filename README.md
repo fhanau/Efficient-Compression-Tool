@@ -16,30 +16,23 @@ It supports PNG, JPEG, WebP (non-animated lossless optimization), GZIP and ZIP f
 - `--disable-webp`: disable WebP optimization.
 - `--`: treat all following arguments as positional paths, even if they start with `-`.
 
-Performance (v0.9.2)
+Performance (v0.9.7)
 -------------------------
-All tests were run on macOS 12.5 using an Intel i7-7700HQ and clang.  
-File: enwik8, 100,000,000 bytes, compressed into gzip format
+Benchmarked on 2026-04-21.
+
+- OS: Windows 11
+- CPU: Intel Core i3-8130U (2C/4T)
+- Compiler: MSVC (Release)
+- Input: `enwik8` (100,000,000 bytes), `-gzip` mode
+- Notes: each level was run once on the same machine
 
 |  Compressor    |  File Size   | Time       |
 |  ----------    |  -----       | ---------- |
-|  ECT -1        |  36,493,257  |      3.5s  |
-|  gzip -9       |  36,475,811  |      5.8s  |
-| [zopfli] -i1   |  35,102,371  |  1m 30.2s  |
-|  ECT -2        |  35,019,440  |     14.8s  |
-|  zopfli -i5    |  34,983,757  |  2m 12.0s  |
-|  ECT -3        |  35,014,543  |     16.2s  |
-|  zopfli -i15   |  34,966,078  |  3m 59.9s  |
-|  ECT -4        |  34,963,581  |     19.8s  |
-|  zopfli -i30   |  34,961,453  |  6m 30.6s  |
-|  ECT -5        |  34,942,796  |     25.1s  |
-|  ECT -6        |  34,943,943  |     41.9s  |
-|  ECT -7        |  34,942,348  |     59.7s  |
-|  ECT -8        |  34,941,125  |  2m 25.6s  |
-|  ECT -9        |  34,937,781  |  3m 17.9s  |
-
-
-[zopfli]: https://github.com/google/zopfli
+|  ECT -1        |  36,493,273  |      5.1s  |
+|  ECT -3        |  35,014,572  |     32.6s  |
+|  ECT -5        |  34,942,674  |     54.4s  |
+|  ECT -7        |  34,942,246  |   2m 12.3s |
+|  ECT -9        |  34,937,520  |   4m 46.7s |
 
 ## Building
 To build ECT, you need to recursively clone it, just downloading isn’t enough, i. e. `git clone --recursive https://github.com/fhanau/Efficient-Compression-Tool.git`  
