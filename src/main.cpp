@@ -9,6 +9,7 @@
 #include "miniz/miniz.h"
 #include <limits.h>
 #include <atomic>
+#include <cctype>
 
 #ifndef NOMULTI
 #include <thread>
@@ -41,6 +42,54 @@ static FormattedSize FormatBytes(double size) {
         unit_idx++;
     }
     return {size, kUnits[unit_idx]};
+}
+
+enum class FileType {
+    UNKNOWN,
+    PNG,
+    JPEG,
+    GZIP,
+    ZIP,
+    WEBP
+};
+
+static std::string GetLowercaseExtension(const char* filepath) {
+    std::string ext = filepath;
+    size_t dot = ext.find_last_of('.');
+    if (dot == std::string::npos || dot + 1 >= ext.size()) {
+        return "";
+    }
+    ext = ext.substr(dot + 1);
+    for (char& c : ext) {
+        c = (char)std::tolower((unsigned char)c);
+    }
+    return ext;
+}
+
+static FileType DetectFileType(const char* filepath) {
+    FILE* stream = fopen(filepath, "rb");
+    if (!stream) {
+        return FileType::UNKNOWN;
+    }
+    unsigned char buf[12] = {0};
+    const size_t read = fread(buf, 1, sizeof(buf), stream);
+    fclose(stream);
+    if (read >= 8 && memcmp(buf, "\x89PNG\r\n\x1A\n", 8) == 0) {
+        return FileType::PNG;
+    }
+    if (read >= 3 && buf[0] == 0xFF && buf[1] == 0xD8 && buf[2] == 0xFF) {
+        return FileType::JPEG;
+    }
+    if (read >= 3 && buf[0] == 31 && buf[1] == 139 && buf[2] == 8) {
+        return FileType::GZIP;
+    }
+    if (read >= 4 && memcmp(buf, "PK\x03\x04", 4) == 0) {
+        return FileType::ZIP;
+    }
+    if (read >= 12 && memcmp(buf, "RIFF", 4) == 0 && memcmp(buf + 8, "WEBP", 4) == 0) {
+        return FileType::WEBP;
+    }
+    return FileType::UNKNOWN;
 }
 
 static void Usage() {
@@ -300,12 +349,14 @@ static void OptimizeMP3(const char * Infile, const ECTOptions& Options){
 #endif
 
 unsigned fileHandler(const char * Infile, const ECTOptions& Options, int internal){
-    std::string Ext = Infile;
-    std::string x = Ext.substr(Ext.find_last_of(".") + 1);
+    const std::string ext = GetLowercaseExtension(Infile);
+    const FileType detected_type = DetectFileType(Infile);
+    const bool handle_png = Options.PNG_ACTIVE && (detected_type == FileType::PNG || (detected_type == FileType::UNKNOWN && ext == "png"));
+    const bool handle_jpeg = Options.JPEG_ACTIVE && (detected_type == FileType::JPEG || (detected_type == FileType::UNKNOWN && (ext == "jpg" || ext == "jpeg")));
     time_t t = 0;
     unsigned error = 0;
 
-    if ((Options.PNG_ACTIVE && (x == "PNG" || x == "png")) || (Options.JPEG_ACTIVE && (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg")) || (Options.Gzip && !internal)){
+    if (handle_png || handle_jpeg || (Options.Gzip && !internal)){
         if(Options.keep){
             t = get_file_time(Infile);
         }
@@ -321,9 +372,9 @@ unsigned fileHandler(const char * Infile, const ECTOptions& Options, int interna
                 if (statcompressedfile == 2){
                     return 1;
                 }
-            } else if (x == "PNG" || x == "png") {
+            } else if (handle_png) {
                 error = OptimizePNG(Infile, Options);
-            } else if (x == "jpg" || x == "JPG" || x == "JPEG" || x == "jpeg") {
+            } else if (handle_jpeg) {
                 error = OptimizeJPEG(Infile, Options);
             }
             if(Options.SavingsCounter && !internal){
