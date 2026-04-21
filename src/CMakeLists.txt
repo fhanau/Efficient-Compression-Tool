@@ -40,6 +40,13 @@ if(MINGW)
   add_compile_options($<$<COMPILE_LANGUAGE:C>:-mno-ms-bitfields>)
 endif()
 
+if(WIN32)
+  target_sources(ect PRIVATE ect.manifest.rc)
+  if(MSVC)
+    target_link_options(ect PRIVATE "/MANIFEST:NO")
+  endif()
+endif()
+
 if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-sign-compare -Wno-unused -Wno-unused-parameter")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-sign-compare -Wno-unused -Wno-unused-parameter")
