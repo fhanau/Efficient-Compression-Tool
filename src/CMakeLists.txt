@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
-project(ect VERSION 0.9.6 LANGUAGES CXX C)
+project(ect VERSION 0.9.7 LANGUAGES CXX C)
 cmake_policy(SET CMP0048 NEW)
 # Allow use of ZLIB_ROOT
 cmake_policy(SET CMP0074 NEW)
