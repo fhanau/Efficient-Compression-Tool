@@ -22,6 +22,7 @@
 #include "mozjpeg/transupp.h"           /* Support routines for jpegtran */
 #include "main.h"
 #include "support.h"
+#include <vector>
 
 static size_t jcopy_markers_execute_s (j_decompress_ptr srcinfo, j_compress_ptr dstinfo)
 {
@@ -179,6 +180,10 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, unsigned autorot
   /* Initialize the JPEG compression object with default error handling. */
   dstinfo.err = jpeg_std_error(&jdsterr);
   jpeg_create_compress(&dstinfo);
+  auto cleanup = [&srcinfo, &dstinfo]() {
+    jpeg_destroy_compress(&dstinfo);
+    jpeg_destroy_decompress(&srcinfo);
+  };
   if (!progressive){
     jpeg_c_set_int_param(&dstinfo, JINT_COMPRESS_PROFILE, JCP_FASTEST);
   }
@@ -186,26 +191,28 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, unsigned autorot
   /* Open the input file. */
   if (!(fp = fopen(Infile, "rb"))) {
     fprintf(stderr, "ECT: can't open %s for reading\n", Infile);
+    cleanup();
     return 2;
   }
 
   long long insize = filesize(Infile);
   if(insize < 0){
     fprintf(stderr, "ECT: can't read from %s\n", Infile);
+    fclose(fp);
+    cleanup();
     return 2;
   }
-  unsigned char* inbuffer = (unsigned char*)malloc(insize);
-  if (!inbuffer) {
-    fprintf(stderr, "ECT: memory allocation failure\n");
-    exit(1);
-  }
+  std::vector<unsigned char> inbuffer((size_t)insize);
 
-  if (fread(inbuffer, 1, insize, fp) < (size_t)insize) {
+  if (fread(inbuffer.data(), 1, (size_t)insize, fp) != (size_t)insize) {
     fprintf(stderr, "ECT: can't read from %s\n", Infile);
+    fclose(fp);
+    cleanup();
+    return 2;
   }
   fclose(fp);
 
-  jpeg_mem_src(&srcinfo, inbuffer, insize);
+  jpeg_mem_src(&srcinfo, inbuffer.data(), (size_t)insize);
 
   /* Enable saving of extra markers that we want to copy */
   if (!strip) {
@@ -291,7 +298,6 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, unsigned autorot
 
   /* Finish compression and release memory */
   jpeg_finish_compress(&dstinfo);
-  free(inbuffer);
 
   bool x = insize < outsize;
 
@@ -300,6 +306,7 @@ int mozjpegtran (bool arithmetic, bool progressive, bool strip, unsigned autorot
     if (!(fp = fopen(Outfile, "wb"))) {
       fprintf(stderr, "ECT: can't open %s for writing\n", Outfile);
       free(outbuffer);
+      cleanup();
       return 2;
     }
 

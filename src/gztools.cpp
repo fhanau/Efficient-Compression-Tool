@@ -20,6 +20,9 @@
 #endif
 
 int IsGzip(const char * Infile, char** gzip_name){
+    if (gzip_name) {
+      *gzip_name = nullptr;
+    }
     struct stat stats;
     if (stat(Infile, &stats) != 0){
       return 2;
@@ -59,13 +62,27 @@ int IsGzip(const char * Infile, char** gzip_name){
             return 2;
           }
         }
-        long file_pos = extra_size ? 10 : 12 + extra_size;
+        long file_pos = fextra ? 12 + extra_size : 10;
+        if ((size_t)file_pos >= file_size) {
+          fclose(stream);
+          return 2;
+        }
         unsigned max_fname_length = 2048;
         if (file_size - file_pos < max_fname_length) {
           max_fname_length = file_size - file_pos;
         }
+        if (!max_fname_length) {
+          fclose(stream);
+          return 2;
+        }
         (*gzip_name) = (char*)malloc(max_fname_length);
+        if (!(*gzip_name)) {
+          fclose(stream);
+          return 2;
+        }
         if (fread((*gzip_name), 1, max_fname_length, stream) != max_fname_length) {
+          free(*gzip_name);
+          *gzip_name = nullptr;
           fclose(stream);
           return 2;
         }
@@ -73,6 +90,8 @@ int IsGzip(const char * Infile, char** gzip_name){
         //if name_len < max_fname_length, string is null-terminated already, no action needed.
         if (name_len >= max_fname_length) {
           fprintf(stderr, "%s: file name too long\n", Infile);
+          free(*gzip_name);
+          *gzip_name = nullptr;
           fclose(stream);
           return 2;
         }

@@ -28,6 +28,21 @@ static std::atomic<size_t> processedfiles;
 static std::atomic<size_t> bytes;
 static std::atomic<long long> savings;
 
+struct FormattedSize {
+    double value;
+    const char* suffix;
+};
+
+static FormattedSize FormatBytes(double size) {
+    static const char* kUnits[] = {"", "K", "M", "G", "T", "P"};
+    size_t unit_idx = 0;
+    while (size >= 1024.0 && unit_idx < (sizeof(kUnits) / sizeof(kUnits[0])) - 1) {
+        size /= 1024.0;
+        unit_idx++;
+    }
+    return {size, kUnits[unit_idx]};
+}
+
 static void Usage() {
     printf (
             "Efficient Compression Tool\n"
@@ -90,40 +105,32 @@ static void ECT_ReportSavings(){
     long long localSavings = savings.load(std::memory_order_seq_cst);
     if (localProcessedFiles){
         printf("Processed %zu file%s\n", localProcessedFiles, localProcessedFiles > 1 ? "s":"");
-        if (localSavings < 0){
-            printf("Result is bigger\n");
+        if (!localBytes) {
+            printf("No compatible files found\n");
             return;
         }
-
-        int bk = 0;
-        int k = 0;
-        double smul = localSavings;
-        double bmul = localBytes;
-        while (smul > 1024) {smul /= 1024; k++;}
-        while (bmul > 1024) {bmul /= 1024; bk++;}
-        char *counter;
-        if (k == 1) {counter = (char *)"K";}
-        else if (k == 2) {counter = (char *)"M";}
-        else if (k == 3) {counter = (char *)"G";}
-        else {counter = (char *)"";}
-        char *counter2;
-        if (bk == 1){counter2 = (char *)"K";}
-        else if (bk == 2){counter2 = (char *)"M";}
-        else if (bk == 3){counter2 = (char *)"G";}
-        else {counter2 = (char *)"";}
+        const FormattedSize total_fmt = FormatBytes((double)localBytes);
+        if (localSavings < 0){
+            const FormattedSize bigger_fmt = FormatBytes((double)(-localSavings));
+            printf("Result is bigger by ");
+            printf(bigger_fmt.suffix[0] ? "%0.2f%sB" : "%0.0f%sB", bigger_fmt.value, bigger_fmt.suffix);
+            printf(" out of ");
+            printf(total_fmt.suffix[0] ? "%0.2f%sB" : "%0.0f%sB", total_fmt.value, total_fmt.suffix);
+            printf(" (%0.4f%%)\n", (100.0 * localSavings)/localBytes);
+            return;
+        }
+        const FormattedSize savings_fmt = FormatBytes((double)localSavings);
         printf("Saved ");
-        if (k == 0){printf("%0.0f", smul);}
-        else{printf("%0.2f", smul);}
-        printf("%sB out of ", counter);
-        if (bk == 0){printf("%0.0f", bmul);}
-        else{printf("%0.2f", bmul);}
-        printf("%sB (%0.4f%%)\n", counter2, (100.0 * localSavings)/localBytes);}
+        printf(savings_fmt.suffix[0] ? "%0.2f%sB" : "%0.0f%sB", savings_fmt.value, savings_fmt.suffix);
+        printf(" out of ");
+        printf(total_fmt.suffix[0] ? "%0.2f%sB" : "%0.0f%sB", total_fmt.value, total_fmt.suffix);
+        printf(" (%0.4f%%)\n", (100.0 * localSavings)/localBytes);}
     else {printf("No compatible files found\n");}
 }
 
 static int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multithreading, long long fs, unsigned ZIP, int strict){
     if (!fs){
-      printf("%s: Compression of empty files is currently not supported\n", Infile);
+      fprintf(stderr, "%s: Compression of empty files is currently not supported\n", Infile);
       return 2;
     }
     char* gzip_name = 0;
@@ -304,7 +311,7 @@ unsigned fileHandler(const char * Infile, const ECTOptions& Options, int interna
         }
         long long size = filesize(Infile);
         if (size < 0){
-            printf("%s: bad file\n", Infile);
+            fprintf(stderr, "%s: bad file\n", Infile);
             return 1;
         }
         int statcompressedfile = 0;
@@ -330,7 +337,7 @@ unsigned fileHandler(const char * Infile, const ECTOptions& Options, int interna
                 }
             }
         }
-        else{printf("File too big\n");}
+        else{fprintf(stderr, "%s: file too big\n", Infile);}
         if(Options.keep && !statcompressedfile){
             set_file_time(Infile, t);
         }
@@ -423,33 +430,30 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
                 else{
                     long long f = filesize(file_path);
                     if(f > UINT_MAX){
-                        printf("%s: file too big\n", file_path);
+                        fprintf(stderr, "%s: file too big\n", file_path);
                         continue;
                     }
                     if(f < 0){
-                        printf("%s: can't read file\n", file_path);
+                        fprintf(stderr, "%s: can't read file\n", file_path);
                         continue;
                     }
-                    char* file = (char*)malloc(f);
-                    if(!file){
-                        exit(1);
-                    }
+                    const size_t file_size = (size_t)f;
+                    std::vector<char> file(file_size);
                     FILE* stream = fopen(file_path, "rb");
                     if (!stream){
-                        free(file); error = 1; continue;
+                        error = 1; continue;
                     }
-                    if (fread(file, 1, f, stream) != f){
-                        fclose(stream); free(file); error = 1; continue;
+                    if (file_size && fread(file.data(), 1, file_size, stream) != file_size){
+                        fclose(stream); error = 1; continue;
                     }
                     fclose(stream);
-                    if(!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), name, file, f, 0, 0, file_path)){
-                        printf("can't add file '%s'\n", file_path);
-                        free(file); error = 1; continue;
+                    if(!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), name, file.data(), file_size, 0, 0, file_path)){
+                        fprintf(stderr, "can't add file '%s'\n", file_path);
+                        error = 1; continue;
                     }
                     else{
                         local_bytes += filesize(file_path);
                     }
-                    free(file);
                 }
             }
             if(!paths.size()){
@@ -466,35 +470,31 @@ unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const
             const char* fname = argv[args[i]];
             long long f = filesize(fname);
             if(f > UINT_MAX){
-                printf("%s: file too big\n", fname);
+                fprintf(stderr, "%s: file too big\n", fname);
                 continue;
             }
             if(f < 0){
-                printf("%s: can't read file\n", fname);
+                fprintf(stderr, "%s: can't read file\n", fname);
                 continue;
             }
-            char* file = (char*)malloc(f);
-            if(!file){
-                exit(1);
-            }
+            const size_t file_size = (size_t)f;
+            std::vector<char> file(file_size);
 
             FILE * stream = fopen (fname, "rb");
             if (!stream){
-                free(file); error = 1; continue;
+                error = 1; continue;
             }
-            if (fread(file, 1, f, stream) != f){
-                fclose(stream); free(file); error = 1; continue;
+            if (file_size && fread(file.data(), 1, file_size, stream) != file_size){
+                fclose(stream); error = 1; continue;
             }
 
             fclose(stream);
-            if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), ((std::string)argv[args[i]]).substr(((std::string)argv[args[i]]).find_last_of("/\\") + 1).c_str(), file, f, 0, 0, argv[args[i]])
+            if (!mz_zip_add_mem_to_archive_file_in_place(zipfilename.c_str(), ((std::string)argv[args[i]]).substr(((std::string)argv[args[i]]).find_last_of("/\\") + 1).c_str(), file.data(), file_size, 0, 0, argv[args[i]])
                 ) {
-                printf("can't add file '%s'\n", argv[0]);
-                free(file); error = 1; continue;
+                fprintf(stderr, "can't add file '%s'\n", argv[0]);
+                error = 1; continue;
             }
             local_bytes += filesize(argv[args[i]]);
-
-            free(file);
 
         }
     }
