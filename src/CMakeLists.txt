@@ -169,10 +169,6 @@ if(NOT ECT_MULTITHREADING)
   target_compile_definitions(ect
     PRIVATE
     NOMULTI=1)
-else()
-  find_package(Threads REQUIRED)
-  target_link_libraries(ect
-    Threads::Threads)
 endif()
 
 if(ECT_MP3_SUPPORT)
