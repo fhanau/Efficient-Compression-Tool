@@ -105,7 +105,6 @@ elseif(CPU_TYPE STREQUAL arm64)
   add_definitions(-DADLER32_SIMD_NEON)
   add_definitions(-DINFLATE_CHUNK_SIMD_NEON)
   add_definitions(-DINFLATE_CHUNK_READ_64LE)
-  add_definitions(-DPNG_ALIGNED_MEMORY_SUPPORTED)
   set(PNG_ARM_NEON "on")
 endif()
 
