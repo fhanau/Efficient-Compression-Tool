@@ -3,8 +3,11 @@ project(ect VERSION 0.9.6 LANGUAGES CXX C)
 cmake_policy(SET CMP0048 NEW)
 # Allow use of ZLIB_ROOT
 cmake_policy(SET CMP0074 NEW)
+# timestamp does not matter for local external project
+cmake_policy(SET CMP0135 NEW)
 
 include(GNUInstallDirs)
+include(ExternalProject)
 
 # C++17 is required for <filesystem>/directory support.
 set (CMAKE_CXX_STANDARD 17)
@@ -31,7 +34,8 @@ add_executable(ect
   main.h
   pngusr.h
   support.h
-  mozjpeg/transupp.c)
+  mozjpeg/transupp.c
+)
 
 add_executable(ect::ect ALIAS ect)
 
@@ -138,7 +142,11 @@ file(COPY ${CMAKE_SOURCE_DIR}/pngusr.h DESTINATION ${CMAKE_SOURCE_DIR}/libpng/)
 add_subdirectory(optipng EXCLUDE_FROM_ALL)
 # Mozjpeg changes the install prefix if it thinks the current is defaulted
 set(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT FALSE)
-add_subdirectory(mozjpeg EXCLUDE_FROM_ALL)
+ExternalProject_Add(mozjpeg URL ${CMAKE_SOURCE_DIR}/mozjpeg BUILD_COMMAND make jpeg-static INSTALL_COMMAND "" EXCLUDE_FROM_ALL)
+ExternalProject_Get_property(mozjpeg BINARY_DIR)
+add_library(mozjpeg-static STATIC IMPORTED GLOBAL)
+set_property(TARGET mozjpeg-static PROPERTY IMPORTED_LOCATION ${BINARY_DIR}/libjpeg.a)
+
 
 target_link_libraries(ect
   leanify::leanify
@@ -147,14 +155,15 @@ target_link_libraries(ect
   optipng::optipng
   zopfli::zopfli
   zlib::zlib
-  jpeg-static
+  mozjpeg-static
 )
 
 # mozjpeg generates some header files that we need to be able to include
 target_include_directories(ect
   PRIVATE
-  ${CMAKE_CURRENT_BINARY_DIR}/mozjpeg
+  ${BINARY_DIR}/
 )
+add_dependencies(ect mozjpeg)
 
 if(NOT ECT_MULTITHREADING)
   target_compile_definitions(ect
