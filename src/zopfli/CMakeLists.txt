@@ -31,8 +31,4 @@ if(NOT ECT_MULTITHREADING)
 	target_compile_definitions(zopfli
 		PRIVATE
 			NOMULTI=1)
-else()
-	find_package(Threads REQUIRED)
-	target_link_libraries(zopfli
-		Threads::Threads)
 endif()
