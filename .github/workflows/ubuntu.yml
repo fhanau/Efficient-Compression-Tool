@@ -10,12 +10,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
       with:
         submodules: 'true'
 
     - name: Set up NASM
-      uses: ilammy/setup-nasm@v1.4.0
+      uses: ilammy/setup-nasm@v1.5.2
 
     - name: cmake
       working-directory: src
