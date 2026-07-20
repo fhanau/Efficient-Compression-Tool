@@ -1,5 +1,5 @@
 /* zutil.h -- internal interface and configuration of the compression library
- * Copyright (C) 1995-2013 Jean-loup Gailly.
+ * Copyright (C) 1995-2016 Jean-loup Gailly, Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -80,7 +80,7 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
         /* target dependencies */
 
 #if defined(MSDOS) || (defined(WINDOWS) && !defined(WIN32))
-#  define OS_CODE  0x00
+#  define OS_CODE  0
 #  ifndef Z_SOLO
 #    if defined(__TURBOC__) || defined(__BORLANDC__)
 #      if (__STDC__ == 1) && (defined(__LARGE__) || defined(__COMPACT__))
@@ -97,28 +97,28 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #endif
 
 #ifdef AMIGA
-#  define OS_CODE  0x01
+#  define OS_CODE  1
 #endif
 
 #if defined(VAXC) || defined(VMS)
-#  define OS_CODE  0x02
+#  define OS_CODE  2
 #  define F_OPEN(name, mode) \
      fopen((name), (mode), "mbc=60", "ctx=stm", "rfm=fix", "mrs=512")
 #endif
 
 #if defined(ATARI) || defined(atarist)
-#  define OS_CODE  0x05
+#  define OS_CODE  5
 #endif
 
 #ifdef OS2
-#  define OS_CODE  0x06
+#  define OS_CODE  6
 #  if defined(M_I86) && !defined(Z_SOLO)
 #    include <malloc.h>
 #  endif
 #endif
 
 #if defined(MACOS) || defined(TARGET_OS_MAC)
-#  define OS_CODE  0x07
+#  define OS_CODE  7
 #  ifndef Z_SOLO
 #    if defined(__MWERKS__) && __dest_os != __be_os && __dest_os != __win32_os
 #      include <unix.h> /* for fdopen */
@@ -130,18 +130,16 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #  endif
 #endif
 
-#ifdef TOPS20
-#  define OS_CODE  0x0a
+#ifdef __acorn
+#  define OS_CODE  13
 #endif
 
-#ifdef WIN32
-#  ifndef __CYGWIN__  /* Cygwin is Unix, not Win32 */
-#    define OS_CODE  0x0b
-#  endif
+#if defined(WIN32) && !defined(__CYGWIN__)
+#  define OS_CODE  10
 #endif
 
-#ifdef __50SERIES /* Prime/PRIMOS */
-#  define OS_CODE  0x0f
+#ifdef __APPLE__
+#  define OS_CODE 19
 #endif
 
 #if (defined(_MSC_VER) && (_MSC_VER > 600))
@@ -167,7 +165,7 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
         /* common defaults */
 
 #ifndef OS_CODE
-#  define OS_CODE  0x03  /* assume Unix */
+#  define OS_CODE  3  /* assume Unix */
 #endif
 
 #ifndef F_OPEN

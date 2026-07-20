@@ -1,5 +1,5 @@
 /* gzread.c -- zlib functions for reading gzip files
- * Copyright (C) 2004, 2005, 2010, 2011, 2012, 2013 Mark Adler
+ * Copyright (C) 2004, 2005, 2010, 2011, 2012, 2013, 2016 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -13,13 +13,17 @@
 static int gz_load(gz_statep state, unsigned char *buf, unsigned len, unsigned* have)
 {
     int ret;
+    unsigned get, max = ((unsigned)-1 >> 2) + 1;
 
     *have = 0;
     do {
-        ret = read(state->fd, buf + *have, len - *have);
+        get = len - *have;
+        if (get > max)
+            get = max;
+        ret = read(state->fd, buf + *have, get);
         if (ret <= 0)
             break;
-        *have += ret;
+        *have += (unsigned)ret;
     } while (*have < len);
     if (ret < 0) {
         gz_error(state, Z_ERRNO, strerror(errno));
@@ -81,10 +85,8 @@ static int gz_look(gz_statep state)
         state->in = (unsigned char *)malloc(state->want);
         state->out = (unsigned char *)malloc(state->want << 1);
         if (state->in == NULL || state->out == NULL) {
-            if (state->out)
-                free(state->out);
-            if (state->in)
-                free(state->in);
+            free(state->out);
+            free(state->in);
             gz_error(state, Z_MEM_ERROR, "out of memory");
             return -1;
         }
@@ -234,28 +236,17 @@ static int gz_fetch(gz_statep state)
     return 0;
 }
 
-/* -- see zlib.h -- */
-int gzread(gzFile file, void* buf, unsigned len)
+/* Read len bytes into buf from file, or less than len up to the end of the
+   input.  Return the number of bytes read.  If zero is returned, either the
+   end of file was reached, or there was an error.  state->err must be
+   consulted in that case to determine which. */
+static z_size_t gz_read(state, buf, len)
+    gz_statep state;
+    voidp buf;
+    z_size_t len;
 {
-    unsigned got, n;
-
-    /* get internal structure */
-    if (!file)
-        return -1;
-    gz_statep state = (gz_statep)file;
-    z_streamp strm = &(state->strm);
-
-    /* check that we're reading and that there's no (serious) error */
-    if (state->mode != GZ_READ ||
-            (state->err != Z_OK && state->err != Z_BUF_ERROR))
-        return -1;
-
-    /* since an int is returned, make sure len fits in one, otherwise return
-       with an error (this avoids the flaw in the interface) */
-    if ((int)len < 0) {
-        gz_error(state, Z_DATA_ERROR, "requested length does not fit in int");
-        return -1;
-    }
+    z_size_t got;
+    unsigned n;
 
     /* if len is zero, avoid unnecessary operations */
     if (len == 0)
@@ -264,26 +255,32 @@ int gzread(gzFile file, void* buf, unsigned len)
     /* get len bytes to buf, or less than len if at the end */
     got = 0;
     do {
+        /* set n to the maximum amount of len that fits in an unsigned int */
+        n = -1;
+        if (n > len)
+            n = len;
+
         /* first just try copying data from the output buffer */
         if (state->x.have) {
-            n = state->x.have > len ? len : state->x.have;
+            if (state->x.have < n)
+              n = state->x.have;
             memcpy(buf, state->x.next, n);
             state->x.next += n;
             state->x.have -= n;
         }
 
         /* output buffer empty -- return if we're at the end of the input */
-        else if (state->eof && strm->avail_in == 0) {
+        else if (state->eof && state->strm.avail_in == 0) {
             state->past = 1;        /* tried to read past end */
             break;
         }
 
         /* need output data -- for small len or new stream load up our output
            buffer */
-        else if (state->how == LOOK || len < (state->size << 1)) {
+        else if (state->how == LOOK || n < (state->size << 1)) {
             /* get more output, looking for header if required */
             if (gz_fetch(state) == -1)
-                return -1;
+                return 0;
             continue;       /* no progress yet -- go back to copy above */
             /* the copy above assures that we will leave with space in the
                output buffer, allowing at least one gzungetc() to succeed */
@@ -291,16 +288,16 @@ int gzread(gzFile file, void* buf, unsigned len)
 
         /* large len -- read directly into user buffer */
         else if (state->how == COPY) {      /* read directly */
-            if (gz_load(state, (unsigned char *)buf, len, &n) == -1)
-                return -1;
+            if (gz_load(state, (unsigned char *)buf, n, &n) == -1)
+                return 0;
         }
 
         /* large len -- decompress directly into user buffer */
         else {  /* state->how == GZIP */
-            strm->avail_out = len;
-            strm->next_out = (unsigned char *)buf;
+            state->strm.avail_out = n;
+            state->strm.next_out = (unsigned char *)buf;
             if (gz_decomp(state) == -1)
-                return -1;
+                return 0;
             n = state->x.have;
             state->x.have = 0;
         }
@@ -312,8 +309,44 @@ int gzread(gzFile file, void* buf, unsigned len)
         state->x.pos += n;
     } while (len);
 
-    /* return number of bytes read into user buffer (will fit in int) */
-    return (int)got;
+    /* return number of bytes read into user buffer */
+    return got;
+}
+
+/* -- see zlib.h -- */
+int ZEXPORT gzread(file, buf, len)
+    gzFile file;
+    voidp buf;
+    unsigned len;
+{
+    gz_statep state;
+
+    /* get internal structure */
+    if (file == NULL)
+        return -1;
+    state = (gz_statep)file;
+
+    /* check that we're reading and that there's no (serious) error */
+    if (state->mode != GZ_READ ||
+            (state->err != Z_OK && state->err != Z_BUF_ERROR))
+        return -1;
+
+    /* since an int is returned, make sure len fits in one, otherwise return
+       with an error (this avoids a flaw in the interface) */
+    if ((int)len < 0) {
+        gz_error(state, Z_STREAM_ERROR, "request does not fit in an int");
+        return -1;
+    }
+
+    /* read len or fewer bytes to buf */
+    len = gz_read(state, buf, len);
+
+    /* check for an error */
+    if (len == 0 && state->err != Z_OK && state->err != Z_BUF_ERROR)
+        return -1;
+
+    /* return the number of bytes read (this is assured to fit in an int) */
+    return (int)len;
 }
 
 /* -- see zlib.h -- */
@@ -323,7 +356,7 @@ int gzclose_r(file)
     int ret, err;
 
     /* get internal structure */
-    if (!file)
+    if (file == NULL)
         return Z_STREAM_ERROR;
     gz_statep state = (gz_statep)file;
 

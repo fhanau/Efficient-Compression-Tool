@@ -1,5 +1,5 @@
 /* trees.c -- output deflated data using Huffman coding
- * Copyright (C) 1995-2012 Jean-loup Gailly
+ * Copyright (C) 1995-2017 Jean-loup Gailly
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -336,7 +336,7 @@ static void gen_codes (tree, max_code, bl_count)
         int len = tree[n].Len;
         if (len == 0) continue;
         /* Now reverse the bits */
-        tree[n].Code = bi_reverse(next_code[len]++, len);
+        tree[n].Code = (uint16_t)bi_reverse(next_code[len]++, len);
     }
 }
 
@@ -544,7 +544,7 @@ static int build_bl_tree(deflate_state* s) {
         if (s->bl_tree[bl_order[max_blindex]].Len != 0) break;
     }
     /* Update opt_len to include the bit length tree and counts */
-    s->opt_len += 3*(max_blindex+1) + 5+5+4;
+    s->opt_len += 3*((ulg)max_blindex+1) + 5+5+4;
 
     return max_blindex;
 }
@@ -614,7 +614,7 @@ void ZLIB_INTERNAL _tr_align(s)
 
 /* ===========================================================================
  * Determine the best encoding for the current block: dynamic trees, static
- * trees or store, and output the encoded block to the zip file.
+ * trees or store, and write out the encoded block.
  */
 void ZLIB_INTERNAL _tr_flush_block(s, buf, stored_len, last, put)
     deflate_state *s;
@@ -786,7 +786,7 @@ static void compress_block(s, ltree, dtree)
 
       extra = extra_dbits[code];
       if (extra != 0) {
-        dist -= base_dist[code];
+        dist -= (unsigned)base_dist[code];
 
         val = dist;
         len = extra;

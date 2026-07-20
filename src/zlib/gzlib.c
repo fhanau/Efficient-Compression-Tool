@@ -41,7 +41,7 @@ local gzFile gz_open(path, mode)
     const char *mode;
 {
     gz_statep state;
-    size_t len;
+    z_size_t len;
     int oflag;
 #ifdef O_CLOEXEC
     int cloexec = 0;
@@ -168,8 +168,10 @@ local gzFile gz_open(path, mode)
         free(state);
         return NULL;
     }
-    if (state->mode == GZ_APPEND)
+    if (state->mode == GZ_APPEND) {
+        LSEEK(state->fd, 0, SEEK_END);  /* so gzoffset() is correct */
         state->mode = GZ_WRITE;         /* simplify later checks */
+    }
 
     /* save the current position for rewinding (only if reading) */
     if (state->mode == GZ_READ) {
