@@ -1,5 +1,5 @@
 /* gzguts.h -- zlib internal header definitions for gz* operations
- * Copyright (C) 2004, 2005, 2010, 2011, 2012, 2013 Mark Adler
+ * Copyright (C) 2004, 2005, 2010, 2011, 2012, 2013, 2016 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -24,6 +24,10 @@
 #  include <string.h>
 #  include <stdlib.h>
 #  include <limits.h>
+#endif
+
+#ifndef _POSIX_SOURCE
+#  define _POSIX_SOURCE
 #endif
 #include <fcntl.h>
 
@@ -77,11 +81,10 @@
 #  endif
 #endif
 
-/* unlike snprintf (which is required in C99, yet still not supported by
-   Microsoft more than a decade later!), _snprintf does not guarantee null
-   termination of the result -- however this is only used in gzlib.c where
+/* unlike snprintf (which is required in C99), _snprintf does not guarantee
+   null termination of the result -- however this is only used in gzlib.c where
    the result is assured to fit in the space provided */
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && _MSC_VER < 1900
 #  define snprintf _snprintf
 #endif
 
@@ -152,7 +155,7 @@ typedef struct {
     char *path;             /* path or fd for error messages */
     unsigned size;          /* buffer size, zero if not allocated yet */
     unsigned want;          /* requested buffer size, default is GZBUFSIZE */
-    unsigned char *in;      /* input buffer */
+    unsigned char *in;      /* input buffer (double-sized when writing) */
     unsigned char *out;     /* output buffer (double-sized when reading) */
     int direct;             /* 0 if processing gzip, 1 if transparent */
         /* just for reading */

@@ -1,5 +1,5 @@
 /* deflate.c -- compress data using the deflation algorithm
- * Copyright (C) 1995-2013 Jean-loup Gailly and Mark Adler
+ * Copyright (C) 1995-2016 Jean-loup Gailly and Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -107,7 +107,7 @@ static const config configuration_table[10] = {
  */
 
 /* rank Z_BLOCK between Z_NO_FLUSH and Z_PARTIAL_FLUSH */
-#define RANK(f) (((f) << 1) - ((f) > 4 ? 9 : 0))
+#define RANK(f) (((f) * 2) - ((f) > 4 ? 9 : 0))
 
 #if defined __aarch64__ || defined __SSE4_2__
 #define CRC_HASH
@@ -143,9 +143,9 @@ platform_compute_hash(deflate_state *s, const unsigned char *str) {
 
 /* ===========================================================================
  * Update a hash value with the given input byte
- * IN  assertion: all calls to to UPDATE_HASH are made with consecutive
- *    input characters, so that a running hash key can be computed from the
- *    previous key instead of complete recalculation each time.
+ * IN  assertion: all calls to UPDATE_HASH are made with consecutive input
+ *    characters, so that a running hash key can be computed from the previous
+ *    key instead of complete recalculation each time.
  */
 #ifndef UPDATE_HASH
     ALWAYS_INLINE inline static unsigned
@@ -166,9 +166,9 @@ platform_compute_hash(deflate_state *s, const unsigned char *str) {
  * Insert string str in the dictionary and set match_head to the previous head
  * of the hash chain (the most recent string with same hash key). Return
  * the previous length of the hash chain.
- * IN  assertion: all calls to to INSERT_STRING are made with consecutive
- *    input characters and the first MIN_MATCH bytes of str are valid
- *    (except for the last MIN_MATCH-1 bytes of the input file).
+ * IN  assertion: all calls to INSERT_STRING are made with consecutive input
+ *    characters and the first MIN_MATCH bytes of str are valid (except for
+ *    the last MIN_MATCH-1 bytes of the input file).
  */
 #define INSERT_STRING(s, str, match_head) \
    (UPDATE_HASH(s, s->ins_h, &s->window[(str) + (MIN_MATCH-1)]), \
@@ -180,6 +180,7 @@ bulk_insert_str(deflate_state *s, Pos startpos, unsigned count) {
     unsigned idx;
     for (idx = 0; idx < count; idx++) {
         Pos dummy;
+        (void)dummy;
         INSERT_STRING(s, startpos + idx, dummy);
     }
 }
@@ -248,7 +249,7 @@ int deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
     }
     if (memLevel < 1 || memLevel > MAX_MEM_LEVEL || method != Z_DEFLATED ||
         windowBits < 8 || windowBits > 15 || level < 0 || level > 9 ||
-        strategy < 0 || strategy > Z_FIXED) {
+        strategy < 0 || strategy > Z_FIXED || (windowBits == 8 && wrap != 1)) {
         return Z_STREAM_ERROR;
     }
     if (windowBits == 8) windowBits = 9;  /* until 256-byte window bug fixed */
@@ -256,15 +257,15 @@ int deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
     if (s == Z_NULL) return Z_MEM_ERROR;
     strm->state = (struct internal_state *)s;
     s->strm = strm;
-    s->status = INIT_STATE;
+    s->status = INIT_STATE;     /* to pass state test in deflateReset() */
 
     s->wrap = wrap;
     s->gzhead = Z_NULL;
-    s->w_bits = windowBits;
+    s->w_bits = (uInt)windowBits;
     s->w_size = 1 << s->w_bits;
     s->w_mask = s->w_size - 1;
 
-    s->hash_bits = memLevel + 7;
+    s->hash_bits = (uInt)memLevel + 7;
     s->hash_size = 1 << s->hash_bits;
     s->hash_mask = s->hash_size - 1;
     s->hash_shift =  ((s->hash_bits+MIN_MATCH-1)/MIN_MATCH);
@@ -409,10 +410,10 @@ int deflateTune(strm, good_length, max_lazy, nice_length, max_chain)
 
     if (deflateStateCheck(strm)) return Z_STREAM_ERROR;
     s = strm->state;
-    s->good_match = good_length;
-    s->max_lazy_match = max_lazy;
+    s->good_match = (uInt)good_length;
+    s->max_lazy_match = (uInt)max_lazy;
     s->nice_match = nice_length;
-    s->max_chain_length = max_chain;
+    s->max_chain_length = (uInt)max_chain;
     return Z_OK;
 }
 
@@ -560,7 +561,7 @@ static int deflate_ (strm, flush, put)
     s = strm->state;
 
     if (strm->next_out == Z_NULL ||
-        (strm->next_in == Z_NULL && strm->avail_in != 0) ||
+        (strm->avail_in != 0 && strm->next_in == Z_NULL) ||
         (s->status == FINISH_STATE && flush != Z_FINISH)) {
         ERR_RETURN(strm, Z_STREAM_ERROR);
     }
@@ -666,7 +667,6 @@ static int deflate_ (strm, flush, put)
             }
         }
     }
-    Assert(strm->avail_out > 0, "bug2");
 
     if (flush != Z_FINISH) return Z_OK;
     if (s->wrap <= 0) return Z_STREAM_END;
@@ -788,7 +788,7 @@ int ZEXPORT deflateCopy (z_stream* dest, z_stream* source, unsigned char alloc)
  * allocating a large strm->next_in buffer and copying from it.
  * (See also flush_pending()).
  */
-static int read_buf(strm, buf, size)
+static unsigned read_buf(strm, buf, size)
     z_streamp strm;
     uint8_t *buf;
     uint32_t size;
@@ -807,7 +807,7 @@ static int read_buf(strm, buf, size)
     strm->next_in  += len;
     strm->total_in += len;
 
-    return (int)len;
+    return len;
 }
 
 /* ===========================================================================
@@ -916,9 +916,9 @@ IPos cur_match;                             /* current match */
 {
     uint32_t chain_length = s->max_chain_length;/* max hash chain length */
     register uint8_t *scan = s->window + s->strstart; /* current string */
-    register uint8_t *match;                       /* matched string */
+    register uint8_t *match;                    /* matched string */
     register int len;                           /* length of current match */
-    int best_len = s->prev_length;              /* best match length so far */
+    int best_len = (int)s->prev_length;         /* best match length so far */
     int nice_match = s->nice_match;             /* stop if match long enough */
     IPos limit = s->strstart > (IPos)MAX_DIST(s) ?
     s->strstart - (IPos)MAX_DIST(s) : NIL;
@@ -962,7 +962,7 @@ IPos cur_match;                             /* current match */
     /* Do not look for matches beyond the end of the input. This is necessary
      * to make deflate deterministic.
      */
-    if ((uint32_t)nice_match > s->lookahead) nice_match = s->lookahead;
+    if ((uint32_t)nice_match > s->lookahead) nice_match = (int)s->lookahead;
 
         Assert((uint64_t)s->strstart <= s->window_size-MIN_LOOKAHEAD, "need lookahead");
 
