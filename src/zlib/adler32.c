@@ -25,11 +25,7 @@
 #endif
 
 /* ========================================================================= */
-uLong adler32(adler, buf, len)
-    uLong adler;
-    const Bytef *buf;
-    uInt len;
-{
+uLong adler32(uLong adler, const Bytef *buf, uInt len) {
     unsigned long sum2;
     unsigned n;
 

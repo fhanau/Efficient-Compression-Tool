@@ -1,5 +1,5 @@
 /* deflate.h -- internal compression state
- * Copyright (C) 1995-2016 Jean-loup Gailly
+ * Copyright (C) 1995-2018 Jean-loup Gailly
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -43,9 +43,9 @@
 #define Buf_size 64
 /* size of bit buffer in bi_buf */
 
-#define INIT_STATE    42
-#define BUSY_STATE   113
-#define FINISH_STATE 666
+#define INIT_STATE    42    /* zlib header -> BUSY_STATE */
+#define BUSY_STATE   113    /* deflate -> FINISH_STATE */
+#define FINISH_STATE 666    /* stream complete */
 /* Stream status */
 
 
@@ -87,10 +87,10 @@ typedef struct internal_state {
     uint8_t    *pending_buf;      /* output still pending */
     uint64_t   pending_buf_size;  /* size of pending_buf */
     uint8_t    *pending_out;      /* next pending byte to output to the stream */
-    uint32_t   pending;           /* nb of bytes in the pending buffer */
+    uint64_t   pending;           /* nb of bytes in the pending buffer */
     int        wrap;              /* bit 0 true for zlib, bit 1 true for gzip */
     gz_headerp gzhead;            /* gzip header information to write */
-    uint32_t   gzindex;           /* where in extra, name, or comment */
+    uint64_t   gzindex;           /* where in extra, name, or comment */
     uint8_t    method;            /* can only be DEFLATED */
     int        last_flush;        /* value of flush param for previous deflate call */
 

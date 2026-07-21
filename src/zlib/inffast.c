@@ -47,8 +47,7 @@
       requires strm->avail_out >= 258 for each loop to avoid checking for
       output space.
  */
-void ZLIB_INTERNAL inflate_fast(z_streamp strm, unsigned start /* inflate()'s starting value for strm->avail_out */)
-{
+void ZLIB_INTERNAL inflate_fast(z_streamp strm, unsigned start) {
     struct inflate_state *state;
     const unsigned char *in;      /* local strm->next_in */
     const unsigned char *last;    /* have enough input while in < last */

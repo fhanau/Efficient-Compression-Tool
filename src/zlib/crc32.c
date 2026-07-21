@@ -70,7 +70,7 @@ static unsigned long crc32_generic(unsigned long crc, const unsigned char *buf, 
   if (!buf) return 0UL;
 
 #ifdef BYFOUR
-  if (sizeof(void *) == sizeof(ptrdiff_t)) {
+  if (sizeof(void *) == sizeof(z_size_t)) {
     z_crc_t endian;
 
     endian = 1;
@@ -193,7 +193,7 @@ static unsigned long crc32_little(unsigned long crc, const unsigned char *buf, u
 
   c = (z_crc_t)crc;
   c = ~c;
-  while (len && ((ptrdiff_t)buf & 3)) {
+  while (len && ((z_size_t)buf & 3)) {
     c = crc_table[0][(c ^ *buf++) & 0xff] ^ (c >> 8);
     len--;
   }
@@ -231,7 +231,7 @@ unsigned len;
 
   c = ZSWAP32((z_crc_t)crc);
   c = ~c;
-  while (len && ((ptrdiff_t)buf & 3)) {
+  while (len && ((z_size_t)buf & 3)) {
     c = crc_table[4][(c >> 24) ^ *buf++] ^ (c << 8);
     len--;
   }
