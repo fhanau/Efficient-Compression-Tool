@@ -17,14 +17,12 @@ z_const char * const z_errmsg[10] = {
 (z_const char *)"incompatible version",/* Z_VERSION_ERROR (-6) */
 (z_const char *)""};
 
-void* ZLIB_INTERNAL zcalloc (void* opaque, unsigned items, unsigned size)
-{
+void* ZLIB_INTERNAL zcalloc(void* opaque, unsigned items, unsigned size) {
     (void)opaque;
     return (void*)malloc(items * size);
 }
 
-void ZLIB_INTERNAL zcfree (void* opaque, void* ptr)
-{
+void ZLIB_INTERNAL zcfree (void* opaque, void* ptr) {
     (void)opaque;
     free(ptr);
 }

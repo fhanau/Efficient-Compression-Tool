@@ -45,4 +45,4 @@
 #define INFLATE_FAST_MIN_INPUT 8
 #endif
 
-void ZLIB_INTERNAL inflate_fast_chunk_ OF((z_streamp strm, unsigned start));
+void ZLIB_INTERNAL inflate_fast_chunk_(z_streamp strm, unsigned start);

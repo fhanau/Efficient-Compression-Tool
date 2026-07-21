@@ -91,9 +91,7 @@
 #include "inffast.h"
 #endif
 
-local int inflateStateCheck(strm)
-z_streamp strm;
-{
+local int inflateStateCheck(z_streamp strm) {
     struct inflate_state FAR *state;
     if (strm == Z_NULL ||
         strm->zalloc == (alloc_func)0 || strm->zfree == (free_func)0)
@@ -105,8 +103,7 @@ z_streamp strm;
     return 0;
 }
 
-static int inflateResetKeep(z_streamp strm)
-{
+static int inflateResetKeep(z_streamp strm) {
     struct inflate_state FAR *state;
 
     if (inflateStateCheck(strm)) return Z_STREAM_ERROR;
@@ -129,9 +126,7 @@ static int inflateResetKeep(z_streamp strm)
     return Z_OK;
 }
 
-int inflateReset(strm)
-z_streamp strm;
-{
+int inflateReset(z_streamp strm) {
     struct inflate_state FAR *state;
 
     if (inflateStateCheck(strm)) return Z_STREAM_ERROR;
@@ -142,10 +137,7 @@ z_streamp strm;
     return inflateResetKeep(strm);
 }
 
-int ZEXPORT inflateReset2(strm, windowBits)
-z_streamp strm;
-int windowBits;
-{
+int ZEXPORT inflateReset2(z_streamp strm, int windowBits) {
     int wrap;
     struct inflate_state FAR *state;
 
@@ -182,12 +174,8 @@ int windowBits;
     return inflateReset(strm);
 }
 
-int ZEXPORT inflateInit2_(strm, windowBits, version, stream_size)
-z_streamp strm;
-int windowBits;
-const char *version;
-int stream_size;
-{
+int ZEXPORT inflateInit2_(z_streamp strm, int windowBits,
+                          const char *version, int stream_size) {
     int ret;
     struct inflate_state FAR *state;
 
@@ -225,11 +213,8 @@ int stream_size;
     return ret;
 }
 
-int ZEXPORT inflateInit_(strm, version, stream_size)
-z_streamp strm;
-const char *version;
-int stream_size;
-{
+int ZEXPORT inflateInit_(z_streamp strm, const char *version,
+                         int stream_size) {
     return inflateInit2_(strm, DEF_WBITS, version, stream_size);
 }
 
@@ -243,9 +228,7 @@ int stream_size;
    used for threaded applications, since the rewriting of the tables and virgin
    may not be thread-safe.
  */
-local void fixedtables(state)
-struct inflate_state FAR *state;
-{
+local void fixedtables(struct inflate_state FAR *state) {
 #   include "inffixed.h"
     state->lencode = lenfix;
     state->lenbits = 9;
@@ -267,11 +250,7 @@ struct inflate_state FAR *state;
    output will fall in the output data, making match copies simpler and faster.
    The advantage may be dependent on the size of the processor's data caches.
  */
-local int updatewindow(strm, end, copy)
-z_streamp strm;
-const Bytef *end;
-unsigned copy;
-{
+local int updatewindow(z_streamp strm, const Bytef *end, unsigned copy) {
     struct inflate_state FAR *state;
     unsigned dist;
 
@@ -510,8 +489,7 @@ unsigned copy;
    will return Z_BUF_ERROR if it has not reached the end of the stream.
  */
 
-int inflate(z_streamp strm, int flush)
-{
+int inflate(z_streamp strm, int flush) {
     struct inflate_state FAR *state;
     z_const unsigned char FAR *next;    /* next input */
     unsigned char FAR *put;     /* next output */
@@ -1206,8 +1184,7 @@ int inflate(z_streamp strm, int flush)
     return ret;
 }
 
-int inflateEnd(z_streamp strm)
-{
+int inflateEnd(z_streamp strm) {
   struct inflate_state FAR *state;
   if (inflateStateCheck(strm))
     return Z_STREAM_ERROR;
@@ -1218,10 +1195,7 @@ int inflateEnd(z_streamp strm)
   return Z_OK;
 }
 
-int ZEXPORT inflateValidate(strm, check)
-z_streamp strm;
-int check;
-{
+int ZEXPORT inflateValidate(z_streamp strm, int check) {
     struct inflate_state FAR *state;
 
     if (inflateStateCheck(strm)) return Z_STREAM_ERROR;

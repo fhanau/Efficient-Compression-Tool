@@ -1,5 +1,5 @@
 /* gzread.c -- zlib functions for reading gzip files
- * Copyright (C) 2004, 2005, 2010, 2011, 2012, 2013, 2016 Mark Adler
+ * Copyright (C) 2004-2017 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -10,8 +10,7 @@
    state->fd, and update state->eof, state->err, and state->msg as appropriate.
    This function needs to loop on read(), since read() is not guaranteed to
    read the number of bytes requested, depending on the type of descriptor. */
-static int gz_load(gz_statep state, unsigned char *buf, unsigned len, unsigned* have)
-{
+static int gz_load(gz_statep state, unsigned char *buf, unsigned len, unsigned* have) {
     int ret;
     unsigned get, max = ((unsigned)-1 >> 2) + 1;
 
@@ -41,8 +40,7 @@ static int gz_load(gz_statep state, unsigned char *buf, unsigned len, unsigned* 
    If strm->avail_in != 0, then the current data is moved to the beginning of
    the input buffer, and then the remainder of the buffer is loaded with the
    available data from the input file. */
-static int gz_avail(gz_statep state)
-{
+static int gz_avail(gz_statep state) {
     unsigned got;
     z_streamp strm = &(state->strm);
 
@@ -75,8 +73,7 @@ static int gz_avail(gz_statep state)
    case, all further file reads will be directly to either the output buffer or
    a user buffer.  If decompressing, the inflate state will be initialized.
    gz_look() will return 0 on success or -1 on failure. */
-static int gz_look(gz_statep state)
-{
+static int gz_look(gz_statep state) {
     z_streamp strm = &(state->strm);
 
     /* allocate read buffers and inflate memory */
@@ -156,8 +153,7 @@ static int gz_look(gz_statep state)
    data.  If the gzip stream completes, state->how is reset to LOOK to look for
    the next gzip stream or raw data, once state->x.have is depleted.  Returns 0
    on success, -1 on failure. */
-static int gz_decomp(gz_statep state)
-{
+static int gz_decomp(gz_statep state) {
     int ret = Z_OK;
     z_streamp strm = &(state->strm);
 
@@ -208,8 +204,7 @@ static int gz_decomp(gz_statep state)
    looked for to determine whether to copy or decompress.  Returns -1 on error,
    otherwise 0.  gz_fetch() will leave state->how as COPY or GZIP unless the
    end of the input file has been reached and all data has been processed.  */
-static int gz_fetch(gz_statep state)
-{
+static int gz_fetch(gz_statep state) {
     z_streamp strm = &(state->strm);
 
     do {
@@ -240,11 +235,7 @@ static int gz_fetch(gz_statep state)
    input.  Return the number of bytes read.  If zero is returned, either the
    end of file was reached, or there was an error.  state->err must be
    consulted in that case to determine which. */
-static z_size_t gz_read(state, buf, len)
-    gz_statep state;
-    voidp buf;
-    z_size_t len;
-{
+static z_size_t gz_read(gz_statep state, voidp buf, z_size_t len) {
     z_size_t got;
     unsigned n;
 
@@ -256,9 +247,9 @@ static z_size_t gz_read(state, buf, len)
     got = 0;
     do {
         /* set n to the maximum amount of len that fits in an unsigned int */
-        n = -1;
+        n = (unsigned)-1;
         if (n > len)
-            n = len;
+            n = (unsigned)len;
 
         /* first just try copying data from the output buffer */
         if (state->x.have) {
@@ -314,11 +305,7 @@ static z_size_t gz_read(state, buf, len)
 }
 
 /* -- see zlib.h -- */
-int ZEXPORT gzread(file, buf, len)
-    gzFile file;
-    voidp buf;
-    unsigned len;
-{
+int ZEXPORT gzread(gzFile file, voidp buf, unsigned len) {
     gz_statep state;
 
     /* get internal structure */
@@ -339,7 +326,7 @@ int ZEXPORT gzread(file, buf, len)
     }
 
     /* read len or fewer bytes to buf */
-    len = gz_read(state, buf, len);
+    len = (unsigned)gz_read(state, buf, len);
 
     /* check for an error */
     if (len == 0 && state->err != Z_OK && state->err != Z_BUF_ERROR)
@@ -350,9 +337,7 @@ int ZEXPORT gzread(file, buf, len)
 }
 
 /* -- see zlib.h -- */
-int gzclose_r(file)
-    gzFile file;
-{
+int gzclose_r(gzFile file) {
     int ret, err;
 
     /* get internal structure */

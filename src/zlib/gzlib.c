@@ -1,11 +1,11 @@
 /* gzlib.c -- zlib functions common to reading and writing gzip files
- * Copyright (C) 2004, 2010, 2011, 2012, 2013, 2016 Mark Adler
+ * Copyright (C) 2004-2019 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
 #include "gzguts.h"
 
-#if defined(_WIN32) && !defined(__BORLANDC__) && !defined(__MINGW32__)
+#if defined(_WIN32) && !defined(__BORLANDC__)
 #define LSEEK _lseeki64
 #else
 #if defined(_LARGEFILE64_SOURCE) && _LFS64_LARGEFILE-0
@@ -15,20 +15,16 @@
 #endif
 #endif
 
-/* Local functions */
-local void gz_reset OF((gz_statep));
-local gzFile gz_open OF((const void *, const char *));
-
 /* Reset gzip file state */
-local void gz_reset(state)
-    gz_statep state;
-{
+local void gz_reset(gz_statep state) {
     state->x.have = 0;              /* no output data available */
     if (state->mode == GZ_READ) {   /* for reading ... */
         state->eof = 0;             /* not at end of file */
         state->past = 0;            /* have not read past end yet */
         state->how = LOOK;          /* look for gzip header */
     }
+    else                            /* for writing ... */
+        state->reset = 0;           /* no deflateReset pending */
     state->seek = 0;                /* no seek request pending */
     gz_error(state, Z_OK, NULL);    /* clear error */
     state->x.pos = 0;               /* no uncompressed data yet */
@@ -36,10 +32,7 @@ local void gz_reset(state)
 }
 
 /* Open a gzip file either by name or file descriptor. */
-local gzFile gz_open(path, mode)
-    const void *path;
-    const char *mode;
-{
+local gzFile gz_open(const void *path, const char *mode) {
     gz_statep state;
     z_size_t len;
     int oflag;
@@ -187,16 +180,12 @@ local gzFile gz_open(path, mode)
 }
 
 /* -- see zlib.h -- */
-gzFile ZEXPORT gzopen(path, mode)
-    const char *path;
-    const char *mode;
-{
+gzFile ZEXPORT gzopen(const char *path, const char *mode) {
     return gz_open(path, mode);
 }
 
 /* -- see zlib.h -- */
-int gzeof(gzFile file)
-{
+int gzeof(gzFile file) {
     gz_statep state;
 
     /* get internal structure and check integrity */
@@ -216,11 +205,7 @@ int gzeof(gzFile file)
    memory).  Simply save the error message as a static string.  If there is an
    allocation failure constructing the error message, then convert the error to
    out of memory. */
-void ZLIB_INTERNAL gz_error(state, err, msg)
-    gz_statep state;
-    int err;
-    const char *msg;
-{
+void ZLIB_INTERNAL gz_error(gz_statep state, int err, const char *msg) {
     /* free previously allocated message and clear */
     if (state->msg) {
         if (state->err != Z_MEM_ERROR)
