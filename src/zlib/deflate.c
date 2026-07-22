@@ -1,5 +1,5 @@
 /* deflate.c -- compress data using the deflation algorithm
- * Copyright (C) 1995-2023 Jean-loup Gailly and Mark Adler
+ * Copyright (C) 1995-2026 Jean-loup Gailly and Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -37,7 +37,7 @@
  *  REFERENCES
  *
  *      Deutsch, L.P.,"DEFLATE Compressed Data Format Specification".
- *      Available in http://tools.ietf.org/html/rfc1951
+ *      Available at https://datatracker.ietf.org/doc/html/rfc1951
  *
  *      A description of the Rabin and Karp algorithm is given in the book
  *         "Algorithms" by R. Sedgewick, Addison-Wesley, p252.
@@ -203,7 +203,7 @@ static int _tr_tally_dist(deflate_state *s, uint16_t dist, uint8_t len) {
  * prev[] will be initialized on the fly.
  */
 #define CLEAR_HASH(s) \
-    zmemzero((uint8_t *)s->head, (unsigned)(s->hash_size)*sizeof(*s->head));
+    zmemzero(s->head, (unsigned)(s->hash_size)*sizeof(*s->head));
 
 /* ===========================================================================
  * Read a new buffer from the current input stream, update the adler32
@@ -430,7 +430,7 @@ static void fill_window(deflate_state *s) {
 }
 
 /* ========================================================================= */
-int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
+int deflateInit2_(z_streamp strm, int level, int method,
                           int windowBits, int memLevel, int strategy,
                           const char *version, int stream_size) {
     deflate_state *s;
@@ -529,7 +529,7 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
      * symbols from which it is being constructed.
      */
 
-    s->pending_buf = (uint8_t *) ZALLOC(strm, s->lit_bufsize, 4);
+    s->pending_buf = (uint8_t *) ZALLOC(strm, s->lit_bufsize, LIT_BUFS);
     s->pending_buf_size = (uint64_t)s->lit_bufsize * 4;
 
     if (s->window == Z_NULL || s->prev == Z_NULL || s->head == Z_NULL ||
@@ -539,8 +539,14 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
         deflateEnd (strm);
         return Z_MEM_ERROR;
     }
+#ifdef LIT_MEM
+    s->d_buf = (ushf *)(s->pending_buf + (s->lit_bufsize << 1));
+    s->l_buf = s->pending_buf + (s->lit_bufsize << 2);
+    s->sym_end = s->lit_bufsize - 1;
+#else
     s->sym_buf = s->pending_buf + s->lit_bufsize;
     s->sym_end = (s->lit_bufsize - 1) * 3;
+#endif
     /* We avoid equality with lit_bufsize*3 because of wraparound at 64K
      * on 16 bit machines and because stored blocks are restricted to
      * 64K-1 bytes.
@@ -668,29 +674,34 @@ int deflateTune(z_streamp strm, int good_length, int max_lazy,
  *
  * Shifts are used to approximate divisions, for speed.
  */
-uint64_t deflateBound(z_streamp strm, uint64_t sourceLen)
-{
+z_size_t deflateBound_z(z_streamp strm, z_size_t sourceLen) {
     deflate_state *s;
-    uint64_t fixedlen, storelen, wraplen;
+    z_size_t fixedlen, storelen, wraplen, bound;
 
     /* upper bound for fixed blocks with 9-bit literals and length 255
        (memLevel == 2, which is the lowest that may not use stored blocks) --
        ~13% overhead plus a small constant */
     fixedlen = sourceLen + (sourceLen >> 3) + (sourceLen >> 8) +
                (sourceLen >> 9) + 4;
+    if (fixedlen < sourceLen)
+        fixedlen = (z_size_t)-1;
 
     /* upper bound for stored blocks with length 127 (memLevel == 1) --
        ~4% overhead plus a small constant */
     storelen = sourceLen + (sourceLen >> 5) + (sourceLen >> 7) +
                (sourceLen >> 11) + 7;
+    if (storelen < sourceLen)
+        storelen = (z_size_t)-1;
 
-    /* if can't get parameters, return larger bound plus a zlib wrapper */
-    if (deflateStateCheck(strm))
-        return (fixedlen > storelen ? fixedlen : storelen) + 6;
+    /* if can't get parameters, return larger bound plus a wrapper */
+    if (deflateStateCheck(strm)) {
+        bound = fixedlen > storelen ? fixedlen : storelen;
+        return bound + 18 < bound ? (z_size_t)-1 : bound + 18;
+    }
 
     /* compute wrapper length */
     s = strm->state;
-    switch (s->wrap) {
+    switch (s->wrap < 0 ? -s->wrap : s->wrap) {
     case 0:                                 /* raw deflate */
         wraplen = 0;
         break;
@@ -720,17 +731,26 @@ uint64_t deflateBound(z_streamp strm, uint64_t sourceLen)
         break;
 #endif
     default:                                /* for compiler happiness */
-        wraplen = 6;
+        wraplen = 18;
     }
 
     /* if not default parameters, return one of the conservative bounds */
-    if (s->w_bits != 15 || s->hash_bits != 8 + 7)
-        return (s->w_bits <= s->hash_bits ? fixedlen : storelen) + wraplen;
+    if (s->w_bits != 15 || s->hash_bits != 8 + 7) {
+        bound = s->w_bits <= s->hash_bits && s->level ? fixedlen :
+                                                        storelen;
+        return bound + wraplen < bound ? (z_size_t)-1 : bound + wraplen;
+    }
 
     /* default settings: return tight bound for that case -- ~0.03% overhead
        plus a small constant */
-    return sourceLen + (sourceLen >> 12) + (sourceLen >> 14) +
-           (sourceLen >> 25) + 13 - 6 + wraplen;
+    bound = sourceLen + (sourceLen >> 12) + (sourceLen >> 14) +
+            (sourceLen >> 25) + 13 - 6 + wraplen;
+    return bound < sourceLen ? (z_size_t)-1 : bound;
+}
+
+uLong deflateBound(z_streamp strm, uLong sourceLen) {
+    z_size_t bound = deflateBound_z(strm, sourceLen);
+    return (uLong)bound != bound ? (uLong)-1 : (uLong)bound;
 }
 
 /* =========================================================================
@@ -744,18 +764,18 @@ static void putShortMSB(deflate_state *s, uint32_t b) {
 }
 
 /* =========================================================================
- * Flush as much pending output as possible. All deflate() output goes
- * through this function so some applications may wish to modify it
- * to avoid allocating a large strm->next_out buffer and copying into it.
- * (See also read_buf()).
+ * Flush as much pending output as possible. All deflate() output, except for
+ * some deflate_stored() output, goes through this function so some
+ * applications may wish to modify it to avoid allocating a large
+ * strm->next_out buffer and copying into it. (See also read_buf()).
  */
 static void flush_pending(z_streamp strm) {
     uint32_t len;
     deflate_state *s = strm->state;
 
     _tr_flush_bits(s);
-    len = s->pending;
-    if (len > strm->avail_out) len = strm->avail_out;
+    len = s->pending > strm->avail_out ? strm->avail_out :
+                                         (unsigned)s->pending;
     if (len == 0) return;
 
     zmemcpy(strm->next_out, s->pending_out, len);
@@ -769,11 +789,7 @@ static void flush_pending(z_streamp strm) {
     }
 }
 
-static int deflate_ (strm, flush, put)
-    z_streamp strm;
-    int flush;
-    int put;
-{
+static int deflate_ (z_streamp strm, int flush, int put) {
     int old_flush; /* value of flush param for previous deflate call */
     deflate_state *s;
 
@@ -946,7 +962,7 @@ int deflateEnd(z_streamp strm) {
  * To simplify the source, this is not supported for 16-bit MSDOS (which
  * doesn't have enough memory anyway to duplicate compression states).
  */
-int ZEXPORT deflateCopy(z_stream* dest, z_stream* source, unsigned char alloc) {
+int deflateCopy(z_stream* dest, z_stream* source, unsigned char alloc) {
   deflate_state *ds;
   deflate_state *ss;
 
@@ -959,20 +975,20 @@ int ZEXPORT deflateCopy(z_stream* dest, z_stream* source, unsigned char alloc) {
 
 
   if(alloc) {
-    zmemcpy((voidpf)dest, (voidpf)source, sizeof(z_stream));
+    zmemcpy(dest, (voidpf)source, sizeof(z_stream));
 
     ds = (deflate_state *) ZALLOC(dest, 1, sizeof(deflate_state));
     if (ds == Z_NULL) return Z_MEM_ERROR;
     dest->state = (struct internal_state *) ds;
-    zmemcpy((voidpf)ds, (voidpf)ss, sizeof(deflate_state));
+    zmemcpy(ds, ss, sizeof(deflate_state));
   }
   else {
     ds = dest->state;
-    zmemcpy((voidpf)dest, (voidpf)source, sizeof(z_stream));
+    zmemcpy(dest, source, sizeof(z_stream));
     dest->state = ds;
 
     void* window = ds->window, *prev = ds->prev, *head = ds->head, *pending_buf = ds->pending_buf;
-    zmemcpy((voidpf)ds, (voidpf)ss, sizeof(deflate_state));
+    zmemcpy(ds, ss, sizeof(deflate_state));
 
     ds->window = window;
     ds->prev   = prev;
@@ -985,7 +1001,7 @@ int ZEXPORT deflateCopy(z_stream* dest, z_stream* source, unsigned char alloc) {
     ds->window = (uint8_t *) ZALLOC(dest, ds->w_size, 2*sizeof(uint8_t));
     ds->prev   = (Pos *)  ZALLOC(dest, ds->w_size, sizeof(Pos));
     ds->head   = (Pos *)  ZALLOC(dest, ds->hash_size, sizeof(Pos));
-    ds->pending_buf = (uint8_t *) ZALLOC(dest, ds->lit_bufsize, sizeof(uint16_t)+2);
+    ds->pending_buf = (uint8_t *) ZALLOC(dest, ds->lit_bufsize, LIT_BUFS);
   }
 
   if (ds->window == Z_NULL || ds->prev == Z_NULL || ds->head == Z_NULL ||
@@ -994,13 +1010,18 @@ int ZEXPORT deflateCopy(z_stream* dest, z_stream* source, unsigned char alloc) {
     return Z_MEM_ERROR;
   }
   zmemcpy(ds->window, ss->window, ds->w_size * 2 * sizeof(uint8_t));
-  zmemcpy((voidpf)ds->prev, (voidpf)ss->prev, ds->w_size * sizeof(Pos));
-  zmemcpy((voidpf)ds->head, (voidpf)ss->head, ds->hash_size * sizeof(Pos));
+  zmemcpy(ds->prev, ss->prev, ds->w_size * sizeof(Pos));
+  zmemcpy(ds->head, ss->head, ds->hash_size * sizeof(Pos));
   //Do not copy due to performance reasons. If we ever need to copy a stream that actually produces used output, it'll be enabled again.
-  //zmemcpy(ds->pending_buf, ss->pending_buf, (uint32_t)ds->pending_buf_size);
+  //zmemcpy(ds->pending_buf, ss->pending_buf, ds->lit_bufsize * LIT_BUFS);
 
   ds->pending_out = ds->pending_buf + (ss->pending_out - ss->pending_buf);
+#ifdef LIT_MEM
+    ds->d_buf = (ushf *)(ds->pending_buf + (ds->lit_bufsize << 1));
+    ds->l_buf = ds->pending_buf + (ds->lit_bufsize << 2);
+#else
   ds->sym_buf = ds->pending_buf + ds->lit_bufsize;
+#endif
 
   ds->l_desc.dyn_tree = ds->dyn_ltree;
   ds->d_desc.dyn_tree = ds->dyn_dtree;

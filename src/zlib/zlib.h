@@ -1,7 +1,7 @@
 /* zlib.h -- interface of the 'zlib' general purpose compression library
-  version 1.3, August 18th, 2023
+  version 1.3.2, February 17th, 2026
 
-  Copyright (C) 1995-2023 Jean-loup Gailly and Mark Adler
+  Copyright (C) 1995-2026 Jean-loup Gailly and Mark Adler
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -24,7 +24,7 @@
 
 
   The data format used by the zlib library is described by RFCs (Request for
-  Comments) 1950 to 1952 in the files http://tools.ietf.org/html/rfc1950
+  Comments) 1950 to 1952 at https://datatracker.ietf.org/doc/html/rfc1950
   (zlib format), rfc1951 (deflate format) and rfc1952 (gzip format).
 */
 
@@ -37,11 +37,11 @@
 extern "C" {
 #endif
 
-#define ZLIB_VERSION "1.3-ect"
-#define ZLIB_VERNUM 0x1300
+#define ZLIB_VERSION "1.3.2-ect"
+#define ZLIB_VERNUM 0x1320
 #define ZLIB_VER_MAJOR 1
 #define ZLIB_VER_MINOR 3
-#define ZLIB_VER_REVISION 0
+#define ZLIB_VER_REVISION 2
 #define ZLIB_VER_SUBREVISION 0
 
 /*
@@ -435,7 +435,7 @@ ZEXTERN int ZEXPORT inflate(z_streamp strm, int flush);
 
     The Z_BLOCK option assists in appending to or combining deflate streams.
   To assist in this, on return inflate() always sets strm->data_type to the
-  number of unused bits in the last byte taken from strm->next_in, plus 64 if
+  number of unused bits in the input taken from strm->next_in, plus 64 if
   inflate() is currently decoding the last block in the deflate stream, plus
   128 if inflate() returned immediately after decoding an end-of-block code or
   decoding the complete header up to just before the first byte of the deflate
@@ -581,18 +581,21 @@ ZEXTERN int ZEXPORT deflateInit2(z_streamp strm,
 
      The strategy parameter is used to tune the compression algorithm.  Use the
    value Z_DEFAULT_STRATEGY for normal data, Z_FILTERED for data produced by a
-   filter (or predictor), Z_HUFFMAN_ONLY to force Huffman encoding only (no
-   string match), or Z_RLE to limit match distances to one (run-length
-   encoding).  Filtered data consists mostly of small values with a somewhat
-   random distribution.  In this case, the compression algorithm is tuned to
-   compress them better.  The effect of Z_FILTERED is to force more Huffman
-   coding and less string matching; it is somewhat intermediate between
-   Z_DEFAULT_STRATEGY and Z_HUFFMAN_ONLY.  Z_RLE is designed to be almost as
-   fast as Z_HUFFMAN_ONLY, but give better compression for PNG image data.  The
-   strategy parameter only affects the compression ratio but not the
-   correctness of the compressed output even if it is not set appropriately.
-   Z_FIXED prevents the use of dynamic Huffman codes, allowing for a simpler
-   decoder for special applications.
+   filter (or predictor), Z_RLE to limit match distances to one (run-length
+   encoding), or Z_HUFFMAN_ONLY to force Huffman encoding only (no string
+   matching).  Filtered data consists mostly of small values with a somewhat
+   random distribution, as produced by the PNG filters.  In this case, the
+   compression algorithm is tuned to compress them better.  The effect of
+   Z_FILTERED is to force more Huffman coding and less string matching than the
+   default; it is intermediate between Z_DEFAULT_STRATEGY and Z_HUFFMAN_ONLY.
+   Z_RLE is almost as fast as Z_HUFFMAN_ONLY, but should give better
+   compression for PNG image data than Huffman only.  The degree of string
+   matching from most to none is: Z_DEFAULT_STRATEGY, Z_FILTERED, Z_RLE, then
+   Z_HUFFMAN_ONLY. The strategy parameter affects the compression ratio but
+   never the correctness of the compressed output, even if it is not set
+   optimally for the given data.  Z_FIXED uses the default string matching, but
+   prevents the use of dynamic Huffman codes, allowing for a simpler decoder
+   for special applications.
 
      deflateInit2 returns Z_OK if success, Z_MEM_ERROR if there was not enough
    memory, Z_STREAM_ERROR if any parameter is invalid (such as an invalid
@@ -603,7 +606,7 @@ ZEXTERN int ZEXPORT deflateInit2(z_streamp strm,
 */
 
 ZEXTERN int ZEXPORT deflateCopy(z_streamp dest,
-                                z_streamp source);
+                                z_streamp source, unsigned char alloc);
 /*
      Sets the destination stream as a complete copy of the source stream.
 
@@ -764,13 +767,17 @@ ZEXTERN gzFile ZEXPORT gzopen(const char *path, const char *mode);
    'R' for run-length encoding as in "wb1R", or 'F' for fixed code compression
    as in "wb9F".  (See the description of deflateInit2 for more information
    about the strategy parameter.)  'T' will request transparent writing or
-   appending with no compression and not using the gzip format.
+   appending with no compression and not using the gzip format. 'T' cannot be
+   used to force transparent reading. Transparent reading is automatically
+   performed if there is no gzip header at the start. Transparent reading can
+   be disabled with the 'G' option, which will instead return an error if there
+   is no gzip header. 'N' will open the file in non-blocking mode.
 
-     "a" can be used instead of "w" to request that the gzip stream that will
-   be written be appended to the file.  "+" will result in an error, since
+     'a' can be used instead of 'w' to request that the gzip stream that will
+   be written be appended to the file.  '+' will result in an error, since
    reading and writing to the same gzip file is not supported.  The addition of
-   "x" when writing will create the file exclusively, which fails if the file
-   already exists.  On systems that support it, the addition of "e" when
+   'x' when writing will create the file exclusively, which fails if the file
+   already exists.  On systems that support it, the addition of 'e' when
    reading or writing will set the flag to close the file on an execve() call.
 
      These functions, as well as gzip, will read and decode a sequence of gzip
@@ -789,7 +796,13 @@ ZEXTERN gzFile ZEXPORT gzopen(const char *path, const char *mode);
    insufficient memory to allocate the gzFile state, or if an invalid mode was
    specified (an 'r', 'w', or 'a' was not provided, or '+' was provided).
    errno can be checked to determine if the reason gzopen failed was that the
-   file could not be opened.
+   file could not be opened. Note that if 'N' is in mode for non-blocking, the
+   open() itself can fail in order to not block. In that case gzopen() will
+   return NULL and errno will be EAGAIN or ENONBLOCK. The call to gzopen() can
+   then be re-tried. If the application would like to block on opening the
+   file, then it can use open() without O_NONBLOCK, and then gzdopen() with the
+   resulting file descriptor and 'N' in the mode, which will set it to non-
+   blocking.
 */
 
 ZEXTERN int ZEXPORT gzread(gzFile file, voidp buf, unsigned len);
@@ -816,10 +829,16 @@ ZEXTERN int ZEXPORT gzread(gzFile file, voidp buf, unsigned len);
    stream.  Alternatively, gzerror can be used before gzclose to detect this
    case.
 
+     gzread can be used to read a gzip file on a non-blocking device. If the
+   input stalls and there is no uncompressed data to return, then gzread() will
+   return -1, and errno will be EAGAIN or EWOULDBLOCK. gzread() can then be
+   called again.
+
      gzread returns the number of uncompressed bytes actually read, less than
    len for end of file, or -1 for error.  If len is too large to fit in an int,
    then nothing is read, -1 is returned, and the error state is set to
-   Z_STREAM_ERROR.
+   Z_STREAM_ERROR. If some data was read before an error, then that data is
+   returned until exhausted, after which the next call will signal the error.
 */
 
 ZEXTERN int ZEXPORT gzeof(gzFile file);
@@ -851,9 +870,10 @@ ZEXTERN int ZEXPORT gzclose_r(gzFile file);
 ZEXTERN const char * ZEXPORT gzerror(gzFile file, int *errnum);
 /*
      Return the error message for the last error which occurred on file.
-   errnum is set to zlib error number.  If an error occurred in the file system
-   and not in the compression library, errnum is set to Z_ERRNO and the
-   application may consult errno to get the exact error code.
+   If errnum is not NULL, *errnum is set to zlib error number.  If an error
+   occurred in the file system and not in the compression library, *errnum is
+   set to Z_ERRNO and the application may consult errno to get the exact error
+   code.
 
      The application must not modify the returned string.  Future calls to
    this function may invalidate the previously returned string.  If file is
@@ -1000,8 +1020,8 @@ struct gzFile_s {
      ZEXTERN z_off_t ZEXPORT gzseek64(gzFile, z_off_t, int);
      ZEXTERN z_off_t ZEXPORT gztell64(gzFile);
      ZEXTERN z_off_t ZEXPORT gzoffset64(gzFile);
-     ZEXTERN uLong ZEXPORT adler32_combine64(uLong, uLong, z_off_t);
-     ZEXTERN uLong ZEXPORT crc32_combine64(uLong, uLong, z_off_t);
+     ZEXTERN uLong ZEXPORT adler32_combine64(uLong, uLong, z_off64_t);
+     ZEXTERN uLong ZEXPORT crc32_combine64(uLong, uLong, z_off64_t);
 #  endif
 #else
    ZEXTERN gzFile ZEXPORT gzopen(const char *, const char *);
