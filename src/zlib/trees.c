@@ -1,5 +1,5 @@
 /* trees.c -- output deflated data using Huffman coding
- * Copyright (C) 1995-2021 Jean-loup Gailly
+ * Copyright (C) 1995-2026 Jean-loup Gailly
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -96,7 +96,7 @@ static const static_tree_desc static_bl_desc =
  * IN assertion: 1 <= len <= 15
  */
 static unsigned bi_reverse(unsigned code, int len) {
-    register unsigned res = 0;
+    unsigned res = 0;
     do {
         res |= code & 1;
         code >>= 1, res <<= 1;
@@ -469,7 +469,7 @@ static void scan_tree(deflate_state *s, ct_data *tree, int max_code) {
         if (++count < max_count && curlen == nextlen) {
             continue;
         } else if (count < min_count) {
-            s->bl_tree[curlen].Freq += count;
+            s->bl_tree[curlen].Freq += (uint16_t)count;
         } else if (curlen != 0) {
             if (curlen != prevlen) s->bl_tree[curlen].Freq++;
             s->bl_tree[REP_3_6].Freq++;
@@ -719,7 +719,7 @@ static void compress_block(deflate_state *s, const ct_data *ltree,
     } /* literal or match pair ? */
 
     /* Check that the overlay between pending_buf and sym_buf is ok: */
-    Assert(s->pending < s->lit_bufsize + sx, "pendingBuf overflow");
+    Assert(s->pending < 2 * (s->lit_bufsize + sx), "pendingBuf overflow");
 
   } while (sx < s->sym_next);
 

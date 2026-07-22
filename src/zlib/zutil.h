@@ -1,5 +1,5 @@
 /* zutil.h -- internal interface and configuration of the compression library
- * Copyright (C) 1995-2022 Jean-loup Gailly, Mark Adler
+ * Copyright (C) 1995-2026 Jean-loup Gailly, Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -45,6 +45,8 @@ typedef uint64_t  ulg;
 #    define Z_U8 unsigned long
 #  elif (ULLONG_MAX == 0xffffffffffffffff)
 #    define Z_U8 unsigned long long
+#  elif (ULONG_LONG_MAX == 0xffffffffffffffff)
+#    define Z_U8 unsigned long long
 #  elif (UINT_MAX == 0xffffffffffffffff)
 #    define Z_U8 unsigned
 #  endif
@@ -53,7 +55,7 @@ typedef uint64_t  ulg;
 extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 /* (size given to avoid silly warnings with Visual C++) */
 
-#define ERR_MSG(err) z_errmsg[Z_NEED_DICT-(err)]
+#define ERR_MSG(err) z_errmsg[(err) < -6 || (err) > 2 ? 9 : 2 - (err)]
 
 #define ERR_RETURN(strm,err) \
   return (strm->msg = ERR_MSG(err), (err))
@@ -113,6 +115,16 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
      fopen((name), (mode), "mbc=60", "ctx=stm", "rfm=fix", "mrs=512")
 #endif
 
+#ifdef __370__
+#  if __TARGET_LIB__ < 0x20000000
+#    define OS_CODE 4
+#  elif __TARGET_LIB__ < 0x40000000
+#    define OS_CODE 11
+#  else
+#    define OS_CODE 8
+#  endif
+#endif
+
 #if defined(ATARI) || defined(atarist)
 #  define OS_CODE  5
 #endif
@@ -124,51 +136,41 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #  endif
 #endif
 
-#if defined(MACOS) || defined(TARGET_OS_MAC)
+#if defined(MACOS)
 #  define OS_CODE  7
-#  ifndef Z_SOLO
-#    if defined(__MWERKS__) && __dest_os != __be_os && __dest_os != __win32_os
-#      include <unix.h> /* for fdopen */
-#    else
-#      ifndef fdopen
-#        define fdopen(fd,mode) NULL /* No fdopen() */
-#      endif
-#    endif
-#  endif
 #endif
 
-#ifdef __acorn
-#  define OS_CODE  13
+#if defined(__acorn) || defined(__riscos)
+#  define OS_CODE 13
 #endif
 
 #if defined(WIN32) && !defined(__CYGWIN__)
 #  define OS_CODE  10
 #endif
 
+#ifdef _BEOS_
+#  define OS_CODE  16
+#endif
+
+#ifdef __TOS_OS400__
+#  define OS_CODE 18
+#endif
+
 #ifdef __APPLE__
 #  define OS_CODE 19
 #endif
 
-#if (defined(_MSC_VER) && (_MSC_VER > 600))
-#  if defined(_WIN32_WCE)
-#    define fdopen(fd,mode) NULL /* No fdopen() */
-#  else
-#    define fdopen(fd,type)  _fdopen(fd,type)
-#  endif
-#endif
-
 /* provide prototypes for these when building zlib without LFS */
-#if !defined(_WIN32) && \
-    (!defined(_LARGEFILE64_SOURCE) || _LFS64_LARGEFILE-0 == 0)
-    ZEXTERN uLong ZEXPORT adler32_combine64(uLong, uLong, z_off_t);
-    ZEXTERN uLong ZEXPORT crc32_combine64(uLong, uLong, z_off_t);
-    ZEXTERN uLong ZEXPORT crc32_combine_gen64(z_off_t);
+#ifndef Z_LARGE64
+    ZEXTERN uLong ZEXPORT adler32_combine64(uLong, uLong, z_off64_t);
+    ZEXTERN uLong ZEXPORT crc32_combine64(uLong, uLong, z_off64_t);
+    ZEXTERN uLong ZEXPORT crc32_combine_gen64(z_off64_t);
 #endif
 
         /* common defaults */
 
 #ifndef OS_CODE
-#  define OS_CODE  3  /* assume Unix */
+#  define OS_CODE  3     /* assume Unix */
 #endif
 
 #ifndef F_OPEN
@@ -194,7 +196,7 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 
 #ifndef Z_SOLO
    voidpf ZLIB_INTERNAL zcalloc(voidpf opaque, unsigned items,
-                                    unsigned size);
+                                unsigned size);
    void ZLIB_INTERNAL zcfree(voidpf opaque, voidpf ptr);
 #endif
 
