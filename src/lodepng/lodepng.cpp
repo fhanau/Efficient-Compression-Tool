@@ -3517,7 +3517,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
      Now implemented with streaming, which reduces complexity to O(n)
      This is slow.*/
     unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
-    size_t smallest;
+    size_t smallest = 0;
     unsigned type, bestType = 0;
 
     z_stream stream;
@@ -3540,7 +3540,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     unsigned char* dummy = (unsigned char*)1; //Not used, but must not be 0
     unsigned char* prevline2 = 0;
     unsigned char* prevlinebuf = 0;
-    unsigned char* linebuf;
+    unsigned char* linebuf = 0;
     if(clean) {
       prevlinebuf = (unsigned char*)lodepng_malloc(linebytes);
       linebuf = (unsigned char*)lodepng_malloc(linebytes);
@@ -3679,7 +3679,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     for(type = 0; type != 5; ++type) free(attempt[type]);
   } else if(strategy == LFS_DISTINCT_BYTES) {
     unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
-    size_t smallest;
+    size_t smallest = 0;
     unsigned type, bestType = 0;
     unsigned char count[256];
 
@@ -3729,7 +3729,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     for(type = 0; type != 5; ++type) free(attempt[type]);
   } else if(strategy == LFS_DISTINCT_BIGRAMS) {
     unsigned char* attempt[5]; /*five filtering attempts, one for each filter type*/
-    size_t smallest;
+    size_t smallest = 0;
     unsigned type, bestType = 0;
     unsigned char count[65536];
 
