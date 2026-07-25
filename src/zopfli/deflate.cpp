@@ -372,10 +372,10 @@ static void AddLZ77Data(const unsigned short* litlens,
                         unsigned* d_symbols, const unsigned* d_lengths,
                         unsigned char* bp,
                         unsigned char* out, size_t* outsize) {
-  size_t testlength = 0;
   size_t i;
   //Revert some codes so we can choose the fast AddBits() function
 #if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)
+  size_t testlength = 0;
 
   for (i = 0; i < 30; i++){
     for (unsigned j = 0; j < d_lengths[i] / 2; j++){
@@ -423,11 +423,10 @@ static void AddLZ77Data(const unsigned short* litlens,
       assert(ll_lengths[litlen] > 0);
 #ifdef FAST_BITWRITER
       AddBits2(ll_symbols[litlen], ll_lengths[litlen], out, &bits);
+      testlength++;
 #else
       AddHuffmanBits(ll_symbols[litlen], ll_lengths[litlen], bp, out, outsize);
 #endif
-
-      testlength++;
     } else {
       assert(litlen >= 3 && litlen <= ZOPFLI_MAX_MATCH);
       unsigned ds = ZopfliGetDistSymbol(dist);
@@ -444,6 +443,7 @@ static void AddLZ77Data(const unsigned short* litlens,
       AddBits2(ZopfliGetDistExtraBitsValue(dist),
                ZopfliGetDistExtraBits(dist),
                out, &bits);
+      testlength += litlen;
 #else
       unsigned lls = ZopfliGetLengthSymbol(litlen);
       assert(ll_lengths[lls]);
@@ -458,17 +458,14 @@ static void AddLZ77Data(const unsigned short* litlens,
               ZopfliGetDistExtraBits(dist),
               bp, out, outsize);
 #endif
-
-      testlength += litlen;
     }
   }
 
 #ifdef FAST_BITWRITER
   *bp = bits & 7;
   (*outsize) = (bits / 8) + ((bits & 7) != 0);
-#endif
-
   assert(testlength == expected_data_size);
+#endif
 }
 
 static size_t AbsDiff(size_t x, size_t y) {
