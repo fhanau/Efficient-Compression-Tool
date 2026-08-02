@@ -145,6 +145,7 @@ set(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT FALSE)
 ExternalProject_Add(mozjpeg URL ${CMAKE_SOURCE_DIR}/mozjpeg BUILD_COMMAND make jpeg-static INSTALL_COMMAND "" EXCLUDE_FROM_ALL)
 ExternalProject_Get_property(mozjpeg BINARY_DIR)
 add_library(mozjpeg-static STATIC IMPORTED GLOBAL)
+# TODO (soon): This likely needs to be libjpeg.lib for MinGW – can we define this in a platform-independent way?
 set_property(TARGET mozjpeg-static PROPERTY IMPORTED_LOCATION ${BINARY_DIR}/libjpeg.a)
 
 
