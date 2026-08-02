@@ -38,6 +38,15 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "../LzFind.h"
 #include "../threadLocal.h"
 
+#ifdef __SSE4_2__
+#include <nmmintrin.h>
+#define CRC_INTRINSIC _mm_crc32_u32
+#elif __aarch64__
+#include <arm_neon.h>
+#include <arm_acle.h>
+#define CRC_INTRINSIC __crc32cw
+#endif
+
 static void CopyStats(const SymbolStats* source, SymbolStats* dest) {
   memcpy(dest->litlens, source->litlens, 288 * sizeof(dest->litlens[0]));
   memcpy(dest->dists, source->dists, 32 * sizeof(dest->dists[0]));
@@ -152,9 +161,8 @@ typedef struct
   U32   nextToUpdate;     /* index from which to continue dictionary update */
 } LZ3HC_Data_Structure;
 
-#ifdef __SSE4_2__
-#include <nmmintrin.h>
-static U32 LZ4HC_hashPtr3(const void* ptr) { return _mm_crc32_u32(0, (*(unsigned*)ptr) & 0xFFFFFF) >> (32-HASH_LOG3); }
+#ifdef CRC_INTRINSIC
+static U32 LZ4HC_hashPtr3(const void* ptr) { return CRC_INTRINSIC(0, (*(unsigned*)ptr) & 0xFFFFFF) >> (32-HASH_LOG3); }
 #else
 #define HASH_FUNCTION3(i)       (((i) * 2654435761U) >> (32-HASH_LOG3))
 

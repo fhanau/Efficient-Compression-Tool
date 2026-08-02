@@ -9,6 +9,15 @@
 #include "zopfli/util.h"
 #include "zopfli/match.h"
 
+#ifdef __SSE4_2__
+#include <nmmintrin.h>
+#define CRC_INTRINSIC _mm_crc32_u32
+#elif __aarch64__
+#include <arm_neon.h>
+#include <arm_acle.h>
+#define CRC_INTRINSIC __crc32cw
+#endif
+
 void MatchFinder_Free(CMatchFinder *p)
 {
   free(p->hash);
@@ -312,9 +321,8 @@ static void SkipMatches2(UInt32 *son, UInt32 _cyclicBufferPos)
   *ptr0 = pair[1];
 }
 
-#ifdef __SSE4_2__
-#include "nmmintrin.h"
-#define HASH(cur) unsigned v = 0xffffff & *(const unsigned*)cur; UInt32 hashValue = _mm_crc32_u32(0, v) & LZFIND_HASH_MASK;
+#ifdef CRC_INTRINSIC
+#define HASH(cur) unsigned v = 0xffffff & *(const unsigned*)cur; UInt32 hashValue = CRC_INTRINSIC(0, v) & LZFIND_HASH_MASK;
 #else
 #define HASH(cur) UInt32 hashValue = ((cur[2] | ((UInt32)cur[0] << 8)) ^ crc[cur[1]]) & LZFIND_HASH_MASK;
 #endif
