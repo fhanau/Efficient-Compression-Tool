@@ -137,6 +137,15 @@ add_subdirectory(leanify EXCLUDE_FROM_ALL)
 add_subdirectory(lodepng EXCLUDE_FROM_ALL)
 add_subdirectory(miniz EXCLUDE_FROM_ALL)
 add_subdirectory(zlib EXCLUDE_FROM_ALL)
+# Point any later find_package(ZLIB) call (e.g. from the bundled libpng, via
+# optipng below) at the zlib target we just configured above, instead of
+# letting it independently resolve a different system/vcpkg copy. Two zlibs
+# ending up linked into the same binary means two definitions of the same
+# symbols (inflate, deflate, crc32, ...); GNU ld silently keeps the first one
+# it sees, but stricter linkers (e.g. MSVC's link.exe) treat that as a hard
+# "already defined" error.
+set(ZLIB_LIBRARY ${CMAKE_CURRENT_BINARY_DIR}/zlib/${CMAKE_STATIC_LIBRARY_PREFIX}zlib${CMAKE_STATIC_LIBRARY_SUFFIX})
+set(ZLIB_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/zlib)
 add_subdirectory(zopfli EXCLUDE_FROM_ALL)
 file(COPY ${CMAKE_SOURCE_DIR}/pngusr.h DESTINATION ${CMAKE_SOURCE_DIR}/libpng/)
 add_subdirectory(optipng EXCLUDE_FROM_ALL)
