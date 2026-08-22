@@ -151,11 +151,33 @@ file(COPY ${CMAKE_SOURCE_DIR}/pngusr.h DESTINATION ${CMAKE_SOURCE_DIR}/libpng/)
 add_subdirectory(optipng EXCLUDE_FROM_ALL)
 # Mozjpeg changes the install prefix if it thinks the current is defaulted
 set(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT FALSE)
-ExternalProject_Add(mozjpeg URL ${CMAKE_SOURCE_DIR}/mozjpeg BUILD_COMMAND make jpeg-static INSTALL_COMMAND "" EXCLUDE_FROM_ALL)
+if(MSVC)
+  # mozjpeg only renames the jpeg-static target's output to libjpeg.a when
+  # NOT building with MSVC; under MSVC it keeps the target's own name.
+  set(MOZJPEG_LIB_NAME jpeg-static.lib)
+else()
+  set(MOZJPEG_LIB_NAME libjpeg.a)
+endif()
+# Use cmake --build rather than hardcoding a build tool: mozjpeg's
+# ExternalProject sub-build is configured with the same generator as this
+# project (NMake Makefiles, Ninja, Unix Makefiles, ...), and a hardcoded
+# `make` only matches one of those - under MSVC/NMake it's simply the wrong
+# tool.
+#
+# BUILD_BYPRODUCTS is required for the Ninja generator specifically: unlike
+# Make-based generators, Ninja's dependency graph needs this step's output
+# declared explicitly, or it never schedules the mozjpeg sub-build as a
+# prerequisite of ect.exe at all and fails immediately with "no known rule
+# to make it" for the (never built) library.
+ExternalProject_Add(mozjpeg
+  URL ${CMAKE_SOURCE_DIR}/mozjpeg
+  BUILD_COMMAND ${CMAKE_COMMAND} --build . --target jpeg-static
+  BUILD_BYPRODUCTS <BINARY_DIR>/${MOZJPEG_LIB_NAME}
+  INSTALL_COMMAND ""
+  EXCLUDE_FROM_ALL)
 ExternalProject_Get_property(mozjpeg BINARY_DIR)
 add_library(mozjpeg-static STATIC IMPORTED GLOBAL)
-# TODO (soon): This likely needs to be libjpeg.lib for MinGW – can we define this in a platform-independent way?
-set_property(TARGET mozjpeg-static PROPERTY IMPORTED_LOCATION ${BINARY_DIR}/libjpeg.a)
+set_property(TARGET mozjpeg-static PROPERTY IMPORTED_LOCATION ${BINARY_DIR}/${MOZJPEG_LIB_NAME})
 
 
 target_link_libraries(ect
