@@ -50,3 +50,9 @@ void ZopfliBuffer(unsigned mode, unsigned multithreading, const unsigned char* i
 unsigned fileHandler(const char * Infile, const ECTOptions& Options, int internal);
 unsigned zipHandler(std::vector<int> args, const char * argv[], int files, const ECTOptions& Options);
 void ReZipFile(const char* file_path, const ECTOptions& Options, size_t* files);
+unsigned char OptimizePNG(const char* Infile, const ECTOptions& Options);
+unsigned char OptimizeJPEG(const char* Infile, const ECTOptions& Options);
+void OptimizeMP3(const char * Infile, const ECTOptions& Options);
+void ECT_ReportSavings();
+int ECTGzip(const char * Infile, const unsigned Mode, unsigned char multithreading, long long fs, unsigned ZIP, int strict);
+void multithreadFileLoop(const std::vector<std::string> &fileList, std::atomic<size_t> *pos, const ECTOptions &options, std::atomic<unsigned> *error);
