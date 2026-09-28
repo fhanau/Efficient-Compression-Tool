@@ -518,6 +518,16 @@ static unsigned ZopfliPNGOptimize(const char * Infile, const std::vector<unsigne
   return 0;
 }
 
+static bool IsAPNG(const std::vector<unsigned char>& png) {
+  if (png.size() < 8) {return false;}
+  const unsigned char* end = png.data() + png.size();
+  for (const unsigned char* chunk = png.data() + 8; end - chunk >= 12; chunk = lodepng_chunk_next_const(chunk, end)) {
+    if (lodepng_chunk_type_equals(chunk, "acTL")) {return true;}
+    if (lodepng_chunk_type_equals(chunk, "IDAT")) {return false;}
+  }
+  return false;
+}
+
 int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int filter, unsigned multithreading, unsigned quiet) {
   ZopfliPNGOptions png_options;
   png_options.Mode = Mode;
@@ -535,6 +545,9 @@ int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int f
     fprintf(stderr, "Could not load PNG %s\n", Infile);
     return -1;
   }
+  // APNG frames (fdAT) are copied unchanged and would no longer match a reduced
+  // color type, so leave APNGs alone here; the OptiPNG pass does not reduce them.
+  if (IsAPNG(origpng)) {return 1;}
   if (filter == 6){
     lodepng::getFilterTypes(filters, origpng);
     if(!filters.size()){
