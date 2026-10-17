@@ -33,6 +33,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <math.h>
 
 #ifndef NOMULTI
+#include <functional>
 #include <thread>
 #include <vector>
 #include <mutex>
