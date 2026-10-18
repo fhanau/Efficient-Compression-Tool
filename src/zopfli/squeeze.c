@@ -38,6 +38,12 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "../LzFind.h"
 #include "../threadLocal.h"
 
+/* x86-64 only: there scalar float math is SSE too, so both loops below agree
+ bit for bit (32-bit x86 may compute in x87 extended precision). */
+#if defined(__x86_64__) || defined(_M_X64)
+#include <emmintrin.h>
+#define ZOPFLI_SSE2
+#endif
 #ifdef __SSE4_2__
 #include <nmmintrin.h>
 #define CRC_INTRINSIC _mm_crc32_u32
@@ -378,6 +384,42 @@ static void GetBestLengths2(const unsigned char* in, size_t instart, size_t inen
           unsigned dist = *mp++;
           float price2 = price + disttable[dist];
           dist <<=9;
+#if defined(__aarch64__) || defined(ZOPFLI_SSE2)
+          /* Four lengths at a time, with the same additions and comparisons
+           as the loop below, so the result is identical. Most lengths don't
+           improve, so the arrays are only written when one does. */
+          if (curr + 3 <= len) {
+#ifdef __aarch64__
+            const float32x4_t p = vdupq_n_f32(price2);
+            uint32x4_t lengths = vaddq_u32(vdupq_n_u32(curr + dist), (uint32x4_t){0, 1, 2, 3});
+            for (; curr + 3 <= len; curr += 4) {
+              float32x4_t x = vaddq_f32(p, vld1q_f32(&litlentable[curr]));
+              float32x4_t old = vld1q_f32(&costs[j + curr]);
+              uint32x4_t better = vcltq_f32(x, old);
+              if (vmaxvq_u32(better)) {
+                vst1q_f32(&costs[j + curr], vbslq_f32(better, x, old));
+                vst1q_u32(&length_array[j + curr], vbslq_u32(better, lengths, vld1q_u32(&length_array[j + curr])));
+              }
+              lengths = vaddq_u32(lengths, vdupq_n_u32(4));
+            }
+#else
+            const __m128 p = _mm_set1_ps(price2);
+            __m128i lengths = _mm_add_epi32(_mm_set1_epi32((int)(curr + dist)), _mm_set_epi32(3, 2, 1, 0));
+            for (; curr + 3 <= len; curr += 4) {
+              __m128 x = _mm_add_ps(p, _mm_loadu_ps(&litlentable[curr]));
+              __m128 old = _mm_loadu_ps(&costs[j + curr]);
+              __m128 better = _mm_cmplt_ps(x, old);
+              if (_mm_movemask_ps(better)) {
+                _mm_storeu_ps(&costs[j + curr], _mm_or_ps(_mm_and_ps(better, x), _mm_andnot_ps(better, old)));
+                __m128i mask = _mm_castps_si128(better);
+                __m128i la = _mm_loadu_si128((const __m128i*)&length_array[j + curr]);
+                _mm_storeu_si128((__m128i*)&length_array[j + curr], _mm_or_si128(_mm_and_si128(mask, lengths), _mm_andnot_si128(mask, la)));
+              }
+              lengths = _mm_add_epi32(lengths, _mm_set1_epi32(4));
+            }
+#endif
+          }
+#endif
           for (; curr <= len; curr++) {
             float x = price2 + litlentable[curr];
             if (x < costs[j + curr]){
