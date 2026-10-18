@@ -51,7 +51,7 @@ static void Usage() {
             "...\n"
             "Options:\n"
             " -1 to -9          Set compression level (Default: 3)\n"
-            " -strip            Strip metadata\n"
+            " -strip            Strip metadata, including color information (ICC, sRGB, gAMA, cHRM, cICP)\n"
             " -progressive      Use progressive encoding for JPEGs\n"
             " -autorotate       Automatically rotate JPEGs, when perfectly transformable\n"
             " -autorotate=force Automatically rotate JPEGs, dropping non-transformable edge blocks\n"
