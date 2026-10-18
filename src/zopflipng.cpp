@@ -45,6 +45,9 @@ struct ZopfliPNGOptions {
   // remove PNG chunks
   bool strip;
 
+  // Keep color type and interlacing so that the APNG frames stay valid
+  bool apng;
+
   //Use per block multithreading
   unsigned multithreading;
 
@@ -55,6 +58,7 @@ ZopfliPNGOptions::ZopfliPNGOptions()
 : lossy_transparent(true)
 , lossy_8bit(false)
 , strip(false)
+, apng(false)
 {
 }
 
@@ -376,6 +380,9 @@ static unsigned TryOptimize(unsigned char* image, size_t imagesize, unsigned w, 
     state.encoder.predefined_filters = &filters[0];
     state.encoder.auto_convert = 0;
     lodepng_color_mode_copy(&state.info_png.color, &inputstate.info_png.color);
+    if (png_options->apng) {
+      state.info_png.interlace_method = inputstate.info_png.interlace_method;
+    }
   }
 
   LodePNGPaletteSettings p;
@@ -509,13 +516,33 @@ static unsigned ZopfliPNGOptimize(const char * Infile, const std::vector<unsigne
     fprintf(stderr, "%s encoding error %u: %s\n", Infile, error, lodepng_error_text(error));
     return error;
   }
-  if (!png_options.strip) {
+  if (!png_options.strip || png_options.apng) {
     std::vector<std::string> names[3];
     std::vector<std::vector<unsigned char> > chunks[3];
     lodepng::getChunks(names, chunks, origpng);
+    if (png_options.strip) {
+      // Keep the animation
+      for (int i = 0; i < 3; i++) {
+        std::vector<std::vector<unsigned char> > kept;
+        for (size_t j = 0; j < names[i].size(); j++) {
+          if (names[i][j] == "acTL" || names[i][j] == "fcTL" || names[i][j] == "fdAT") {kept.push_back(chunks[i][j]);}
+        }
+        chunks[i].swap(kept);
+      }
+    }
     lodepng::insertChunks(*resultpng, chunks);
   }
   return 0;
+}
+
+static bool IsAPNG(const std::vector<unsigned char>& png) {
+  if (png.size() < 8) {return false;}
+  const unsigned char* end = png.data() + png.size();
+  for (const unsigned char* chunk = png.data() + 8; end - chunk >= 12; chunk = lodepng_chunk_next_const(chunk, end)) {
+    if (lodepng_chunk_type_equals(chunk, "acTL")) {return true;}
+    if (lodepng_chunk_type_equals(chunk, "IDAT")) {return false;}
+  }
+  return false;
 }
 
 int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int filter, unsigned multithreading, unsigned quiet) {
@@ -525,7 +552,6 @@ int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int f
   png_options.quiet = quiet;
   unsigned palette_filter = (filter & 0xFF00) >> 8;
   filter &= 0xFF;
-  png_options.lossy_transparent = !strict && filter != 6;
   png_options.strip = strip;
   std::vector<unsigned char> origpng;
 
@@ -535,6 +561,10 @@ int Zopflipng(bool strip, const char * Infile, bool strict, unsigned Mode, int f
     fprintf(stderr, "Could not load PNG %s\n", Infile);
     return -1;
   }
+  // APNG frames (fdAT) are copied unchanged, so keep the color type as with --reuse.
+  png_options.apng = IsAPNG(origpng);
+  if (png_options.apng) {filter = 6;}
+  png_options.lossy_transparent = !strict && filter != 6;
   if (filter == 6){
     lodepng::getFilterTypes(filters, origpng);
     if(!filters.size()){
