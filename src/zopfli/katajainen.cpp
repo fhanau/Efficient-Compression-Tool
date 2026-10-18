@@ -119,6 +119,37 @@ static void ExtractBitLengths(Node* chain, Node* leaves, unsigned* bitlengths) {
   }
 }
 
+static bool UnboundedLengths(const Node* leaves, int numsymbols, int maxbits, unsigned* bitlengths) {
+  size_t weights[288];
+  unsigned parents[576];
+  unsigned depths[576];
+  int leaf = 0;
+  int branch = numsymbols;
+  const int root = 2 * numsymbols - 2;
+  for (int next = numsymbols; next <= root; next++) {
+    size_t weight = 0;
+    for (int child = 0; child < 2; child++) {
+      if (leaf < numsymbols && (branch == next || leaves[leaf].weight < weights[branch - numsymbols])) {
+        weight += leaves[leaf].weight;
+        parents[leaf++] = next;
+      } else {
+        weight += weights[branch - numsymbols];
+        parents[branch++] = next;
+      }
+    }
+    weights[next - numsymbols] = weight;
+  }
+  depths[root] = 0;
+  for (int node = root - 1; node >= 0; node--) {
+    depths[node] = depths[parents[node]] + 1;
+    if (depths[node] > (unsigned)maxbits) return false;
+  }
+  for (int symbol = 0; symbol < numsymbols; symbol++) {
+    bitlengths[leaves[symbol].count] = depths[symbol];
+  }
+  return true;
+}
+
 void ZopfliLengthLimitedCodeLengths(const size_t* frequencies, int n, int maxbits, unsigned* bitlengths) {
   int i;
   int numsymbols = 0;  /* Amount of symbols with frequency > 0. */
@@ -170,6 +201,10 @@ void ZopfliLengthLimitedCodeLengths(const size_t* frequencies, int n, int maxbit
 
   for (i = 0; i < numsymbols; i++) {
     leaves[i].weight >>= 9;
+  }
+
+  if (UnboundedLengths(leaves, numsymbols, maxbits, bitlengths)) {
+    return;
   }
 
   if (numsymbols - 1 < maxbits) {
